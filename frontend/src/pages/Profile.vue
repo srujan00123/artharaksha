@@ -1,0 +1,581 @@
+<template>
+    <div class="p-4 lg:p-6">
+        <div class="mb-6 text-center">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Profile Settings</h1>
+            <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-2">Manage your account information and preferences</p>
+        </div>
+
+        <div class="max-w-4xl mx-auto">
+            <!-- Loading State -->
+            <div v-if="userStore.loading" class="flex items-center justify-center py-12">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span class="ml-3 text-gray-600 dark:text-gray-400 dark:text-gray-500">Loading profile...</span>
+            </div>
+
+            <!-- Error State -->
+            <div v-else-if="userStore.error" class="mb-6">
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+                    <div class="flex">
+                        <AlertCircle class="h-5 w-5 text-red-400" />
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium  dark:text-red-200" :class="getFinancialStatusClass('expense', '800')">Error loading profile</h3>
+                            <p class="mt-1 text-sm  dark:text-red-300" :class="getFinancialStatusClass('expense', '700')">{{ userStore.error }}</p>
+                            <div class="mt-3">
+                                <Button variant="outline" size="sm" @click="loadProfile">
+                                    <RefreshCw class="w-4 h-4 mr-2" />
+                                    Retry
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Content -->
+            <div v-else>
+                <!-- User Info Card -->
+                <Card class="mb-6">
+                    <div class="p-6">
+                        <div class="flex items-center space-x-6">
+                            <div class="relative">
+                                <div v-if="userStore.currentUser?.user_image" class="w-20 h-20 rounded-full overflow-hidden">
+                                    <img :src="userStore.currentUser.user_image" :alt="userStore.userDisplayName" class="w-full h-full object-cover" />
+                                </div>
+                                <div v-else class="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <span class="text-2xl font-bold text-white dark:text-black">{{ userStore.userInitials }}</span>
+                                </div>
+                                <button 
+                                    @click="$refs.imageInput.click()"
+                                    class="absolute bottom-0 right-0 bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-full p-1 shadow dark:shadow-gray-900/20-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100"
+                                >
+                                    <Camera class="w-4 h-4 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
+                                </button>
+                                <input 
+                                    ref="imageInput" 
+                                    type="file" 
+                                    accept="image/*" 
+                                    class="hidden" 
+                                    @change="handleImageUpload"
+                                />
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ userStore.userDisplayName }}</h3>
+                                <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500">{{ userStore.currentUser?.email }}</p>
+                                <div class="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                                    <User class="w-4 h-4 mr-1" />
+                                    <span>{{ userStore.currentUser?.user_type || 'User' }}</span>
+                                    <span v-if="userStore.currentUser?.last_active" class="ml-4 flex items-center">
+                                        <Clock class="w-4 h-4 mr-1" />
+                                        Last active: {{ formatDate(userStore.currentUser.last_active) }}
+                                    </span>
+                                </div>
+                            </div>
+                            <Button variant="outline" @click="refreshProfile">
+                                <RefreshCw class="w-4 h-4 mr-2" />
+                                Refresh
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
+
+                <!-- Account Information -->
+                <Card class="mb-6">
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Account Information</h3>
+                        <form @submit.prevent="updateProfile">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">First Name</label>
+                                    <Input 
+                                        v-model="profileForm.first_name" 
+                                        placeholder="Enter your first name" 
+                                        :disabled="updating"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Last Name</label>
+                                    <Input 
+                                        v-model="profileForm.last_name" 
+                                        placeholder="Enter your last name" 
+                                        :disabled="updating"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Full Name</label>
+                                    <Input 
+                                        v-model="profileForm.full_name" 
+                                        placeholder="Enter your full name" 
+                                        :disabled="updating"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Email</label>
+                                    <Input :value="userStore.currentUser?.email" disabled />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Phone</label>
+                                    <Input 
+                                        v-model="profileForm.phone" 
+                                        placeholder="Enter your phone number" 
+                                        :disabled="updating"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Mobile</label>
+                                    <Input 
+                                        v-model="profileForm.mobile_no" 
+                                        placeholder="Enter your mobile number" 
+                                        :disabled="updating"
+                                    />
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Location</label>
+                                    <Input 
+                                        v-model="profileForm.location" 
+                                        placeholder="Enter your location" 
+                                        :disabled="updating"
+                                    />
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Bio</label>
+                                    <textarea 
+                                        v-model="profileForm.bio"
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
+                                        rows="3"
+                                        placeholder="Tell us about yourself"
+                                        :disabled="updating"
+                                    ></textarea>
+                                </div>
+                            </div>
+                            <div class="mt-6 flex space-x-3">
+                                <Button 
+                                    type="submit" 
+                                    variant="solid" 
+                                    :disabled="updating || !hasChanges"
+                                    :loading="updating"
+                                >
+                                    <Save class="w-4 h-4 mr-2" />
+                                    {{ updating ? 'Saving...' : 'Save Changes' }}
+                                </Button>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    @click="resetForm"
+                                    :disabled="updating"
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </Card>
+
+                <!-- Preferences -->
+                <Card class="mb-6">
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Preferences</h3>
+                        <div class="space-y-6">
+                            <!-- Theme Selection -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Theme</label>
+                                <select 
+                                    v-model="preferencesForm.theme"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
+                                    @change="updatePreferences"
+                                >
+                                    <option value="Light">Light</option>
+                                    <option value="Dark">Dark</option>
+                                    <option value="Automatic">Automatic</option>
+                                </select>
+                            </div>
+
+                            <!-- Language Selection -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Language</label>
+                                <select 
+                                    v-model="preferencesForm.language"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
+                                    @change="updatePreferences"
+                                >
+                                    <option value="en">English</option>
+                                    <option value="hi">Hindi</option>
+                                    <option value="bn">Bengali</option>
+                                    <option value="te">Telugu</option>
+                                    <option value="ta">Tamil</option>
+                                </select>
+                            </div>
+
+                            <!-- Notification Preferences -->
+                            <div class="space-y-4">
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">Notifications</h4>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">Email Notifications</h5>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Receive email updates about your health expenses</p>
+                                    </div>
+                                    <input 
+                                        type="checkbox" 
+                                        v-model="preferencesForm.emailNotifications"
+                                        class="toggle toggle-blue" 
+                                        @change="updatePreferences"
+                                    />
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">CHE Alerts</h5>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Get notified when approaching catastrophic health expenditure</p>
+                                    </div>
+                                    <input 
+                                        type="checkbox" 
+                                        v-model="preferencesForm.cheAlerts"
+                                        class="toggle toggle-blue" 
+                                        @change="updatePreferences"
+                                    />
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">Monthly Reports</h5>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Automatically generate monthly expense reports</p>
+                                    </div>
+                                    <input 
+                                        type="checkbox" 
+                                        v-model="preferencesForm.monthlyReports"
+                                        class="toggle toggle-blue" 
+                                        @change="updatePreferences"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
+                <!-- Admin Section (only for System Manager/Administrator) -->
+                <Card v-if="hasAdminRole" class="mb-6">
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Administration</h3>
+                        <div class="space-y-4">
+                            <router-link 
+                                to="/admin/notifications" 
+                                class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 dark:bg-gray-800 dark:bg-gray-200 transition-colors"
+                            >
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                                        <Bell class="w-5 h-5 text-white dark:text-black" />
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">Admin Notification Center</h4>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Manage role-based and broadcast notifications</p>
+                                    </div>
+                                </div>
+                                <ChevronRight class="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                            </router-link>
+                        </div>
+                    </div>
+                </Card>
+
+                <!-- Password Change -->
+                <Card>
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Change Password</h3>
+                        <form @submit.prevent="changePassword">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Current Password</label>
+                                    <Input 
+                                        type="password" 
+                                        v-model="passwordForm.oldPassword" 
+                                        placeholder="Enter current password"
+                                        :disabled="changingPassword"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">New Password</label>
+                                    <Input 
+                                        type="password" 
+                                        v-model="passwordForm.newPassword" 
+                                        placeholder="Enter new password"
+                                        :disabled="changingPassword"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Confirm New Password</label>
+                                    <Input 
+                                        type="password" 
+                                        v-model="passwordForm.confirmPassword" 
+                                        placeholder="Confirm new password"
+                                        :disabled="changingPassword"
+                                    />
+                                </div>
+                            </div>
+                            <div class="mt-6">
+                                <Button 
+                                    type="submit" 
+                                    variant="solid" 
+                                    :disabled="changingPassword || !canChangePassword"
+                                    :loading="changingPassword"
+                                >
+                                    <Lock class="w-4 h-4 mr-2" />
+                                    {{ changingPassword ? 'Changing...' : 'Change Password' }}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </Card>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useUserStore } from '@/stores/user'
+import { User, RefreshCw, AlertCircle, Camera, Clock, Save, Lock, Bell, ChevronRight } from 'lucide-vue-next'
+import { toast } from '@/utils/toast'
+import { createResource } from 'frappe-ui'
+import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
+
+
+// Store
+const userStore = useUserStore()
+
+// Form states
+const profileForm = ref({
+    first_name: '',
+    last_name: '',
+    full_name: '',
+    phone: '',
+    mobile_no: '',
+    location: '',
+    bio: ''
+})
+
+const preferencesForm = ref({
+    theme: 'Light',
+    language: 'en',
+    emailNotifications: true,
+    cheAlerts: true,
+    monthlyReports: false
+})
+
+const passwordForm = ref({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+})
+
+// Loading states
+const updating = ref(false)
+const changingPassword = ref(false)
+
+// Admin role checking
+const hasAdminRole = ref(false)
+
+// Resource to check admin role
+const adminRoleResource = createResource({
+    url: 'artha.api.auth.has_admin_role',
+    auto: true,
+    onSuccess(data) {
+        hasAdminRole.value = data
+    },
+    onError(error) {
+        console.error('Failed to check admin role:', error)
+        hasAdminRole.value = false
+    }
+})
+
+// Computed properties
+const hasChanges = computed(() => {
+    if (!userStore.currentUser) return false
+    
+    return Object.keys(profileForm.value).some(key => {
+        return profileForm.value[key] !== (userStore.currentUser[key] || '')
+    })
+})
+
+const canChangePassword = computed(() => {
+    return passwordForm.value.oldPassword && 
+           passwordForm.value.newPassword && 
+           passwordForm.value.confirmPassword &&
+           passwordForm.value.newPassword === passwordForm.value.confirmPassword &&
+           passwordForm.value.newPassword.length >= 6
+})
+
+// Methods
+const loadProfile = async () => {
+    try {
+        await userStore.loadUserProfile(true)
+        await userStore.loadUserPreferences()
+        populateForm()
+    } catch (error) {
+        console.error('Failed to load profile:', error)
+    }
+}
+
+const refreshProfile = async () => {
+    await loadProfile()
+    toast.success('Profile refreshed successfully')
+}
+
+const populateForm = () => {
+    if (userStore.currentUser) {
+        profileForm.value = {
+            first_name: userStore.currentUser.first_name || '',
+            last_name: userStore.currentUser.last_name || '',
+            full_name: userStore.currentUser.full_name || '',
+            phone: userStore.currentUser.phone || '',
+            mobile_no: userStore.currentUser.mobile_no || '',
+            location: userStore.currentUser.location || '',
+            bio: userStore.currentUser.bio || ''
+        }
+    }
+    
+    if (userStore.preferences) {
+        preferencesForm.value = { ...userStore.preferences }
+    }
+}
+
+const resetForm = () => {
+    populateForm()
+}
+
+const updateProfile = async () => {
+    try {
+        updating.value = true
+        
+        // Filter out empty values
+        const updates = {}
+        Object.keys(profileForm.value).forEach(key => {
+            if (profileForm.value[key] !== (userStore.currentUser[key] || '')) {
+                updates[key] = profileForm.value[key]
+            }
+        })
+        
+        if (Object.keys(updates).length === 0) {
+            toast.info('No changes to save')
+            return
+        }
+        
+        await userStore.updateUserProfile(updates)
+        
+        // Force refresh the profile data to ensure UI is updated
+        await userStore.loadUserProfile(true)
+        populateForm()
+        
+        toast.success('Profile updated successfully')
+        
+    } catch (error) {
+        console.error('Failed to update profile:', error)
+        toast.error('Failed to update profile: ' + error.message)
+    } finally {
+        updating.value = false
+    }
+}
+
+const updatePreferences = async () => {
+    try {
+        await userStore.updateUserPreferences(preferencesForm.value)
+        
+        // Force refresh preferences to ensure UI is updated
+        await userStore.loadUserPreferences(true)
+        populateForm()
+        
+        toast.success('Preferences updated successfully')
+    } catch (error) {
+        console.error('Failed to update preferences:', error)
+        toast.error('Failed to update preferences: ' + error.message)
+    }
+}
+
+const changePassword = async () => {
+    try {
+        changingPassword.value = true
+        
+        if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+            toast.error('New passwords do not match')
+            return
+        }
+        
+        if (passwordForm.value.newPassword.length < 6) {
+            toast.error('Password must be at least 6 characters long')
+            return
+        }
+        
+        await userStore.changePassword(
+            passwordForm.value.oldPassword,
+            passwordForm.value.newPassword
+        )
+        
+        // Reset form
+        passwordForm.value = {
+            oldPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+        }
+        
+        toast.success('Password changed successfully')
+        
+    } catch (error) {
+        console.error('Failed to change password:', error)
+        toast.error('Failed to change password: ' + error.message)
+    } finally {
+        changingPassword.value = false
+    }
+}
+
+const handleImageUpload = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+    
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file')
+        return
+    }
+    
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+        toast.error('Image size must be less than 5MB')
+        return
+    }
+    
+    try {
+        await userStore.uploadUserImage(file)
+        
+        // Force refresh the profile data to show updated image
+        await userStore.loadUserProfile(true)
+        populateForm()
+        
+        toast.success('Profile image updated successfully')
+    } catch (error) {
+        console.error('Failed to upload image:', error)
+        toast.error('Failed to upload image: ' + error.message)
+    }
+}
+
+const formatDate = (dateString) => {
+    if (!dateString) return ''
+    return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+}
+
+// Watch for user data changes
+watch(() => userStore.currentUser, populateForm, { deep: true })
+watch(() => userStore.preferences, () => {
+    if (userStore.preferences) {
+        preferencesForm.value = { ...userStore.preferences }
+    }
+}, { deep: true })
+
+// Initialize
+onMounted(async () => {
+    await userStore.initialize()
+    populateForm()
+})
+
+// Advanced theme management
+const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
+</script>

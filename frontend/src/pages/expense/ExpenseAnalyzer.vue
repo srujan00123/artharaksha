@@ -1,0 +1,613 @@
+<template>
+  <div class="expense-analyzer">
+    <!-- Header Section -->
+    <div class="header-section mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Expense Overview</h1>
+          <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">Track and manage your expenses</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button 
+            @click="handleAddExpense"
+            :disabled="state.loading"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white dark:text-black rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            <Plus class="w-4 h-4 mr-2" />
+            Add Expense
+          </button>
+          <button 
+            @click="handleRefresh"
+            :disabled="state.loading"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 bg-white dark:bg-gray-800 dark:bg-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw class="w-4 h-4 mr-2" />
+            Refresh
+          </button>
+        </div>
+      </div>
+      
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                <FileText class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Expenses</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ state.summary.totalItems }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Amount</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ state.summary.totalAmount.toLocaleString() }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                <Heart class="w-4 h-4 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Medical</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ state.groupedExpenses.medical.count }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <ShoppingBag class="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Other</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ state.groupedExpenses.other.count }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Section -->
+    <ExpenseFilter 
+      v-model:filters="state.filters"
+      :loading="state.loading"
+      :total-count="state.rawExpenses.length"
+      :filtered-count="state.filteredExpenses.length"
+      @update:filters="handleFiltersUpdate"
+      @reset="handleFiltersReset"
+      :on-cache-invalidate="handleCacheInvalidated"
+    />
+
+    <!-- Content Section -->
+    <div class="expense-content mt-6">
+      <!-- Loading State -->
+      <div v-if="state.loading" class="loading-state">
+        <div class="flex items-center justify-center py-12">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 ml-3">Loading expenses...</p>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="state.error" class="error-state">
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <AlertCircle class="h-5 w-5 text-red-400" />
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Expenses</h3>
+              <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ state.error }}</p>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button 
+              @click="handleRefresh"
+              class="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 text-red-800 dark:text-red-200 px-3 py-1 rounded text-sm transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="state.isEmpty" class="empty-state">
+        <div class="text-center py-12 bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
+          <FileText class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+          <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No expenses found</h3>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            {{ state.hasFilters ? 'No expenses match your current filters.' : 'Get started by adding your first expense.' }}
+          </p>
+          <div class="mt-6">
+            <button 
+              v-if="state.hasFilters"
+              @click="handleFiltersReset"
+              class="inline-flex items-center px-4 py-2 border border-transparent shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium rounded-lg text-white dark:text-black bg-blue-600 hover:bg-blue-700 transition-colors mr-3"
+            >
+              Clear Filters
+            </button>
+            <button 
+              @click="handleAddExpense"
+              class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 dark:text-gray-600 bg-white dark:bg-gray-800 dark:bg-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 transition-colors"
+            >
+              <Plus class="w-4 h-4 mr-2" />
+              Add Expense
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expense Groups with Pagination -->
+      <div v-else class="expense-groups space-y-4">
+        <!-- Medical Expenses Group -->
+        <div v-if="paginatedMedicalExpenses.total > 0" class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
+          <Disclosure v-slot="{ open }" :defaultOpen="true">
+            <DisclosureButton class="flex w-full justify-between items-center px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:ring-blue-400 focus-visible:ring-opacity-75 rounded-t-lg transition-colors">
+              <div class="flex items-center">
+                <div class="w-6 h-6 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mr-3">
+                  <Heart class="w-3 h-3 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 class="text-base font-medium">Medical Expenses</h3>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ paginatedMedicalExpenses.total }} items • ₹{{ state.groupedExpenses.medical.total.toLocaleString() }}</p>
+                </div>
+              </div>
+              <ChevronUp
+                :class="open ? 'rotate-180 transform' : ''"
+                class="h-4 w-4 text-gray-500 dark:text-gray-400 dark:text-gray-500 transition-transform duration-200"
+              />
+            </DisclosureButton>
+            <DisclosurePanel class="px-0 pb-0">
+              <!-- Table Header -->
+              <div class="hidden md:grid grid-cols-12 gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b">
+                <div class="col-span-3">Category</div>
+                <div class="col-span-3">Description</div>
+                <div class="col-span-2">Date</div>
+                <div class="col-span-2 text-right">Amount</div>
+                <div class="col-span-2 text-right">Actions</div>
+              </div>
+              
+              <!-- Table Rows -->
+              <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                <div 
+                  v-for="expense in paginatedMedicalExpenses.items" 
+                  :key="expense.id"
+                  class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 transition-colors"
+                >
+                  <!-- Mobile Layout -->
+                  <div class="md:hidden space-y-2">
+                    <div class="flex items-center justify-between">
+                      <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ expense.category }}</h4>
+                      <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ expense.amount.toLocaleString() }}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500" v-if="expense.description">{{ expense.description }}</p>
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                        <span>{{ formatDate(expense.date) }}</span>
+                        <span v-if="expense.hasReceipt" class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                          <Receipt class="w-2.5 h-2.5 mr-1" />
+                          Receipt
+                        </span>
+                      </div>
+                      <div class="flex items-center space-x-1">
+                        <button 
+                          @click="handleEditExpense(expense)"
+                          class="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 hover:bg-blue-50 dark:bg-blue-900/20 rounded transition-colors"
+                          title="Edit expense"
+                        >
+                          <Edit2 class="w-3 h-3" />
+                        </button>
+                        <button 
+                          @click="handleDeleteExpense(expense)"
+                          class="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:text-red-200 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors"
+                          title="Delete expense"
+                        >
+                          <Trash2 class="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Desktop Layout -->
+                  <div class="hidden md:contents">
+                    <div class="col-span-3 flex items-center">
+                      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ expense.category }}</span>
+                      <span v-if="expense.hasReceipt" class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                        <Receipt class="w-2.5 h-2.5 mr-1" />
+                        Receipt
+                      </span>
+                    </div>
+                    <div class="col-span-3 flex items-center">
+                      <span class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">{{ expense.description || '-' }}</span>
+                    </div>
+                    <div class="col-span-2 flex items-center">
+                      <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ formatDate(expense.date) }}</span>
+                    </div>
+                    <div class="col-span-2 flex items-center justify-end">
+                      <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ expense.amount.toLocaleString() }}</span>
+                    </div>
+                    <div class="col-span-2 flex items-center justify-end space-x-1">
+                      <button 
+                        @click="handleEditExpense(expense)"
+                        class="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 hover:bg-blue-50 dark:bg-blue-900/20 rounded transition-colors"
+                        title="Edit expense"
+                      >
+                        <Edit2 class="w-3 h-3" />
+                      </button>
+                      <button 
+                        @click="handleDeleteExpense(expense)"
+                        class="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:text-red-200 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors"
+                        title="Delete expense"
+                      >
+                        <Trash2 class="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Medical Expenses Pagination -->
+              <div v-if="paginatedMedicalExpenses.totalPages > 1" class="px-4 py-3 border-t bg-gray-50 dark:bg-gray-900 dark:bg-gray-100">
+                <div class="flex items-center justify-between">
+                  <div class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                    Showing {{ paginatedMedicalExpenses.start }} to {{ paginatedMedicalExpenses.end }} of {{ paginatedMedicalExpenses.total }} medical expenses
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <button 
+                      @click="medicalPage = Math.max(1, medicalPage - 1)"
+                      :disabled="medicalPage === 1"
+                      class="px-3 py-1 text-sm border rounded hover:bg-gray-100 dark:hover:bg-gray-600 dark:bg-gray-800 dark:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                      Page {{ medicalPage }} of {{ paginatedMedicalExpenses.totalPages }}
+                    </span>
+                    <button 
+                      @click="medicalPage = Math.min(paginatedMedicalExpenses.totalPages, medicalPage + 1)"
+                      :disabled="medicalPage === paginatedMedicalExpenses.totalPages"
+                      class="px-3 py-1 text-sm border rounded hover:bg-gray-100 dark:hover:bg-gray-600 dark:bg-gray-800 dark:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </DisclosurePanel>
+          </Disclosure>
+        </div>
+
+        <!-- Other Expenses Group -->
+        <div v-if="paginatedOtherExpenses.total > 0" class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
+          <Disclosure v-slot="{ open }" :defaultOpen="true">
+            <DisclosureButton class="flex w-full justify-between items-center px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:ring-blue-400 focus-visible:ring-opacity-75 rounded-t-lg transition-colors">
+              <div class="flex items-center">
+                <div class="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                  <ShoppingBag class="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 class="text-base font-medium">Other Expenses</h3>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ paginatedOtherExpenses.total }} items • ₹{{ state.groupedExpenses.other.total.toLocaleString() }}</p>
+                </div>
+              </div>
+              <ChevronUp
+                :class="open ? 'rotate-180 transform' : ''"
+                class="h-4 w-4 text-gray-500 dark:text-gray-400 dark:text-gray-500 transition-transform duration-200"
+              />
+            </DisclosureButton>
+            <DisclosurePanel class="px-0 pb-0">
+              <!-- Table Header -->
+              <div class="hidden md:grid grid-cols-12 gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b">
+                <div class="col-span-3">Category</div>
+                <div class="col-span-3">Description</div>
+                <div class="col-span-2">Date</div>
+                <div class="col-span-2 text-right">Amount</div>
+                <div class="col-span-2 text-right">Actions</div>
+              </div>
+              
+              <!-- Table Rows -->
+              <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                <div 
+                  v-for="expense in paginatedOtherExpenses.items" 
+                  :key="expense.id"
+                  class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 transition-colors"
+                >
+                  <!-- Mobile Layout -->
+                  <div class="md:hidden space-y-2">
+                    <div class="flex items-center justify-between">
+                      <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ expense.category }}</h4>
+                      <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ expense.amount.toLocaleString() }}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500" v-if="expense.description">{{ expense.description }}</p>
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ formatDate(expense.date) }}</span>
+                      <div class="flex items-center space-x-1">
+                        <button 
+                          @click="handleEditExpense(expense)"
+                          class="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 hover:bg-blue-50 dark:bg-blue-900/20 rounded transition-colors"
+                          title="Edit expense"
+                        >
+                          <Edit2 class="w-3 h-3" />
+                        </button>
+                        <button 
+                          @click="handleDeleteExpense(expense)"
+                          class="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:text-red-200 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors"
+                          title="Delete expense"
+                        >
+                          <Trash2 class="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Desktop Layout -->
+                  <div class="hidden md:contents">
+                    <div class="col-span-3 flex items-center">
+                      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ expense.category }}</span>
+                    </div>
+                    <div class="col-span-3 flex items-center">
+                      <span class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">{{ expense.description || '-' }}</span>
+                    </div>
+                    <div class="col-span-2 flex items-center">
+                      <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ formatDate(expense.date) }}</span>
+                    </div>
+                    <div class="col-span-2 flex items-center justify-end">
+                      <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ expense.amount.toLocaleString() }}</span>
+                    </div>
+                    <div class="col-span-2 flex items-center justify-end space-x-1">
+                      <button 
+                        @click="handleEditExpense(expense)"
+                        class="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 hover:bg-blue-50 dark:bg-blue-900/20 rounded transition-colors"
+                        title="Edit expense"
+                      >
+                        <Edit2 class="w-3 h-3" />
+                      </button>
+                      <button 
+                        @click="handleDeleteExpense(expense)"
+                        class="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:text-red-200 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors"
+                        title="Delete expense"
+                      >
+                        <Trash2 class="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Other Expenses Pagination -->
+              <div v-if="paginatedOtherExpenses.totalPages > 1" class="px-4 py-3 border-t bg-gray-50 dark:bg-gray-900 dark:bg-gray-100">
+                <div class="flex items-center justify-between">
+                  <div class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                    Showing {{ paginatedOtherExpenses.start }} to {{ paginatedOtherExpenses.end }} of {{ paginatedOtherExpenses.total }} other expenses
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <button 
+                      @click="otherPage = Math.max(1, otherPage - 1)"
+                      :disabled="otherPage === 1"
+                      class="px-3 py-1 text-sm border rounded hover:bg-gray-100 dark:hover:bg-gray-600 dark:bg-gray-800 dark:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                      Page {{ otherPage }} of {{ paginatedOtherExpenses.totalPages }}
+                    </span>
+                    <button 
+                      @click="otherPage = Math.min(paginatedOtherExpenses.totalPages, otherPage + 1)"
+                      :disabled="otherPage === paginatedOtherExpenses.totalPages"
+                      class="px-3 py-1 text-sm border rounded hover:bg-gray-100 dark:hover:bg-gray-600 dark:bg-gray-800 dark:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </DisclosurePanel>
+          </Disclosure>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense Form Modal -->
+    <ExpenseForm
+      v-if="state.showExpenseForm"
+      :expense="state.editingExpense"
+      @close="handleCloseExpenseForm"
+      @success="handleExpenseFormSuccess"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
+import { 
+  ChevronUp, 
+  RefreshCw, 
+  FileText, 
+  DollarSign, 
+  Heart, 
+  ShoppingBag, 
+  AlertCircle, 
+  Receipt, 
+  Edit2, 
+  Trash2,
+  Plus,
+  Calendar,
+  Tag,
+  AlertTriangle
+} from 'lucide-vue-next'
+import type { 
+  ProcessedExpenseItem, 
+  ExpenseFilters
+} from '../../types/expense'
+
+// Components
+import { ExpenseFilter, ExpenseForm } from '../../components'
+
+// Composables
+import { useExpense } from '../../composables/useExpense'
+
+// Initialize composable
+const composableResult = useExpense({ enableAdvancedAnalysis: true }) as any
+const state = composableResult.state
+const actions = composableResult.actions
+
+// Extract cache invalidation method from composable
+const { invalidateAndRefresh } = composableResult
+
+// Pagination state
+const medicalPage = ref(1)
+const otherPage = ref(1)
+const itemsPerPage = 20
+
+// Pagination computed properties
+const paginatedMedicalExpenses = computed(() => {
+  const items = state.groupedExpenses.medical.items
+  const total = items.length
+  const totalPages = Math.ceil(total / itemsPerPage)
+  const start = (medicalPage.value - 1) * itemsPerPage + 1
+  const end = Math.min(medicalPage.value * itemsPerPage, total)
+  const paginatedItems = items.slice((medicalPage.value - 1) * itemsPerPage, medicalPage.value * itemsPerPage)
+
+  return {
+    items: paginatedItems,
+    total,
+    totalPages,
+    start,
+    end
+  }
+})
+
+const paginatedOtherExpenses = computed(() => {
+  const items = state.groupedExpenses.other.items
+  const total = items.length
+  const totalPages = Math.ceil(total / itemsPerPage)
+  const start = (otherPage.value - 1) * itemsPerPage + 1
+  const end = Math.min(otherPage.value * itemsPerPage, total)
+  const paginatedItems = items.slice((otherPage.value - 1) * itemsPerPage, otherPage.value * itemsPerPage)
+
+  return {
+    items: paginatedItems,
+    total,
+    totalPages,
+    start,
+    end
+  }
+})
+
+// Utility functions
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+// Event Handlers
+const handleRefresh = async () => {
+  try {
+    await actions.refreshExpenses()
+  } catch (error) {
+    console.error('Failed to refresh expenses:', error)
+  }
+}
+
+const handleFiltersUpdate = async (newFilters: Partial<ExpenseFilters>) => {
+  try {
+    // Reset pagination when filters change
+    medicalPage.value = 1
+    otherPage.value = 1
+    await actions.updateFilters(newFilters)
+  } catch (error) {
+    console.error('Failed to update filters:', error)
+  }
+}
+
+const handleFiltersReset = async () => {
+  try {
+    // Reset pagination when filters are reset
+    medicalPage.value = 1
+    otherPage.value = 1
+    await actions.resetFilters()
+  } catch (error) {
+    console.error('Failed to reset filters:', error)
+  }
+}
+
+const handleCacheInvalidated = async () => {
+  try {
+    await invalidateAndRefresh()
+  } catch (error) {
+    console.error('Failed to invalidate and refresh cache:', error)
+  }
+}
+
+const handleAddExpense = () => {
+  actions.openExpenseForm()
+}
+
+const handleEditExpense = (expense: ProcessedExpenseItem) => {
+  actions.editExpense(expense)
+}
+
+const handleDeleteExpense = async (expense: ProcessedExpenseItem) => {
+  if (confirm('Are you sure you want to delete this expense?')) {
+    try {
+      await actions.deleteExpense(expense)
+    } catch (error) {
+      console.error('Failed to delete expense:', error)
+    }
+  }
+}
+
+const handleCloseExpenseForm = () => {
+  actions.closeExpenseForm()
+}
+
+const handleExpenseFormSuccess = async () => {
+  try {
+    await actions.loadExpenses()
+  } catch (error) {
+    console.error('Failed to reload expenses after form success:', error)
+  }
+}
+
+// Lifecycle
+onMounted(async () => {
+  try {
+    console.log('ExpenseAnalyzer: Initializing...')
+    await actions.initialize()
+    console.log('ExpenseAnalyzer: Initialization complete')
+  } catch (error) {
+    console.error('ExpenseAnalyzer: Initialization failed:', error)
+  }
+})
+</script>
+
+<style scoped>
+.expense-analyzer {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+}
+</style> 

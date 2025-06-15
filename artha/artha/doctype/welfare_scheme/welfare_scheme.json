@@ -1,0 +1,133 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:scheme_name",
+ "creation": "2025-06-13 08:09:25.295133",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "scheme_name",
+  "type",
+  "coverage_amount",
+  "amount_range",
+  "amount_min",
+  "amount_max",
+  "description",
+  "target_groups",
+  "apply_link",
+  "scheme_eligibility",
+  "scheme_benefit",
+  "scheme_document"
+ ],
+ "fields": [
+  {
+   "fieldname": "scheme_name",
+   "fieldtype": "Data",
+   "label": "Scheme Name",
+   "unique": 1
+  },
+  {
+   "fieldname": "type",
+   "fieldtype": "Select",
+   "label": "Type",
+   "options": "Government\nPrivate"
+  },
+  {
+   "fieldname": "coverage_amount",
+   "fieldtype": "Currency",
+   "label": "Coverage Amount"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "target_groups",
+   "fieldtype": "Table MultiSelect",
+   "label": "Target Groups",
+   "options": "Target Group Child"
+  },
+  {
+   "fieldname": "apply_link",
+   "fieldtype": "Data",
+   "label": "Apply Link"
+  },
+  {
+   "fieldname": "scheme_eligibility",
+   "fieldtype": "Table",
+   "label": "Scheme Eligibility",
+   "options": "Scheme Eligibility"
+  },
+  {
+   "fieldname": "scheme_benefit",
+   "fieldtype": "Table",
+   "label": "Scheme Benefit",
+   "options": "Scheme Benefit"
+  },
+  {
+   "fieldname": "scheme_document",
+   "fieldtype": "Table",
+   "label": "Scheme Document",
+   "options": "Scheme Document"
+  },
+  {
+   "default": "0",
+   "fieldname": "amount_range",
+   "fieldtype": "Check",
+   "label": "Amount Range?"
+  },
+  {
+   "fieldname": "amount_min",
+   "fieldtype": "Currency",
+   "label": "Amount Min"
+  },
+  {
+   "fieldname": "amount_max",
+   "fieldtype": "Currency",
+   "label": "Amount Max"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-06-13 14:36:20.819844",
+ "modified_by": "Administrator",
+ "module": "Artha",
+ "name": "Welfare Scheme",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Artha User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "track_views": 1
+}

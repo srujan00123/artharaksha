@@ -1,0 +1,80 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-06-09 05:01:36.078227",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "household_profile",
+  "medical_expenses",
+  "other_expenses",
+  "monthly_expense"
+ ],
+ "fields": [
+  {
+   "fieldname": "medical_expenses",
+   "fieldtype": "Table",
+   "label": "Medical Expenses",
+   "options": "Medical Expense Type"
+  },
+  {
+   "fieldname": "household_profile",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Household Profile",
+   "options": "Household Profile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "other_expenses",
+   "fieldtype": "Table",
+   "label": "Other Expenses",
+   "options": "Expense Type"
+  },
+  {
+   "fieldname": "monthly_expense",
+   "fieldtype": "Currency",
+   "label": "Monthly Expense"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-06-11 06:46:08.098319",
+ "modified_by": "Administrator",
+ "module": "Artha",
+ "name": "Expense",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Artha User",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

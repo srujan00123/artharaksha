@@ -1,0 +1,677 @@
+<template>
+  <div class="income-management">
+    <!-- Header Section -->
+    <div class="header-section mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Income Management</h1>
+          <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">Manage your household income sources and track monthly earnings</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button 
+            @click="openIncomeForm"
+            :disabled="loading"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white dark:text-black rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            <Plus class="w-4 h-4 mr-2" />
+            Add Income Source
+          </button>
+          <button 
+            @click="handleRefresh"
+            :disabled="loading"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 bg-white dark:bg-gray-800 dark:bg-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw class="w-4 h-4 mr-2" />
+            Refresh
+          </button>
+        </div>
+      </div>
+      
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Monthly Income</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ totalMonthlyIncome.toLocaleString('en-IN') }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                <Repeat class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Recurring Income</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ totalRecurringIncome.toLocaleString('en-IN') }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <Calendar class="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">One-time Income</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ totalOneTimeIncome.toLocaleString('en-IN') }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                <Hash class="w-4 h-4 text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Income Sources</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ incomeCount }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Section -->
+    <IncomeFilter 
+      :filters="currentFilters"
+      :total-count="allIncomeSources.length"
+      :filtered-count="filteredIncomeSources.length"
+      :income-types="incomeTypes"
+      @update:filters="handleFilterChange"
+      @cache-invalidated="handleCacheInvalidation"
+      class="mb-6"
+    />
+
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">
+      <div class="flex items-center justify-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 ml-3">Loading income data...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="error-state">
+      <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <AlertCircle class="h-5 w-5 text-red-400" />
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Income Data</h3>
+            <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ error }}</p>
+          </div>
+        </div>
+        <div class="mt-4">
+          <button 
+            @click="handleRefresh"
+            class="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 text-red-800 dark:text-red-200 px-3 py-1 rounded text-sm transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content Section -->
+    <div v-else class="income-content">
+      <!-- Empty State -->
+      <div v-if="filteredIncomeSources.length === 0" class="empty-state">
+        <div class="text-center py-12 bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
+          <DollarSign class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+          <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+            {{ allIncomeSources.length === 0 ? 'No income sources found' : 'No income sources match your filters' }}
+          </h3>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            {{ allIncomeSources.length === 0 ? 'Get started by adding your first income source.' : 'Try adjusting your filters or add a new income source.' }}
+          </p>
+          <div class="mt-6">
+            <button 
+              v-if="allIncomeSources.length === 0"
+              @click="openIncomeForm"
+              class="inline-flex items-center px-4 py-2 border border-transparent shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium rounded-lg text-white dark:text-black bg-blue-600 hover:bg-blue-700 transition-colors"
+            >
+              <Plus class="w-4 h-4 mr-2" />
+              Add Income Source
+            </button>
+            <button 
+              v-else
+              @click="clearFilters"
+              class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 dark:text-gray-600 bg-white dark:bg-gray-800 dark:bg-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 transition-colors"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Income Sources List -->
+      <div v-else class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
+        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-base font-medium text-gray-900 dark:text-gray-100">Income Sources</h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
+            Showing {{ filteredIncomeSources.length }} of {{ allIncomeSources.length }} source{{ allIncomeSources.length !== 1 ? 's' : '' }} • ₹{{ totalMonthlyIncome.toLocaleString('en-IN') }} monthly
+          </p>
+        </div>
+        
+        <!-- Table Header (Desktop) -->
+        <div class="hidden md:grid grid-cols-12 gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b">
+          <div class="col-span-3">Income Type</div>
+          <div class="col-span-2">Amount</div>
+          <div class="col-span-2">Frequency</div>
+          <div class="col-span-2">Status</div>
+          <div class="col-span-2">Date Added</div>
+          <div class="col-span-1 text-right">Actions</div>
+        </div>
+        
+        <!-- Table Rows -->
+        <div class="divide-y divide-gray-100 dark:divide-gray-700">
+          <div 
+            v-for="source in filteredIncomeSources" 
+            :key="source.sourceId"
+            class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 transition-colors"
+          >
+            <!-- Mobile Layout -->
+            <div class="md:hidden space-y-2">
+              <div class="flex items-center justify-between">
+                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ source.type }}</h4>
+                <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ source.amount.toLocaleString('en-IN') }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span 
+                    v-if="source.isRecurring"
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+                  >
+                    {{ formatFrequency(source.frequency) }}
+                  </span>
+                  <span 
+                    v-else
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 dark:bg-gray-200 text-gray-800 dark:text-gray-200"
+                  >
+                    One-time
+                  </span>
+                  <span 
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                    :class="source.isRecurring ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                  >
+                    {{ source.isRecurring ? 'Active' : 'Completed' }}
+                  </span>
+                </div>
+                <span class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ formatDate(source.dateTime) }}</span>
+              </div>
+              <div class="flex items-center justify-end space-x-1">
+                <button 
+                  @click="editIncomeSource(source)"
+                  class="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 hover:bg-blue-50 dark:bg-blue-900/20 rounded transition-colors"
+                  title="Edit income source"
+                >
+                  <Edit2 class="w-3 h-3" />
+                </button>
+                <button 
+                  @click="deleteIncomeSource(source)"
+                  class="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:text-red-200 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors"
+                  title="Delete income source"
+                >
+                  <Trash2 class="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Desktop Layout -->
+            <div class="hidden md:contents">
+              <div class="col-span-3 flex items-center">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0 w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-3">
+                    <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ source.type }}</span>
+                </div>
+              </div>
+              <div class="col-span-2 flex items-center">
+                <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ source.amount.toLocaleString('en-IN') }}</span>
+              </div>
+              <div class="col-span-2 flex items-center">
+                <span 
+                  v-if="source.isRecurring"
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+                >
+                  {{ formatFrequency(source.frequency) }}
+                </span>
+                <span 
+                  v-else
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 dark:bg-gray-200 text-gray-800 dark:text-gray-200"
+                >
+                  One-time
+                </span>
+              </div>
+              <div class="col-span-2 flex items-center">
+                <span 
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  :class="source.isRecurring ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
+                >
+                  {{ source.isRecurring ? 'Active' : 'Completed' }}
+                </span>
+              </div>
+              <div class="col-span-2 flex items-center">
+                <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ formatDate(source.dateTime) }}</span>
+              </div>
+              <div class="col-span-1 flex items-center justify-end space-x-1">
+                <button 
+                  @click="editIncomeSource(source)"
+                  class="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 hover:bg-blue-50 dark:bg-blue-900/20 rounded transition-colors"
+                  title="Edit income source"
+                >
+                  <Edit2 class="w-3 h-3" />
+                </button>
+                <button 
+                  @click="deleteIncomeSource(source)"
+                  class="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:text-red-200 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors"
+                  title="Delete income source"
+                >
+                  <Trash2 class="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Income Form Modal -->
+    <IncomeForm 
+      v-if="showIncomeForm"
+      :is-open="showIncomeForm"
+      :editing-source="editingSource"
+      @close="closeIncomeForm"
+      @submit="handleIncomeSubmit"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { 
+  RefreshCw, 
+  AlertCircle, 
+  Plus,
+  DollarSign,
+  Repeat,
+  Calendar,
+  Hash,
+  Edit2,
+  Trash2
+} from 'lucide-vue-next'
+
+// Components
+import { IncomeForm, IncomeFilter } from '../../components/income'
+
+// Composables
+import { useIncome } from '../../composables/useIncome'
+import type { IncomeFilters, IncomeType } from '../../types/income'
+
+// Initialize income composable with advanced analysis
+const incomeComposable = useIncome({ enableAdvancedAnalysis: true })
+
+// Local state
+const showIncomeForm = ref(false)
+const editingSource = ref<any>(null)
+
+// Current filters state matching IncomeFilters interface
+const currentFilters = ref<IncomeFilters>({
+  searchTerm: '',
+  dateFrom: '',
+  dateTo: '',
+  amountMin: '',
+  amountMax: '',
+  incomeType: '',
+  isRecurring: null,
+  sortBy: 'date',
+  sortOrder: 'desc',
+  period: ''
+})
+
+// Computed properties
+const incomes = computed(() => incomeComposable.incomes.value || [])
+const incomeTypes = computed(() => incomeComposable.incomeTypes.value || [])
+const loading = computed(() => incomeComposable.loading.value)
+const error = computed(() => incomeComposable.error.value)
+const totalMonthlyIncome = computed(() => incomeComposable.totalMonthlyIncome.value || 0)
+const totalRecurringIncome = computed(() => incomeComposable.totalRecurringIncome.value || 0)
+const totalOneTimeIncome = computed(() => incomeComposable.totalOneTimeIncome.value || 0)
+const incomeCount = computed(() => incomeComposable.incomeCount.value || 0)
+
+// Use the composable's analysis state directly (matching expense pattern)
+const allIncomeSources = computed(() => {
+  // Get flattened sources from raw incomes (for total count)
+  const sources: any[] = []
+  const rawIncomes = incomeComposable.allIncomes?.value || []
+  rawIncomes.forEach(income => {
+    if (income.sources && Array.isArray(income.sources)) {
+      income.sources.forEach(source => {
+        sources.push({
+          ...source,
+          sourceId: `${income.id}-${source.id}`,
+          incomeId: income.id,
+          createdAt: income.createdAt,
+          updatedAt: income.updatedAt
+        })
+      })
+    }
+  })
+  return sources.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+})
+
+// Use the composable's grouped income data directly (like expense pattern)
+const filteredIncomeSources = computed(() => {
+  // Get the flattened and filtered sources from the composable's analysis state
+  const groupedData = incomeComposable.groupedIncome.value
+  if (!groupedData) return []
+  
+  // Combine recurring and one-time sources
+  const allFilteredSources = [
+    ...groupedData.recurring.items,
+    ...groupedData.oneTime.items
+  ]
+  
+  // Apply sorting based on current filters
+  allFilteredSources.sort((a, b) => {
+    let aValue: any, bValue: any
+    
+    switch (currentFilters.value.sortBy) {
+      case 'amount':
+        aValue = a.amount
+        bValue = b.amount
+        break
+      case 'type':
+        aValue = a.type
+        bValue = b.type
+        break
+      case 'date':
+      default:
+        aValue = new Date(a.dateTime)
+        bValue = new Date(b.dateTime)
+        break
+    }
+    
+    if (currentFilters.value.sortOrder === 'asc') {
+      return aValue > bValue ? 1 : -1
+    } else {
+      return aValue < bValue ? 1 : -1
+    }
+  })
+
+  return allFilteredSources
+})
+
+// Utility functions
+const formatDate = (dateString: string) => {
+  if (!dateString) return 'N/A'
+  try {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  } catch {
+    return 'N/A'
+  }
+}
+
+const formatFrequency = (frequency: string) => {
+  if (!frequency) return 'Monthly'
+  return frequency.replace('every ', '').charAt(0).toUpperCase() + frequency.replace('every ', '').slice(1)
+}
+
+// Event handlers
+const handleRefresh = async () => {
+  try {
+    await incomeComposable.refreshIncomes()
+  } catch (error) {
+    console.error('Failed to refresh incomes:', error)
+  }
+}
+
+const handleFilterChange = async (filters: IncomeFilters) => {
+  console.log('Income page: Filter change received:', filters)
+  console.log('Income page: All sources before filtering:', allIncomeSources.value.map(s => ({ type: s.type, dateTime: s.dateTime, amount: s.amount })))
+  currentFilters.value = { ...filters }
+  
+  // Update filters in composable to ensure store state is updated
+  await incomeComposable.updateFilters(filters)
+  console.log('Income page: Filters updated in composable')
+  console.log('Income page: Filtered incomes count:', incomes.value.length)
+  console.log('Income page: Filtered sources count:', filteredIncomeSources.value.length)
+  console.log('Income page: Filtered sources:', filteredIncomeSources.value.map(s => ({ type: s.type, dateTime: s.dateTime, amount: s.amount })))
+}
+
+const handleCacheInvalidation = async () => {
+  console.log('Income page: Cache invalidation requested')
+  // Only invalidate cache when explicitly requested (e.g., from filter component)
+  await incomeComposable.invalidateAndRefresh()
+}
+
+const clearFilters = async () => {
+  console.log('Income page: Clearing filters')
+  const defaultFilters: IncomeFilters = {
+    searchTerm: '',
+    dateFrom: '',
+    dateTo: '',
+    amountMin: '',
+    amountMax: '',
+    incomeType: '',
+    isRecurring: null,
+    sortBy: 'date',
+    sortOrder: 'desc',
+    period: ''
+  }
+  currentFilters.value = defaultFilters
+  // Reset filters in composable
+  await incomeComposable.resetFilters()
+}
+
+const openIncomeForm = () => {
+  editingSource.value = null
+  showIncomeForm.value = true
+}
+
+const closeIncomeForm = () => {
+  showIncomeForm.value = false
+  editingSource.value = null
+}
+
+const editIncomeSource = (source: any) => {
+  editingSource.value = {
+    ...source,
+    isRecurring: source.isRecurring || false,
+    frequency: source.frequency || ''
+  }
+  showIncomeForm.value = true
+}
+
+const handleIncomeSubmit = async (formData: any) => {
+  console.log('Income Dashboard: Form submitted with data:', formData)
+  
+  try {
+    if (editingSource.value) {
+      console.log('Income Dashboard: Updating existing source:', editingSource.value)
+      // Update existing income source
+      const parentIncome = incomes.value.find(income => income.id === editingSource.value.incomeId)
+      if (parentIncome) {
+        const updatedSources = parentIncome.sources.map(source => 
+          source.id === editingSource.value.id 
+            ? {
+                ...source,
+                type: formData.type,
+                amount: formData.amount,
+                isRecurring: formData.isRecurring,
+                frequency: formData.frequency,
+                dateTime: formData.dateTime
+              }
+            : source
+        )
+        
+        // Recalculate monthly income
+        let monthlyAmount = 0
+        updatedSources.forEach(source => {
+          if (source.isRecurring && source.frequency) {
+            const conversionFactors = {
+              'every day': 30,
+              'every week': 4.33,
+              'every month': 1,
+              'every year': 1/12
+            }
+            const factor = conversionFactors[source.frequency as keyof typeof conversionFactors] || 1
+            monthlyAmount += Math.round(source.amount * factor)
+          }
+        })
+        
+        const updatedIncomeData = {
+          monthlyIncome: monthlyAmount,
+          sources: updatedSources.map(source => ({
+            type: source.type,
+            amount: source.amount,
+            isRecurring: source.isRecurring,
+            dateTime: source.dateTime,
+            frequency: source.frequency
+          }))
+        }
+        
+        console.log('Income Dashboard: Calling updateIncome with:', updatedIncomeData)
+        await incomeComposable.updateIncome(parentIncome, updatedIncomeData)
+      }
+    } else {
+      console.log('Income Dashboard: Creating new income source')
+      // Create new income source
+      // Calculate monthly income based on frequency
+      let monthlyAmount = formData.amount
+      if (formData.isRecurring && formData.frequency) {
+        const conversionFactors = {
+          'every day': 30,
+          'every week': 4.33,
+          'every month': 1,
+          'every year': 1/12
+        }
+        const factor = conversionFactors[formData.frequency as keyof typeof conversionFactors] || 1
+        monthlyAmount = Math.round(formData.amount * factor)
+      } else if (!formData.isRecurring) {
+        monthlyAmount = 0 // One-time income doesn't contribute to monthly
+      }
+      
+      const newIncomeData = {
+        monthlyIncome: monthlyAmount,
+        sources: [{
+          type: formData.type,
+          amount: formData.amount,
+          isRecurring: formData.isRecurring,
+          dateTime: formData.dateTime,
+          frequency: formData.frequency
+        }]
+      }
+      
+      console.log('Income Dashboard: Calling createIncome with:', newIncomeData)
+      await incomeComposable.createIncome(newIncomeData)
+    }
+    
+    console.log('Income Dashboard: Refreshing incomes...')
+    // Refresh data
+    await incomeComposable.refreshIncomes()
+    
+    console.log('Income Dashboard: Closing form...')
+    // Close form after successful submission
+    closeIncomeForm()
+    
+    console.log('Income Dashboard: Form submission completed successfully')
+    
+  } catch (error) {
+    console.error('Income Dashboard: Failed to save income:', error)
+    alert('Failed to save income. Please try again.')
+    throw error // Re-throw so form can handle the error
+  }
+}
+
+const deleteIncomeSource = async (source: any) => {
+  if (confirm(`Are you sure you want to delete the ${source.type} income source (₹${source.amount.toLocaleString('en-IN')})?`)) {
+    try {
+      // Find the parent income record
+      const parentIncome = incomes.value.find(income => income.id === source.incomeId)
+      if (parentIncome) {
+        // Remove this source from the parent income
+        const updatedSources = parentIncome.sources.filter(s => s.id !== source.id)
+        
+        if (updatedSources.length === 0) {
+          // If no sources left, delete the entire income record
+          await incomeComposable.deleteIncome(parentIncome)
+        } else {
+          // Update the income record with remaining sources
+          // Recalculate monthly income
+          let monthlyAmount = 0
+          updatedSources.forEach(src => {
+            if (src.isRecurring && src.frequency) {
+              const conversionFactors = {
+                'every day': 30,
+                'every week': 4.33,
+                'every month': 1,
+                'every year': 1/12
+              }
+              const factor = conversionFactors[src.frequency as keyof typeof conversionFactors] || 1
+              monthlyAmount += Math.round(src.amount * factor)
+            }
+          })
+          
+          const updatedIncomeData = {
+            monthlyIncome: monthlyAmount,
+            sources: updatedSources
+          }
+          await incomeComposable.updateIncome(parentIncome, updatedIncomeData)
+        }
+        
+        // Refresh data
+        await incomeComposable.refreshIncomes()
+      }
+    } catch (error) {
+      console.error('Failed to delete income source:', error)
+      alert('Failed to delete income source. Please try again.')
+    }
+  }
+}
+
+// Lifecycle
+onMounted(async () => {
+  try {
+    // Initialize composable and load filter preferences
+    await incomeComposable.initialize()
+    
+    // Load income types for filters
+    await incomeComposable.loadIncomeTypes()
+    
+    // Only load data if not already cached - this prevents unnecessary refetching
+    await incomeComposable.ensureDataLoaded()
+    
+  } catch (error) {
+    console.error('Income Dashboard: Initialization failed:', error)
+  }
+})
+</script>
+
+<style scoped>
+.income-management {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+}
+</style> 

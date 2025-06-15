@@ -1,9 +1,9 @@
 app_name = "artha"
 app_title = "Artha"
-app_publisher = "srujan.00123@gmail.com"
+app_publisher = "srujan"
 app_description = "Artha Raksha"
 app_email = "srujan.00123@gmail.com"
-app_license = "mit"
+app_license = "unlicense"
 
 # Apps
 # ------------------
@@ -11,15 +11,23 @@ app_license = "mit"
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "artha",
-# 		"logo": "/assets/artha/logo.png",
-# 		"title": "Artha",
-# 		"route": "/artha",
-# 		"has_permission": "artha.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+	{
+		"name": "artha",
+		"logo": "/assets/artha/logo.svg",
+		"title": "Artha",
+		"route": "/app/artha",
+		# "has_permission": "artha.api.permission.has_app_permission"
+	}
+]
+
+fixtures = [
+	"Welfare Scheme",
+	"Insurance Scheme",
+	"Support Pathway",
+	"Target Groups",
+	"Income Type"
+]
 
 # Includes in <head>
 # ------------------
@@ -120,13 +128,19 @@ app_license = "mit"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	"Expense": "artha.artha.doctype.expense.expense.get_permission_query_conditions_for_expense",
+	"Income": "artha.artha.doctype.income.income.get_permission_query_conditions_for_income",
+	"Household Profile": "artha.artha.doctype.household_profile.household_profile.get_permission_query_conditions_for_household_profile",
+	"User": "artha.api.auth.get_permission_query_conditions_for_user",
+}
+
+has_permission = {
+	"Expense": "artha.artha.doctype.expense.expense.has_permission",
+	"Income": "artha.artha.doctype.income.income.has_permission",
+	"Household Profile": "artha.artha.doctype.household_profile.household_profile.has_permission",
+	"User": "artha.api.auth.has_permission_for_user",
+}
 
 # Document Events
 # ---------------
@@ -237,3 +251,4 @@ app_license = "mit"
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+website_route_rules = [{'from_route': '/frontend/<path:app_path>', 'to_route': 'frontend'},]

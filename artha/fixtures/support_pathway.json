@@ -1,0 +1,299 @@
+[
+ {
+  "description": "Description: Access benefits for persons with disabilities",
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:29:47.518700",
+  "name": "Disability Benefits",
+  "support_benefits": [
+   {
+    "benefit_name": "Disability Pension",
+    "description": null
+   },
+   {
+    "benefit_name": "UDID Card",
+    "description": null
+   },
+   {
+    "benefit_name": "Railway Concession",
+    "description": null
+   },
+   {
+    "benefit_name": "Income Tax Exemption",
+    "description": null
+   }
+  ],
+  "target_groups": [
+   {
+    "target_group": "Disability"
+   }
+  ],
+  "title": "Disability Benefits"
+ },
+ {
+  "description": "Government-funded training and skilling for youth and workers",
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:29:39.740855",
+  "name": "Skill Development",
+  "support_benefits": [
+   {
+    "benefit_name": "PM Kaushal Vikas Yojana (PMKVY)",
+    "description": null
+   },
+   {
+    "benefit_name": "Digital Literacy Programme",
+    "description": null
+   },
+   {
+    "benefit_name": "Skill India Training",
+    "description": null
+   },
+   {
+    "benefit_name": "Skill Certification & Placement Support",
+    "description": null
+   }
+  ],
+  "target_groups": [
+   {
+    "target_group": "Youth"
+   },
+   {
+    "target_group": "Women"
+   },
+   {
+    "target_group": "Unorganized Workers"
+   }
+  ],
+  "title": "Skill Development"
+ },
+ {
+  "description": "Loans and mentoring for entrepreneurs and self-help groups",
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:29:25.110455",
+  "name": "Entrepreneurship Support",
+  "support_benefits": [
+   {
+    "benefit_name": "PMEGP (Loan Subsidy)",
+    "description": null
+   },
+   {
+    "benefit_name": "Stand Up India Loan",
+    "description": null
+   },
+   {
+    "benefit_name": "Mudra Loan",
+    "description": null
+   },
+   {
+    "benefit_name": "Livelihood Incubation Centers",
+    "description": null
+   }
+  ],
+  "target_groups": [
+   {
+    "target_group": "Women"
+   },
+   {
+    "target_group": "SC/ST"
+   },
+   {
+    "target_group": "SHG Members"
+   }
+  ],
+  "title": "Entrepreneurship Support"
+ },
+ {
+  "description": "Support schemes for girl children and women’s safety, income",
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:32:01.084081",
+  "name": "Women Empowerment",
+  "support_benefits": [
+   {
+    "benefit_name": "Sukanya Samriddhi Yojana",
+    "description": null
+   },
+   {
+    "benefit_name": "Ujjwala Yojana (LPG)",
+    "description": null
+   },
+   {
+    "benefit_name": "Beti Bachao Beti Padhao",
+    "description": null
+   },
+   {
+    "benefit_name": "One Stop Centers for Violence Victims",
+    "description": null
+   }
+  ],
+  "target_groups": [
+   {
+    "target_group": "Women"
+   },
+   {
+    "target_group": "Girls"
+   }
+  ],
+  "title": "Women Empowerment"
+ },
+ {
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:20:45.955314",
+  "name": "Senior Citizen Welfare",
+  "support_benefits": [],
+  "target_groups": [],
+  "title": "Senior Citizen Welfare"
+ },
+ {
+  "description": "Support for patients with chronic diseases like cancer, diabetes",
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:32:40.850358",
+  "name": "Chronic Illness Support",
+  "support_benefits": [
+   {
+    "benefit_name": "Free Chemotherapy in Govt Hospitals",
+    "description": null
+   },
+   {
+    "benefit_name": "Dialysis Program (free/subsidized)",
+    "description": null
+   },
+   {
+    "benefit_name": "NCD Screening Programs",
+    "description": null
+   },
+   {
+    "benefit_name": "Palliative Care Centres",
+    "description": null
+   }
+  ],
+  "target_groups": [
+   {
+    "target_group": "Chronic Illness"
+   },
+   {
+    "target_group": "Cancer Patients"
+   },
+   {
+    "target_group": "Kidney Patients"
+   }
+  ],
+  "title": "Chronic Illness Support"
+ },
+ {
+  "description": "Community mental health services and therapy access",
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:33:42.562245",
+  "name": "Mental Health Services",
+  "support_benefits": [
+   {
+    "benefit_name": "District Mental Health Programme",
+    "description": null
+   },
+   {
+    "benefit_name": "Tele-MANAS (mental health helpline)",
+    "description": null
+   },
+   {
+    "benefit_name": "Free Psychiatric Medicines",
+    "description": null
+   },
+   {
+    "benefit_name": "Peer Support Groups",
+    "description": null
+   }
+  ],
+  "target_groups": [
+   {
+    "target_group": "Mental Illness"
+   },
+   {
+    "target_group": "Youth"
+   },
+   {
+    "target_group": "Women"
+   }
+  ],
+  "title": "Mental Health Services"
+ },
+ {
+  "description": "Safe and affordable housing for poor, homeless, disaster victims",
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:34:53.419356",
+  "name": "Housing & Shelter",
+  "support_benefits": [
+   {
+    "benefit_name": "Pradhan Mantri Awas Yojana (PMAY)",
+    "description": null
+   },
+   {
+    "benefit_name": "Night Shelters (Rain Baseras)",
+    "description": null
+   },
+   {
+    "benefit_name": "Slum Redevelopment Schemes",
+    "description": null
+   },
+   {
+    "benefit_name": "Rent Control Legal Support",
+    "description": null
+   }
+  ],
+  "target_groups": [
+   {
+    "target_group": "Urban Poor"
+   },
+   {
+    "target_group": "SC/ST"
+   },
+   {
+    "target_group": "Homeless"
+   }
+  ],
+  "title": "Housing & Shelter"
+ },
+ {
+  "description": "Assistance for hospitalization, medicines, and long-term care",
+  "docstatus": 0,
+  "doctype": "Support Pathway",
+  "modified": "2025-06-13 09:29:12.251225",
+  "name": "Health Access",
+  "support_benefits": [
+   {
+    "benefit_name": "Ayushman Bharat PM-JAY",
+    "description": null
+   },
+   {
+    "benefit_name": "State Health Cards (e.g., Aarogyasri)",
+    "description": null
+   },
+   {
+    "benefit_name": "Free Dialysis Scheme",
+    "description": null
+   },
+   {
+    "benefit_name": "Health Helplines (104, 108)",
+    "description": null
+   }
+  ],
+  "target_groups": [
+   {
+    "target_group": "BPL"
+   },
+   {
+    "target_group": "Elderly"
+   },
+   {
+    "target_group": "Chronic Illness"
+   }
+  ],
+  "title": "Health Access"
+ }
+]

@@ -1,0 +1,23 @@
+
+export interface IncomeSourceType{
+	name: string
+	creation: string
+	modified: string
+	owner: string
+	modified_by: string
+	docstatus: 0 | 1 | 2
+	parent?: string
+	parentfield?: string
+	parenttype?: string
+	idx?: number
+	/**	Income Type : Link - Income Type	*/
+	type?: string
+	/**	Income : Currency	*/
+	income?: number
+	/**	recur? : Check	*/
+	recur?: 0 | 1
+	/**	Date Time : Datetime	*/
+	date_time?: string
+	/**	Recur Frequency : Select	*/
+	recur_frequency?: "every day" | "every week" | "every month" | "every year"
+}

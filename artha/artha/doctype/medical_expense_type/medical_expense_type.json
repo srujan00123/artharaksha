@@ -1,0 +1,67 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-06-09 04:44:05.362633",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "medical_expense_type",
+  "amount",
+  "is_direct",
+  "proof_of_payment",
+  "date_time",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "medical_expense_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Medical Expense Type",
+   "options": "Consultation\nDiagnostics Tests\nSurgery\nMedicine\nMedication\nTherapy\nDental\nOptical\nEmergency\nHospitalization\nTransportation\nOther"
+  },
+  {
+   "fieldname": "proof_of_payment",
+   "fieldtype": "Attach",
+   "label": "Proof of Payment"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_direct",
+   "fieldtype": "Check",
+   "label": "Is Direct Medical Expense"
+  },
+  {
+   "fieldname": "date_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Date Time"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-06-14 17:29:47.333617",
+ "modified_by": "Administrator",
+ "module": "Artha",
+ "name": "Medical Expense Type",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

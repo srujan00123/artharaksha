@@ -1,0 +1,51 @@
+[
+ {
+  "amount_max": 0.0,
+  "amount_min": 0.0,
+  "amount_range": 0,
+  "apply_url": "https://www.privateinsurance.in/health-cover-plus",
+  "coverage_amount": 1000000.0,
+  "description": "Comprehensive private health insurance plan offering full hospitalization and OPD benefits.",
+  "docstatus": 0,
+  "doctype": "Insurance Scheme",
+  "modified": "2025-06-13 14:54:07.542700",
+  "name": "Private Health Cover Plus",
+  "scheme_benefits": [
+   {
+    "description": "Covers OPD and diagnostic expenses up to ₹50,000"
+   },
+   {
+    "description": "Hospitalization and surgery cover up to ₹10 lakh"
+   },
+   {
+    "description": "Covers pre and post-hospitalization expenses for 60 and 90 days respectively"
+   }
+  ],
+  "scheme_documents": [
+   {
+    "description": "Valid ID Proof (Aadhaar, PAN, Passport)"
+   },
+   {
+    "description": "Address Proof"
+   },
+   {
+    "description": "Recent Medical Reports (if applicable)"
+   }
+  ],
+  "scheme_eligibility": [
+   {
+    "description": "Available to individuals aged 18 to 65 years"
+   },
+   {
+    "description": "Must be an Indian citizen or resident"
+   }
+  ],
+  "scheme_name": "Private Health Cover Plus",
+  "target_groups": [
+   {
+    "target_group": "All Citizens 18-70 yrs"
+   }
+  ],
+  "type": "Private"
+ }
+]

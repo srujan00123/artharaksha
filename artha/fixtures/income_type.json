@@ -1,0 +1,37 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Income Type",
+  "modified": "2025-06-12 07:19:27.484216",
+  "name": "Salary",
+  "type": "Salary"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Income Type",
+  "modified": "2025-06-12 07:19:35.138328",
+  "name": "Agriculture",
+  "type": "Agriculture"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Income Type",
+  "modified": "2025-06-12 07:19:43.260457",
+  "name": "Wage",
+  "type": "Wage"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Income Type",
+  "modified": "2025-06-12 07:20:00.271726",
+  "name": "Business",
+  "type": "Business"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Income Type",
+  "modified": "2025-06-12 08:35:38.300680",
+  "name": "Freelance",
+  "type": "Freelance"
+ }
+]

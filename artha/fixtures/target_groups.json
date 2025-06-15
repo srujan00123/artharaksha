@@ -1,0 +1,170 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:00:44.321705",
+  "name": "Women",
+  "type": "Women"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:00:54.200080",
+  "name": "Chronic Illness",
+  "type": "Chronic Illness"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:01:01.164873",
+  "name": "Children",
+  "type": "Children"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:36:21.939518",
+  "name": "All Citizens 18-70 yrs",
+  "type": "All Citizens 18-70 yrs"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:37:23.087053",
+  "name": "Low Income Families",
+  "type": "Low Income Families"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:37:37.653715",
+  "name": "Unorganized Workers",
+  "type": "Unorganized Workers"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:01:08.635518",
+  "name": "Rural Poor",
+  "type": "Rural Poor"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:08:48.256545",
+  "name": "Disability (Autism, CP, MR)",
+  "type": "Disability (Autism, CP, MR)"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:13:07.216299",
+  "name": "Widows",
+  "type": "Widows"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:13:31.392191",
+  "name": "Disabled (BPL)",
+  "type": "Disabled (BPL)"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:15:03.300657",
+  "name": "Disabled",
+  "type": "Disabled"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:16:17.962681",
+  "name": "Rural Households",
+  "type": "Rural Households"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:24:45.214340",
+  "name": "Youth",
+  "type": "Youth"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:30:39.781417",
+  "name": "Girls",
+  "type": "Girls"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:31:32.235673",
+  "name": "Kidney Patients",
+  "type": "Kidney Patients"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:33:11.307402",
+  "name": "Mental Illness",
+  "type": "Mental Illness"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:34:15.404323",
+  "name": "Urban Poor",
+  "type": "Urban Poor"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:34:26.800318",
+  "name": "Homeless",
+  "type": "Homeless"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:00:24.311992",
+  "name": "Disability",
+  "type": "Disability"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:00:36.590900",
+  "name": "Elderly",
+  "type": "Elderly"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 08:24:26.454571",
+  "name": "BPL",
+  "type": "BPL"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:25:53.096329",
+  "name": "SC/ST",
+  "type": "SC/ST"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:26:44.105144",
+  "name": "SHG Members",
+  "type": "SHG Members"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Target Groups",
+  "modified": "2025-06-13 09:31:44.005137",
+  "name": "Cancer Patients",
+  "type": "Cancer Patients"
+ }
+]

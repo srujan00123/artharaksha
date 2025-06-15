@@ -1,0 +1,194 @@
+[
+ {
+  "amount_max": 0.0,
+  "amount_min": 0.0,
+  "amount_range": 0,
+  "apply_link": null,
+  "coverage_amount": 500000.0,
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Welfare Scheme",
+  "modified": "2025-06-13 09:07:11.700012",
+  "name": "Ayushman Bharat (PM-JAY)",
+  "scheme_benefit": [
+   {
+    "description": "₹5 lakh cashless treatment"
+   }
+  ],
+  "scheme_document": [],
+  "scheme_eligibility": [
+   {
+    "description": "For BPL and rural poor families as identified in SECC 2011 data. (Central Scheme)"
+   }
+  ],
+  "scheme_name": "Ayushman Bharat (PM-JAY)",
+  "target_groups": [
+   {
+    "target_group": "BPL"
+   },
+   {
+    "target_group": "Rural Poor"
+   }
+  ],
+  "type": "Government"
+ },
+ {
+  "amount_max": 0.0,
+  "amount_min": 0.0,
+  "amount_range": 0,
+  "apply_link": null,
+  "coverage_amount": 100000.0,
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Welfare Scheme",
+  "modified": "2025-06-13 09:09:16.837824",
+  "name": "Niramaya Health Insurance",
+  "scheme_benefit": [
+   {
+    "description": "₹1 lakh OPD/IPD treatment"
+   }
+  ],
+  "scheme_document": [],
+  "scheme_eligibility": [
+   {
+    "description": " For persons with Autism, Cerebral Palsy, Mental Retardation & Multiple Disabilities. (Central Scheme)"
+   }
+  ],
+  "scheme_name": "Niramaya Health Insurance",
+  "target_groups": [
+   {
+    "target_group": "Disability (Autism, CP, MR)"
+   }
+  ],
+  "type": "Government"
+ },
+ {
+  "amount_max": 0.0,
+  "amount_min": 0.0,
+  "amount_range": 0,
+  "apply_link": null,
+  "coverage_amount": 200000.0,
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Welfare Scheme",
+  "modified": "2025-06-13 09:10:24.178333",
+  "name": "Pradhan Mantri Suraksha Bima Yojana (PMSBY)",
+  "scheme_benefit": [
+   {
+    "description": " ₹2 lakh accidental insurance"
+   }
+  ],
+  "scheme_document": [],
+  "scheme_eligibility": [
+   {
+    "description": " All individuals aged 18–70 with bank accounts. (Central Scheme)"
+   }
+  ],
+  "scheme_name": "Pradhan Mantri Suraksha Bima Yojana (PMSBY)",
+  "target_groups": [
+   {
+    "target_group": "All Citizens 18-70 yrs"
+   }
+  ],
+  "type": "Government"
+ },
+ {
+  "amount_max": 0.0,
+  "amount_min": 0.0,
+  "amount_range": 0,
+  "apply_link": null,
+  "coverage_amount": 200000.0,
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Welfare Scheme",
+  "modified": "2025-06-13 09:11:13.689084",
+  "name": "Pradhan Mantri Jeevan Jyoti Bima Yojana (PMJJBY)",
+  "scheme_benefit": [
+   {
+    "description": "₹2 lakh life insurance"
+   }
+  ],
+  "scheme_document": [],
+  "scheme_eligibility": [
+   {
+    "description": "All individuals aged 18–50 with bank accounts. (Central Scheme)"
+   }
+  ],
+  "scheme_name": "Pradhan Mantri Jeevan Jyoti Bima Yojana (PMJJBY)",
+  "target_groups": [
+   {
+    "target_group": "All Citizens 18-70 yrs"
+   }
+  ],
+  "type": "Government"
+ },
+ {
+  "amount_max": 0.0,
+  "amount_min": 0.0,
+  "amount_range": 0,
+  "apply_link": "https://nsap.nic.in/",
+  "coverage_amount": 1000.0,
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Welfare Scheme",
+  "modified": "2025-06-13 09:15:39.781590",
+  "name": "National Social Assistance Programme (NSAP)",
+  "scheme_benefit": [
+   {
+    "description": " Monthly pension ₹300–₹1000"
+   }
+  ],
+  "scheme_document": [],
+  "scheme_eligibility": [
+   {
+    "description": "Central scheme for BPL individuals who are elderly (60+), widows, or disabled (80%+ disability)."
+   }
+  ],
+  "scheme_name": "National Social Assistance Programme (NSAP)",
+  "target_groups": [
+   {
+    "target_group": "Elderly"
+   },
+   {
+    "target_group": "Widows"
+   },
+   {
+    "target_group": "BPL"
+   },
+   {
+    "target_group": "Disabled"
+   }
+  ],
+  "type": "Government"
+ },
+ {
+  "amount_max": 0.0,
+  "amount_min": 0.0,
+  "amount_range": 0,
+  "apply_link": "https://nrega.nic.in/",
+  "coverage_amount": 24000.0,
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Welfare Scheme",
+  "modified": "2025-06-13 09:17:45.975656",
+  "name": "Mahatma Gandhi National Rural Employment Guarantee Act (MGNREGA)",
+  "scheme_benefit": [
+   {
+    "description": "100 days wage employment (~₹24,000/year)"
+   }
+  ],
+  "scheme_document": [],
+  "scheme_eligibility": [
+   {
+    "description": "Central scheme for rural households willing to do unskilled manual work."
+   }
+  ],
+  "scheme_name": "Mahatma Gandhi National Rural Employment Guarantee Act (MGNREGA)",
+  "target_groups": [
+   {
+    "target_group": "Rural Households"
+   }
+  ],
+  "type": "Government"
+ }
+]
