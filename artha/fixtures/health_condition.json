@@ -1,0 +1,212 @@
+[
+ {
+  "condition_name": "Hypertension",
+  "condition_type": "Disease",
+  "default_duration": "Permanent",
+  "default_severity": "Mild",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:38:34.942922",
+  "name": "Hypertension"
+ },
+ {
+  "condition_name": "Chronic Kidney Disease",
+  "condition_type": "Disease",
+  "default_duration": "Permanent",
+  "default_severity": "Severe",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:38:55.528456",
+  "name": "Chronic Kidney Disease"
+ },
+ {
+  "condition_name": "Coronary Artery Disease",
+  "condition_type": "Disease",
+  "default_duration": "Permanent",
+  "default_severity": "Severe",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:39:10.247032",
+  "name": "Coronary Artery Disease"
+ },
+ {
+  "condition_name": "Hypothyroidism",
+  "condition_type": "Disease",
+  "default_duration": "Permanent",
+  "default_severity": "Mild",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:39:22.318293",
+  "name": "Hypothyroidism"
+ },
+ {
+  "condition_name": "Epilepsy",
+  "condition_type": "Disease",
+  "default_duration": "Permanent",
+  "default_severity": "Moderate",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:39:35.454804",
+  "name": "Epilepsy"
+ },
+ {
+  "condition_name": "Visual Impairment",
+  "condition_type": "Disability",
+  "default_duration": "Permanent",
+  "default_severity": "Severe",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:40:27.187634",
+  "name": "Visual Impairment"
+ },
+ {
+  "condition_name": "Hearing Impairment",
+  "condition_type": "Disability",
+  "default_duration": "Permanent",
+  "default_severity": "Moderate",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:40:41.537906",
+  "name": "Hearing Impairment"
+ },
+ {
+  "condition_name": "Locomotor Disability",
+  "condition_type": "Disability",
+  "default_duration": "Permanent",
+  "default_severity": "Severe",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:40:51.968473",
+  "name": "Locomotor Disability"
+ },
+ {
+  "condition_name": "Autism Spectrum Disorder",
+  "condition_type": "Disability",
+  "default_duration": "Permanent",
+  "default_severity": "Moderate",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:41:05.625924",
+  "name": "Autism Spectrum Disorder"
+ },
+ {
+  "condition_name": "Intellectual Disability",
+  "condition_type": "Disability",
+  "default_duration": "Permanent",
+  "default_severity": "Severe",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:41:17.876604",
+  "name": "Intellectual Disability"
+ },
+ {
+  "condition_name": "Cerebral Palsy",
+  "condition_type": "Disability",
+  "default_duration": "Permanent",
+  "default_severity": "Severe",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:41:31.793638",
+  "name": "Cerebral Palsy"
+ },
+ {
+  "condition_name": "Postpartum Depression",
+  "condition_type": "Other",
+  "default_duration": "Temporary",
+  "default_severity": "Moderate",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:42:26.217653",
+  "name": "Postpartum Depression"
+ },
+ {
+  "condition_name": "Generalized Anxiety",
+  "condition_type": "Other",
+  "default_duration": "Temporary",
+  "default_severity": "Mild",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:42:38.335523",
+  "name": "Generalized Anxiety"
+ },
+ {
+  "condition_name": "Seasonal Affective Disorder",
+  "condition_type": "Other",
+  "default_duration": "Temporary",
+  "default_severity": "Mild",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:42:52.886687",
+  "name": "Seasonal Affective Disorder"
+ },
+ {
+  "condition_name": "Acute Stress Reaction",
+  "condition_type": "Other",
+  "default_duration": "Temporary",
+  "default_severity": "Moderate",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:43:08.098971",
+  "name": "Acute Stress Reaction"
+ },
+ {
+  "condition_name": "Mild Cognitive Impairment",
+  "condition_type": "Other",
+  "default_duration": "Temporary",
+  "default_severity": "Moderate",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:43:22.804081",
+  "name": "Mild Cognitive Impairment"
+ },
+ {
+  "condition_name": "Peanut Allergy",
+  "condition_type": "Allergy",
+  "default_duration": "Permanent",
+  "default_severity": "Severe",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:43:57.377622",
+  "name": "Peanut Allergy"
+ },
+ {
+  "condition_name": "Dust Allergy",
+  "condition_type": "Allergy",
+  "default_duration": "Permanent",
+  "default_severity": "Mild",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:44:11.208880",
+  "name": "Dust Allergy"
+ },
+ {
+  "condition_name": "Pollen Allergy",
+  "condition_type": "Allergy",
+  "default_duration": "Temporary",
+  "default_severity": "Moderate",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:44:32.727951",
+  "name": "Pollen Allergy"
+ },
+ {
+  "condition_name": "Type 2 Diabetes",
+  "condition_type": "Disease",
+  "default_duration": "Permanent",
+  "default_severity": "Mild",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 07:37:14.587023",
+  "name": "Type 2 Diabetes"
+ },
+ {
+  "condition_name": "Asthma",
+  "condition_type": "Disease",
+  "default_duration": "Permanent",
+  "default_severity": "Moderate",
+  "docstatus": 0,
+  "doctype": "Health Condition",
+  "modified": "2025-06-13 09:38:45.160808",
+  "name": "Asthma"
+ }
+]
