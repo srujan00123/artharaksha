@@ -7,12 +7,12 @@ import router from "./router"
 
 // Initialize theme early
 const initializeTheme = () => {
-  const stored = localStorage.getItem('theme')
-  if (stored === 'dark') {
-    document.documentElement.classList.add('dark')
-  } else {
-    document.documentElement.classList.remove('dark')
-  }
+	const stored = localStorage.getItem('theme')
+	if (stored === 'dark') {
+		document.documentElement.classList.add('dark')
+	} else {
+		document.documentElement.classList.remove('dark')
+	}
 }
 
 // Initialize theme before app mounts
@@ -28,6 +28,7 @@ import {
 	setConfig,
 } from "frappe-ui"
 
+
 const app = createApp(App)
 const pinia = createPinia()
 
@@ -41,5 +42,4 @@ app.use(pageMetaPlugin) // Enable reactive page titles
 app.component("Button", Button)
 app.component("Card", Card)
 app.component("Input", Input)
-
 app.mount("#app")

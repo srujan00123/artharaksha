@@ -1,11 +1,10 @@
 {
-<<<<<<< HEAD
   "name": "frappe-ui-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "vite",
     "build": "vite build --base=/assets/artha/frontend/ && yarn copy-html-entry",
     "preview": "vite preview",
     "lint": "biome check --write .",
@@ -41,46 +40,3 @@
     "highlight.js": "11.11.1"
   }
 }
-=======
-	"name": "frappe-ui-frontend",
-	"private": true,
-	"version": "0.0.0",
-	"type": "module",
-	"scripts": {
-		"dev": "vite",
-		"build": "vite build --base=/assets/artha/frontend/ && yarn copy-html-entry",
-		"preview": "vite preview",
-		"lint": "biome check --write .",
-		"copy-html-entry": "cp ../artha/public/frontend/index.html ../artha/www/frontend.html"
-	},
-	"dependencies": {
-		"@headlessui/vue": "^1.7.23",
-		"@tiptap/pm": "^2.7.0",
-		"apexcharts": "^4.0.0",
-		"chart.js": "^4.4.9",
-		"echarts": "^5.6.0",
-		"feather-icons": "^4.29.2",
-		"frappe-ui": "^0.1.149",
-		"highlight.js": "^11.11.1",
-		"lucide-vue-next": "^0.515.0",
-		"pinia": "^3.0.3",
-		"socket.io-client": "^4.7.2",
-		"vue": "^3.5.12",
-		"vue-chartjs": "^5.3.2",
-		"vue-echarts": "^7.0.3",
-		"vue-router": "^4.4.5",
-		"vue3-apexcharts": "^1.8.0"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "1.9.4",
-		"@vitejs/plugin-vue": "^5.1.4",
-		"autoprefixer": "^10.4.2",
-		"postcss": "^8.4.5",
-		"tailwindcss": "^3.4.15",
-		"vite": "^5.4.10"
-	},
-	"resolutions": {
-		"highlight.js": "11.11.1"
-	}
-}
->>>>>>> cache

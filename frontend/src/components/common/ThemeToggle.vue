@@ -10,15 +10,9 @@
 </template>
 
 <script setup>
-<<<<<<< HEAD
+import { ref } from 'vue'
 import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-import { Sun, Moon } from 'lucide-vue-next'
-
-const { isDark, toggleLightDark } = useAdvancedTheme()
-=======
-import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
-import { Check, ChevronDown, Monitor, Moon, Sun } from "lucide-vue-next"
-import { ref } from "vue"
+import { Sun, Moon, ChevronDown, Check, Monitor } from 'lucide-vue-next'
 
 defineProps({
 	showDropdown: {
@@ -106,7 +100,6 @@ const getThemeTextClass = (intensity = "600") => {
 	}
 	return intensityMap[intensity] || intensityMap["600"]
 }
->>>>>>> cache
 </script>
 
 <style scoped>

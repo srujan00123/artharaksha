@@ -94,20 +94,6 @@
 </template>
 
 <script setup>
-<<<<<<< HEAD
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { 
-    Bell, 
-    CheckCircle, 
-    AlertCircle, 
-    Info, 
-    AlertTriangle
-} from 'lucide-vue-next'
-import { useNotifications } from '../../composables/useNotifications'
-import { call } from 'frappe-ui'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
-=======
 import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
 import { call } from "frappe-ui"
 import {
@@ -119,7 +105,6 @@ import {
 } from "lucide-vue-next"
 import { computed, onMounted, onUnmounted, ref, watch } from "vue"
 import { useNotifications } from "../../composables/useNotifications"
->>>>>>> cache
 
 // Local state
 const showNotifications = ref(false)
@@ -189,16 +174,6 @@ const getNotificationIconColor = (type) => {
 }
 
 const formatTime = (timestamp) => {
-<<<<<<< HEAD
-    const now = new Date()
-    const time = new Date(timestamp)
-    const diffInMinutes = Math.floor((now - time) / (1000 * 60))
-    
-    if (diffInMinutes < 1) return 'Just now'
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-    return `${Math.floor(diffInMinutes / 1440)}d ago`
-=======
 	const now = new Date()
 	const time = new Date(timestamp)
 	const diffInMinutes = Math.floor((now - time) / (1000 * 60))
@@ -207,7 +182,6 @@ const formatTime = (timestamp) => {
 	if (diffInMinutes < 60) return `${diffInMinutes}m ago`
 	if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
 	return `${Math.floor(diffInMinutes / 1440)}d ago`
->>>>>>> cache
 }
 
 // Close dropdown when clicking outside
@@ -218,23 +192,6 @@ const handleClickOutside = (event) => {
 }
 
 onMounted(() => {
-<<<<<<< HEAD
-    document.addEventListener('click', handleClickOutside)
-    
-    // Watch for changes in notifications
-    watch(
-        () => notificationsComposable.notifications.value,
-        (newNotifications, oldNotifications) => {
-            // Notifications changed - UI will update automatically
-        },
-        { immediate: true, deep: true }
-    )
-    
-    // Initialize realtime connection
-    notificationsComposable.initialize().catch(error => {
-        console.error('NotificationCenter initialization failed:', error)
-    })
-=======
 	document.addEventListener("click", handleClickOutside)
 
 	// Watch for changes in notifications
@@ -250,7 +207,6 @@ onMounted(() => {
 	notificationsComposable.initialize().catch((error) => {
 		console.error("NotificationCenter initialization failed:", error)
 	})
->>>>>>> cache
 })
 
 onUnmounted(() => {
@@ -262,39 +218,6 @@ onUnmounted(() => {
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-<<<<<<< HEAD
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
-}
-
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
-}
-
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
-=======
 const getFinancialStatusClass = (type, intensity = "600") => {
 	const baseClasses = {
 		income: `text-green-${intensity} dark:text-green-400`,
@@ -326,6 +249,5 @@ const getThemeTextClass = (intensity = "600") => {
 		400: "text-gray-400 dark:text-gray-500",
 	}
 	return intensityMap[intensity] || intensityMap["600"]
->>>>>>> cache
 }
 </script> 

@@ -1,48 +1,40 @@
 import { computed, onMounted, ref } from "vue"
 
 export function useAdvancedTheme() {
-	const currentTheme = ref("light")
+	const currentTheme = ref('light')
 
-<<<<<<< HEAD
-    const isDark = computed(() => currentTheme.value === 'dark')
-
-    // Simple theme application - no batching, no complex logic
-    const setTheme = (themeName) => {
-        if (themeName !== 'light' && themeName !== 'dark') return
-        if (currentTheme.value === themeName) return
-=======
 	// Define multiple theme variants
 	const themes = {
 		// Light themes
 		light: {
-			name: "light",
-			label: "Light",
-			category: "light",
+			name: 'light',
+			label: 'Light',
+			category: 'light',
 			colors: {
-				primary: "blue",
-				surface: "white",
-				background: "gray-50",
-			},
+				primary: 'blue',
+				surface: 'white',
+				background: 'gray-50'
+			}
 		},
-		"light-warm": {
-			name: "light-warm",
-			label: "Light Warm",
-			category: "light",
+		'light-warm': {
+			name: 'light-warm',
+			label: 'Light Warm',
+			category: 'light',
 			colors: {
-				primary: "orange",
-				surface: "orange-50",
-				background: "orange-25",
-			},
+				primary: 'orange',
+				surface: 'orange-50',
+				background: 'orange-25'
+			}
 		},
-		"light-cool": {
-			name: "light-cool",
-			label: "Light Cool",
-			category: "light",
+		'light-cool': {
+			name: 'light-cool',
+			label: 'Light Cool',
+			category: 'light',
 			colors: {
-				primary: "cyan",
-				surface: "cyan-50",
-				background: "cyan-25",
-			},
+				primary: 'cyan',
+				surface: 'cyan-50',
+				background: 'cyan-25'
+			}
 		},
 
 		// Dark themes
@@ -96,66 +88,39 @@ export function useAdvancedTheme() {
 	const setTheme = (themeName) => {
 		const theme = themes[themeName]
 		if (!theme) return
->>>>>>> cache
 
 		currentTheme.value = themeName
 
-<<<<<<< HEAD
-        // Direct DOM updates
-        if (themeName === 'dark') {
-            document.documentElement.classList.add('dark')
-        } else {
-            document.documentElement.classList.remove('dark')
-        }
-=======
 		// Set data attributes for CSS
-		document.documentElement.setAttribute("data-theme", theme.category)
-		document.documentElement.setAttribute("data-theme-variant", themeName)
+		document.documentElement.setAttribute('data-theme', theme.category)
+		document.documentElement.setAttribute('data-theme-variant', themeName)
 
 		// Set class for Tailwind dark mode
-		if (theme.category === "dark") {
-			document.documentElement.classList.add("dark")
+		if (theme.category === 'dark') {
+			document.documentElement.classList.add('dark')
 		} else {
-			document.documentElement.classList.remove("dark")
+			document.documentElement.classList.remove('dark')
 		}
->>>>>>> cache
 
 		// Store preference
-		localStorage.setItem("theme", themeName)
+		localStorage.setItem('theme', themeName)
 	}
 
-<<<<<<< HEAD
-    // Simple initialization
-    const initializeTheme = () => {
-        const stored = localStorage.getItem('theme')
-        if (stored === 'dark' || stored === 'light') {
-            setTheme(stored)
-        } else {
-            // Default to light theme
-            setTheme('light')
-        }
-    }
-
-    // Simple toggle
-    const toggleLightDark = () => {
-        setTheme(currentTheme.value === 'dark' ? 'light' : 'dark')
-    }
-=======
 	// Initialize theme
 	const initializeTheme = () => {
-		const stored = localStorage.getItem("theme")
+		const stored = localStorage.getItem('theme')
 		if (stored && themes[stored]) {
 			setTheme(stored)
 		} else {
 			// Default to light theme
-			setTheme("light")
+			setTheme('light')
 		}
 	}
 
 	// Toggle between light and dark (keeps variant)
 	const toggleLightDark = () => {
 		const currentCategory = themes[currentTheme.value].category
-		const newCategory = currentCategory === "light" ? "dark" : "light"
+		const newCategory = currentCategory === 'light' ? 'dark' : 'light'
 
 		// Find equivalent theme in opposite category
 		const equivalentTheme = Object.values(themes).find(
@@ -164,25 +129,13 @@ export function useAdvancedTheme() {
 				t.colors.primary === themes[currentTheme.value].colors.primary,
 		)
 
-		setTheme(
-			equivalentTheme?.name || (newCategory === "dark" ? "dark" : "light"),
-		)
+		setTheme(equivalentTheme?.name || (newCategory === 'dark' ? 'dark' : 'light'))
 	}
->>>>>>> cache
 
 	onMounted(() => {
 		initializeTheme()
 	})
 
-<<<<<<< HEAD
-    return {
-        currentTheme,
-        isDark,
-        setTheme,
-        toggleLightDark
-    }
-} 
-=======
 	return {
 		currentTheme,
 		themes,
@@ -190,7 +143,6 @@ export function useAdvancedTheme() {
 		isDark,
 		setTheme,
 		toggleLightDark,
-		initializeTheme,
+		initializeTheme
 	}
-}
->>>>>>> cache
+} 

@@ -43,13 +43,8 @@
   <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<<<<<<< HEAD
-  <script type="module" crossorigin src="/assets/artha/frontend/assets/index-LDPgd8Cq.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/artha/frontend/assets/index-DQuIQo8P.css">
-=======
   <script type="module" crossorigin src="/assets/artha/frontend/assets/index-CKADuuzC.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/artha/frontend/assets/index-DAQc8HoL.css">
->>>>>>> cache
 </head>
 
 <body>
@@ -61,12 +56,12 @@
     window.csrf_token = '{{ frappe.session.csrf_token }}'
   </script>
 
-          <script>
-              {% for key in boot %}
-              window["{{ key }}"] = {{ boot[key] | tojson }};
-              {% endfor %}
-          </script>
-          </body>
-          
+  <script>
+    {% for key in boot %}
+    window["{{ key }}"] = {{ boot[key] | tojson }};
+    {% endfor %}
+  </script>
+</body>
+
 
 </html>

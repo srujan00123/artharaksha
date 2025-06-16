@@ -24,16 +24,11 @@ useAdvancedTheme()
 
 // Set initial title on app mount
 onMounted(() => {
-<<<<<<< HEAD
-  // The usePageTitle composable will handle route-based title updates automatically
-  // This ensures the title is set correctly on initial load
-=======
 	// Initialize theme system
 	initializeTheme()
 
 	// The usePageTitle composable will handle route-based title updates automatically
 	// This ensures the title is set correctly on initial load
->>>>>>> cache
 })
 </script>
 
