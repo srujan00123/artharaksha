@@ -192,38 +192,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { X, Stethoscope, ShoppingBag, AlertCircle, Check } from 'lucide-vue-next'
-import { Button, TextInput } from 'frappe-ui'
-import { FileUpload } from '../common'
-import { useExpenseStore } from '../../stores/expense'
-import { useExpense } from '../../composables/useExpense'
-import { useHousehold } from '../../composables/useHousehold'
-import { getClientDateTimeString, toClientDateTimeString, getClientTime, getTimezoneInfo } from '../../utils/date'
-import { storeToRefs } from 'pinia'
-import type { 
-    ExpenseFormData, 
-    ExpenseValidationErrors, 
-    ProcessedExpenseItem
-} from '../../types/expense'
-import { 
-    MEDICAL_EXPENSE_CATEGORIES, 
-    OTHER_EXPENSE_CATEGORIES 
-} from '../../types/expense'
+import { Button, TextInput } from "frappe-ui"
+import {
+	AlertCircle,
+	Check,
+	ShoppingBag,
+	Stethoscope,
+	X,
+} from "lucide-vue-next"
+import { storeToRefs } from "pinia"
+import { computed, nextTick, onMounted, ref, watch } from "vue"
+import { useExpense } from "../../composables/useExpense"
+import { useHousehold } from "../../composables/useHousehold"
+import { useExpenseStore } from "../../stores/expense"
+import type {
+	ExpenseFormData,
+	ExpenseValidationErrors,
+	ProcessedExpenseItem,
+} from "../../types/expense"
+import {
+	MEDICAL_EXPENSE_CATEGORIES,
+	OTHER_EXPENSE_CATEGORIES,
+} from "../../types/expense"
+import {
+	getClientDateTimeString,
+	getClientTime,
+	getTimezoneInfo,
+	toClientDateTimeString,
+} from "../../utils/date"
+import { FileUpload } from "../common"
 
 // Props
 interface Props {
-    expense?: ProcessedExpenseItem | null
+	expense?: ProcessedExpenseItem | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    expense: null
+	expense: null,
 })
 
 // Emits
 const emit = defineEmits<{
-    close: []
-    success: []
+	close: []
+	success: []
 }>()
 
 // Use the composables directly for more flexibility
@@ -236,195 +247,216 @@ const expenseStore = useExpenseStore()
 // Form state
 const initialLoading = ref(false)
 const submitting = ref(false)
-const submitError = ref('')
+const submitError = ref("")
 const validationErrors = ref<ExpenseValidationErrors>({})
 
 // Form data matching ExpenseFormData interface
 const formData = ref<ExpenseFormData>({
-    type: 'medical',
-    category: '',
-    description: '',
-    amount: '',
-    dateTime: getClientDateTimeString(),
-    receipt: null,
-    isDirect: false
+	type: "medical",
+	category: "",
+	description: "",
+	amount: "",
+	dateTime: getClientDateTimeString(),
+	receipt: null,
+	isDirect: false,
 })
 
 // Computed properties
 const isEditing = computed(() => !!props.expense)
 
 const availableCategories = computed(() =>
-    formData.value.type === 'medical' ? MEDICAL_EXPENSE_CATEGORIES : OTHER_EXPENSE_CATEGORIES
+	formData.value.type === "medical"
+		? MEDICAL_EXPENSE_CATEGORIES
+		: OTHER_EXPENSE_CATEGORIES,
 )
 
 const maxDateTime = computed(() => {
-    return getClientDateTimeString()
+	return getClientDateTimeString()
 })
 
 const isFormValid = computed(() => {
-    return formData.value.category &&
-        formData.value.amount &&
-        parseFloat(formData.value.amount) > 0 &&
-        formData.value.dateTime &&
-        Object.keys(validationErrors.value).length === 0
+	return (
+		formData.value.category &&
+		formData.value.amount &&
+		Number.parseFloat(formData.value.amount) > 0 &&
+		formData.value.dateTime &&
+		Object.keys(validationErrors.value).length === 0
+	)
 })
 
 // Validation functions
 function validateField(field: keyof ExpenseFormData, value: any) {
-    switch (field) {
-        case 'category':
-            if (!value?.trim()) {
-                validationErrors.value.category = 'Please select a category'
-            } else {
-                delete validationErrors.value.category
-            }
-            break
-        case 'amount':
-            if (!value || value === '') {
-                validationErrors.value.amount = 'Please enter an amount'
-            } else {
-                const numValue = parseFloat(value)
-                if (isNaN(numValue) || numValue <= 0) {
-                    validationErrors.value.amount = 'Amount must be greater than 0'
-                } else if (numValue > 10000000) {
-                    validationErrors.value.amount = 'Amount seems too large'
-                } else {
-                    delete validationErrors.value.amount
-                }
-            }
-            break
-        case 'dateTime':
-            if (!value) {
-                validationErrors.value.dateTime = 'Please select date and time'
-            } else {
-                const selectedDate = new Date(value)
-                const now = getClientTime()
-                if (selectedDate > now) {
-                    validationErrors.value.dateTime = 'Date cannot be in the future'
-                } else {
-                    delete validationErrors.value.dateTime
-                }
-            }
-            break
-    }
+	switch (field) {
+		case "category":
+			if (!value?.trim()) {
+				validationErrors.value.category = "Please select a category"
+			} else {
+				delete validationErrors.value.category
+			}
+			break
+		case "amount":
+			if (!value || value === "") {
+				validationErrors.value.amount = "Please enter an amount"
+			} else {
+				const numValue = Number.parseFloat(value)
+				if (isNaN(numValue) || numValue <= 0) {
+					validationErrors.value.amount = "Amount must be greater than 0"
+				} else if (numValue > 10000000) {
+					validationErrors.value.amount = "Amount seems too large"
+				} else {
+					delete validationErrors.value.amount
+				}
+			}
+			break
+		case "dateTime":
+			if (!value) {
+				validationErrors.value.dateTime = "Please select date and time"
+			} else {
+				const selectedDate = new Date(value)
+				const now = getClientTime()
+				if (selectedDate > now) {
+					validationErrors.value.dateTime = "Date cannot be in the future"
+				} else {
+					delete validationErrors.value.dateTime
+				}
+			}
+			break
+	}
 }
 
 function validateForm(): boolean {
-    validateField('category', formData.value.category)
-    validateField('amount', formData.value.amount)
-    validateField('dateTime', formData.value.dateTime)
-    return Object.keys(validationErrors.value).length === 0
+	validateField("category", formData.value.category)
+	validateField("amount", formData.value.amount)
+	validateField("dateTime", formData.value.dateTime)
+	return Object.keys(validationErrors.value).length === 0
 }
 
 // Event handlers
 function handleReceiptUpload(file: File) {
-    formData.value.receipt = file
+	formData.value.receipt = file
 }
 
 function handleUploadError(errorMsg: string) {
-    submitError.value = errorMsg
+	submitError.value = errorMsg
 }
 
 function handleClickOutside() {
-    if (submitting.value) return
-    handleClose()
+	if (submitting.value) return
+	handleClose()
 }
 
 function handleClose() {
-    if (submitting.value) return
-    resetForm()
-    emit('close')
+	if (submitting.value) return
+	resetForm()
+	emit("close")
 }
 
 async function handleSubmit() {
-    submitError.value = ''
+	submitError.value = ""
 
-    if (!validateForm()) {
-        return
-    }
+	if (!validateForm()) {
+		return
+	}
 
-    submitting.value = true
+	submitting.value = true
 
-    try {
-        const expenseData: ExpenseFormData = {
-            type: formData.value.type,
-            category: formData.value.category || '',
-            description: formData.value.description || '',
-            amount: formData.value.amount,
-            dateTime: formData.value.dateTime || new Date().toISOString(),
-            receipt: formData.value.receipt || null,
-            isDirect: formData.value.isDirect || false
-        }
+	try {
+		const expenseData: ExpenseFormData = {
+			type: formData.value.type,
+			category: formData.value.category || "",
+			description: formData.value.description || "",
+			amount: formData.value.amount,
+			dateTime: formData.value.dateTime || new Date().toISOString(),
+			receipt: formData.value.receipt || null,
+			isDirect: formData.value.isDirect || false,
+		}
 
-        if (isEditing.value && props.expense) {
-            // Update existing expense
-            await expenseStore.updateExpense(props.expense, expenseData)
-        } else {
-            // Create new expense
-            await expenseStore.createExpense(expenseData)
-        }
+		if (isEditing.value && props.expense) {
+			// Update existing expense
+			await expenseStore.updateExpense(props.expense, expenseData)
+		} else {
+			// Create new expense
+			await expenseStore.createExpense(expenseData)
+		}
 
-        // Reset form after successful submission
-        resetForm()
+		// Reset form after successful submission
+		resetForm()
 
-        emit('success')
-        emit('close')
-    } catch (err: any) {
-        console.error('Error saving expense:', err)
-        submitError.value = err.message || 'Failed to save expense. Please try again.'
-    } finally {
-        submitting.value = false
-    }
+		emit("success")
+		emit("close")
+	} catch (err: any) {
+		console.error("Error saving expense:", err)
+		submitError.value =
+			err.message || "Failed to save expense. Please try again."
+	} finally {
+		submitting.value = false
+	}
 }
 
 // Form reset function
 function resetForm() {
-    formData.value = {
-        type: 'medical',
-        category: '',
-        description: '',
-        amount: '',
-        dateTime: getClientDateTimeString(),
-        receipt: null,
-        isDirect: false
-    }
-    validationErrors.value = {}
-    submitError.value = ''
+	formData.value = {
+		type: "medical",
+		category: "",
+		description: "",
+		amount: "",
+		dateTime: getClientDateTimeString(),
+		receipt: null,
+		isDirect: false,
+	}
+	validationErrors.value = {}
+	submitError.value = ""
 }
 
 // Watchers for validation
-watch(() => formData.value.category, (newValue) => {
-    validateField('category', newValue)
-})
+watch(
+	() => formData.value.category,
+	(newValue) => {
+		validateField("category", newValue)
+	},
+)
 
-watch(() => formData.value.amount, (newValue) => {
-    validateField('amount', newValue)
-})
+watch(
+	() => formData.value.amount,
+	(newValue) => {
+		validateField("amount", newValue)
+	},
+)
 
-watch(() => formData.value.dateTime, (newValue) => {
-    validateField('dateTime', newValue)
-})
+watch(
+	() => formData.value.dateTime,
+	(newValue) => {
+		validateField("dateTime", newValue)
+	},
+)
 
 // Reset category when type changes
-watch(() => formData.value.type, () => {
-    formData.value.category = ''
-    formData.value.isDirect = false
-})
+watch(
+	() => formData.value.type,
+	() => {
+		formData.value.category = ""
+		formData.value.isDirect = false
+	},
+)
 
 // Load expense data for editing
-watch(() => props.expense, (newExpense) => {
-    if (newExpense) {
-        formData.value = {
-            type: newExpense.type || 'medical',
-            category: newExpense.category || '',
-            description: newExpense.description || '',
-            amount: newExpense.amount?.toString() || '',
-            dateTime: newExpense.date?.slice(0, 16) || getClientDateTimeString(),
-            receipt: null,
-            isDirect: newExpense.isDirect || false
-        }
-    }
-}, { immediate: true })
+watch(
+	() => props.expense,
+	(newExpense) => {
+		if (newExpense) {
+			formData.value = {
+				type: newExpense.type || "medical",
+				category: newExpense.category || "",
+				description: newExpense.description || "",
+				amount: newExpense.amount?.toString() || "",
+				dateTime: newExpense.date?.slice(0, 16) || getClientDateTimeString(),
+				receipt: null,
+				isDirect: newExpense.isDirect || false,
+			}
+		}
+	},
+	{ immediate: true },
+)
 </script>
 
 <style scoped>

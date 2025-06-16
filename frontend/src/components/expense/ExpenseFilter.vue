@@ -156,30 +156,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { SlidersHorizontal, Stethoscope, ShoppingBag } from 'lucide-vue-next'
-import { Button, Card, TextInput, Badge } from 'frappe-ui'
-import { getClientTime, getClientDateString } from '../../utils/date'
-import type { ExpenseFilters, QuickDateFilter, ActiveFilter } from '../../types/expense'
+import { Badge, Button, Card, TextInput } from "frappe-ui"
+import { ShoppingBag, SlidersHorizontal, Stethoscope } from "lucide-vue-next"
+import { computed, onMounted, ref, watch } from "vue"
+import type {
+	ActiveFilter,
+	ExpenseFilters,
+	QuickDateFilter,
+} from "../../types/expense"
+import { getClientDateString, getClientTime } from "../../utils/date"
 
 // Props
 interface Props {
-    filters: ExpenseFilters
-    totalCount: number
-    filteredCount: number
-    // Simple callback for cache invalidation
-    onCacheInvalidate?: () => Promise<void>
+	filters: ExpenseFilters
+	totalCount: number
+	filteredCount: number
+	// Simple callback for cache invalidation
+	onCacheInvalidate?: () => Promise<void>
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    totalCount: 0,
-    filteredCount: 0,
-    onCacheInvalidate: undefined
+	totalCount: 0,
+	filteredCount: 0,
+	onCacheInvalidate: undefined,
 })
 
 // Emits - simplified
 const emit = defineEmits<{
-    'update:filters': [filters: ExpenseFilters]
+	"update:filters": [filters: ExpenseFilters]
 }>()
 
 // Local state
@@ -187,179 +191,241 @@ const showFilters = ref(false)
 
 // Local filters matching ExpenseFilters interface
 const localFilters = ref<ExpenseFilters>({
-    searchTerm: '',
-    dateFrom: '',
-    dateTo: '',
-    amountMin: '',
-    amountMax: '',
-    category: '',
-    type: '',
-    sortBy: 'date',
-    sortOrder: 'desc',
-    period: ''
+	searchTerm: "",
+	dateFrom: "",
+	dateTo: "",
+	amountMin: "",
+	amountMax: "",
+	category: "",
+	type: "",
+	sortBy: "date",
+	sortOrder: "desc",
+	period: "",
 })
 
 // Quick date filter options matching QuickDateFilter interface
 const quickDateFilters: QuickDateFilter[] = [
-    { label: 'Today', value: 'today', dateFrom: getClientDateString(), dateTo: getClientDateString() },
-    { label: 'This Week', value: 'this-week', dateFrom: getWeekStart(), dateTo: getClientDateString() },
-    { label: 'This Month', value: 'this-month', dateFrom: getMonthStart(), dateTo: getClientDateString() },
-    { label: 'Last Month', value: 'last-month', dateFrom: getLastMonthStart(), dateTo: getLastMonthEnd() },
-    { label: 'Last 3 Months', value: 'last-3-months', dateFrom: getThreeMonthsAgo(), dateTo: getClientDateString() },
-    { label: 'This Year', value: 'this-year', dateFrom: getYearStart(), dateTo: getClientDateString() }
+	{
+		label: "Today",
+		value: "today",
+		dateFrom: getClientDateString(),
+		dateTo: getClientDateString(),
+	},
+	{
+		label: "This Week",
+		value: "this-week",
+		dateFrom: getWeekStart(),
+		dateTo: getClientDateString(),
+	},
+	{
+		label: "This Month",
+		value: "this-month",
+		dateFrom: getMonthStart(),
+		dateTo: getClientDateString(),
+	},
+	{
+		label: "Last Month",
+		value: "last-month",
+		dateFrom: getLastMonthStart(),
+		dateTo: getLastMonthEnd(),
+	},
+	{
+		label: "Last 3 Months",
+		value: "last-3-months",
+		dateFrom: getThreeMonthsAgo(),
+		dateTo: getClientDateString(),
+	},
+	{
+		label: "This Year",
+		value: "this-year",
+		dateFrom: getYearStart(),
+		dateTo: getClientDateString(),
+	},
 ]
 
 // Computed properties
 const activeFilterCount = computed(() => {
-    let count = 0
-    if (localFilters.value.searchTerm) count++
-    if (localFilters.value.dateFrom || localFilters.value.dateTo) count++
-    if (localFilters.value.amountMin || localFilters.value.amountMax) count++
-    if (localFilters.value.category) count++
-    if (localFilters.value.type) count++
-    return count
+	let count = 0
+	if (localFilters.value.searchTerm) count++
+	if (localFilters.value.dateFrom || localFilters.value.dateTo) count++
+	if (localFilters.value.amountMin || localFilters.value.amountMax) count++
+	if (localFilters.value.category) count++
+	if (localFilters.value.type) count++
+	return count
 })
 
 const activeFilters = computed((): ActiveFilter[] => {
-    const filters: ActiveFilter[] = []
-    
-    if (localFilters.value.searchTerm) {
-        filters.push({ key: 'search', label: `Search: "${localFilters.value.searchTerm}"`, value: localFilters.value.searchTerm })
-    }
-    
-    if (localFilters.value.type) {
-        filters.push({ key: 'type', label: `Type: ${localFilters.value.type}`, value: localFilters.value.type })
-    }
-    
-    if (localFilters.value.category) {
-        filters.push({ key: 'category', label: `Category: ${localFilters.value.category}`, value: localFilters.value.category })
-    }
-    
-    if (localFilters.value.dateFrom || localFilters.value.dateTo) {
-        const dateLabel = formatDateRange()
-        filters.push({ key: 'date', label: `Date: ${dateLabel}`, value: dateLabel })
-    }
-    
-    if (localFilters.value.amountMin || localFilters.value.amountMax) {
-        const amountLabel = formatAmountRange()
-        filters.push({ key: 'amount', label: `Amount: ${amountLabel}`, value: amountLabel })
-    }
-    
-    return filters
+	const filters: ActiveFilter[] = []
+
+	if (localFilters.value.searchTerm) {
+		filters.push({
+			key: "search",
+			label: `Search: "${localFilters.value.searchTerm}"`,
+			value: localFilters.value.searchTerm,
+		})
+	}
+
+	if (localFilters.value.type) {
+		filters.push({
+			key: "type",
+			label: `Type: ${localFilters.value.type}`,
+			value: localFilters.value.type,
+		})
+	}
+
+	if (localFilters.value.category) {
+		filters.push({
+			key: "category",
+			label: `Category: ${localFilters.value.category}`,
+			value: localFilters.value.category,
+		})
+	}
+
+	if (localFilters.value.dateFrom || localFilters.value.dateTo) {
+		const dateLabel = formatDateRange()
+		filters.push({ key: "date", label: `Date: ${dateLabel}`, value: dateLabel })
+	}
+
+	if (localFilters.value.amountMin || localFilters.value.amountMax) {
+		const amountLabel = formatAmountRange()
+		filters.push({
+			key: "amount",
+			label: `Amount: ${amountLabel}`,
+			value: amountLabel,
+		})
+	}
+
+	return filters
 })
 
 // Helper functions for date calculations
 function getWeekStart(): string {
-    const now = getClientTime()
-    const startOfWeek = new Date(now)
-    startOfWeek.setDate(now.getDate() - now.getDay())
-    return startOfWeek.toISOString().split('T')[0]
+	const now = getClientTime()
+	const startOfWeek = new Date(now)
+	startOfWeek.setDate(now.getDate() - now.getDay())
+	return startOfWeek.toISOString().split("T")[0]
 }
 
 function getMonthStart(): string {
-    const now = getClientTime()
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), now.getMonth(), 1)
+		.toISOString()
+		.split("T")[0]
 }
 
 function getLastMonthStart(): string {
-    const now = getClientTime()
-    return new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), now.getMonth() - 1, 1)
+		.toISOString()
+		.split("T")[0]
 }
 
 function getLastMonthEnd(): string {
-    const now = getClientTime()
-    return new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), now.getMonth(), 0)
+		.toISOString()
+		.split("T")[0]
 }
 
 function getThreeMonthsAgo(): string {
-    const now = getClientTime()
-    return new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), now.getMonth() - 3, 1)
+		.toISOString()
+		.split("T")[0]
 }
 
 function getYearStart(): string {
-    const now = getClientTime()
-    return new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0]
 }
 
 function formatDateRange(): string {
-    const from = localFilters.value.dateFrom
-    const to = localFilters.value.dateTo
-    
-    if (from && to) {
-        return `${from} to ${to}`
-    } else if (from) {
-        return `From ${from}`
-    } else if (to) {
-        return `Until ${to}`
-    }
-    return ''
+	const from = localFilters.value.dateFrom
+	const to = localFilters.value.dateTo
+
+	if (from && to) {
+		return `${from} to ${to}`
+	} else if (from) {
+		return `From ${from}`
+	} else if (to) {
+		return `Until ${to}`
+	}
+	return ""
 }
 
 function formatAmountRange(): string {
-    const min = localFilters.value.amountMin
-    const max = localFilters.value.amountMax
-    
-    if (min && max) {
-        return `₹${min} - ₹${max}`
-    } else if (min) {
-        return `₹${min}+`
-    } else if (max) {
-        return `Up to ₹${max}`
-    }
-    return ''
+	const min = localFilters.value.amountMin
+	const max = localFilters.value.amountMax
+
+	if (min && max) {
+		return `₹${min} - ₹${max}`
+	} else if (min) {
+		return `₹${min}+`
+	} else if (max) {
+		return `Up to ₹${max}`
+	}
+	return ""
 }
 
 // Methods - simplified
 function onFilterChange() {
-    emit('update:filters', { ...localFilters.value })
-    
-    // Call cache invalidation callback if provided
-    if (props.onCacheInvalidate) {
-        props.onCacheInvalidate()
-    }
+	emit("update:filters", { ...localFilters.value })
+
+	// Call cache invalidation callback if provided
+	if (props.onCacheInvalidate) {
+		props.onCacheInvalidate()
+	}
 }
 
 function applyQuickDateFilter(period: string) {
-    const filter = quickDateFilters.find(f => f.value === period)
-    if (filter) {
-        localFilters.value.dateFrom = filter.dateFrom
-        localFilters.value.dateTo = filter.dateTo
-        localFilters.value.period = period
-        onFilterChange()
-    }
+	const filter = quickDateFilters.find((f) => f.value === period)
+	if (filter) {
+		localFilters.value.dateFrom = filter.dateFrom
+		localFilters.value.dateTo = filter.dateTo
+		localFilters.value.period = period
+		onFilterChange()
+	}
 }
 
 function isActiveDateFilter(period: string): boolean {
-    return localFilters.value.period === period
+	return localFilters.value.period === period
 }
 
 function clearAllFilters() {
-    localFilters.value = {
-        searchTerm: '',
-        dateFrom: '',
-        dateTo: '',
-        amountMin: '',
-        amountMax: '',
-        category: '',
-        type: '',
-        sortBy: 'date',
-        sortOrder: 'desc',
-        period: ''
-    }
-    onFilterChange()
+	localFilters.value = {
+		searchTerm: "",
+		dateFrom: "",
+		dateTo: "",
+		amountMin: "",
+		amountMax: "",
+		category: "",
+		type: "",
+		sortBy: "date",
+		sortOrder: "desc",
+		period: "",
+	}
+	onFilterChange()
 }
 
 // Watchers
-watch(() => props.filters, (newFilters) => {
-    localFilters.value = { ...newFilters }
-}, { immediate: true, deep: true })
+watch(
+	() => props.filters,
+	(newFilters) => {
+		localFilters.value = { ...newFilters }
+	},
+	{ immediate: true, deep: true },
+)
 
 // Initialize
 onMounted(() => {
-    // Set default period to this month if no filters are set
-    if (!props.filters.period && !props.filters.dateFrom && !props.filters.dateTo) {
-        applyQuickDateFilter('this-month')
-    }
+	// Set default period to this month if no filters are set
+	if (
+		!props.filters.period &&
+		!props.filters.dateFrom &&
+		!props.filters.dateTo
+	) {
+		applyQuickDateFilter("this-month")
+	}
 })
 </script>
 

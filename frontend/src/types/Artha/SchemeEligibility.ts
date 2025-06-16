@@ -1,5 +1,4 @@
-
-export interface SchemeEligibility{
+export interface SchemeEligibility {
 	name: string
 	creation: string
 	modified: string

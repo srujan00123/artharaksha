@@ -1,486 +1,369 @@
 /**
- * Income Store
- * Pinia store for income management
- * Uses consistent types from types/income.ts
+ * Income Store - Exact Backend API Alignment
+ * No backward compatibility - uses exact backend structure
  */
 
-import { defineStore } from 'pinia'
-import { incomeService } from '../services/income-service.ts'
-import { getClientTime, getClientDateString, getClientTimezone } from '../utils/date'
+import { defineStore } from "pinia"
+import { computed, ref } from "vue"
+import { incomeService } from "../services/income-service"
 import type {
-    ProcessedIncomeItem,
-    IncomeType,
-    IncomeFilters,
-    IncomeFormData,
-    IncomeSourceFormData,
-    IncomeSummary,
-    GroupedIncome,
-    IncomeServiceOptions,
-    IncomeStoreState
-} from '../types/income'
+	IncomeAnalytics,
+	IncomeFilters,
+	IncomeFormData,
+	IncomeRecord,
+	IncomeTypeRecord,
+} from "../types/income"
+import {
+	convertIncomeAmount,
+	convertRecurFlag_ToBoolean,
+} from "../types/income"
 
-// Default filters using client timezone - match expense pattern
-const getDefaultFilters = (): IncomeFilters => {
-    const now = getClientTime()
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const timezone = getClientTimezone()
-    const clientFirstDay = new Date(firstDayOfMonth.toLocaleString("en-US", { timeZone: timezone }))
+export const useIncomeStore = defineStore("income", () => {
+	// State - using exact backend types
+	const incomes = ref<IncomeRecord[]>([])
+	const incomeTypes = ref<IncomeTypeRecord[]>([])
+	const analytics = ref<IncomeAnalytics | null>(null)
+	const loading = ref(false)
+	const error = ref("")
+	const lastFetch = ref<number | null>(null)
 
-    return {
-        searchTerm: '',
-        dateFrom: clientFirstDay.getFullYear() + '-' +
-            String(clientFirstDay.getMonth() + 1).padStart(2, '0') + '-' +
-            String(clientFirstDay.getDate()).padStart(2, '0'),
-        dateTo: getClientDateString(),
-        amountMin: '',
-        amountMax: '',
-        incomeType: '',
-        isRecurring: null,
-        sortBy: 'date',
-        sortOrder: 'desc',
-        period: 'this-month'
-    }
-}
+	// Filters state - exact backend filter structure
+	const filters = ref<IncomeFilters>({
+		searchTerm: "",
+		dateFrom: "",
+		dateTo: "",
+		amountMin: "",
+		amountMax: "",
+		type: "",
+		frequency: "",
+		isRecurring: null,
+		sortBy: "date",
+		sortOrder: "desc",
+	})
 
-export const useIncomeStore = defineStore('income', {
-    state: (): IncomeStoreState => ({
-        // Core data
-        incomes: [],
-        incomeTypes: [],
+	// Computed properties - working with exact backend data
+	const totalMonthlyIncome = computed(() => {
+		const total = incomes.value.reduce((total, income) => {
+			const amount = convertIncomeAmount(income.monthly_income)
+			return total + amount
+		}, 0)
+		return total
+	})
 
-        // UI state
-        loading: false,
-        error: '',
+	const totalRecurringIncome = computed(() => {
+		const total = incomes.value.reduce((total, income) => {
+			if (!income.income_source) return total
+			return total + income.income_source.reduce((sourceTotal, source) => {
+				const isRecurring = convertRecurFlag_ToBoolean(source.recur)
+				const amount = isRecurring ? source.income : 0
+				return sourceTotal + amount
+			}, 0)
+		}, 0)
+		return total
+	})
 
-        // Filters
-        filters: getDefaultFilters(),
+	const totalOneTimeIncome = computed(() => {
+		const total = incomes.value.reduce((total, income) => {
+			if (!income.income_source) return total
+			return total + income.income_source.reduce((sourceTotal, source) => {
+				const isRecurring = convertRecurFlag_ToBoolean(source.recur)
+				const amount = !isRecurring ? source.income : 0
+				return sourceTotal + amount
+			}, 0)
+		}, 0)
+		return total
+	})
 
-        // Cache management
-        lastFetch: null,
-        cacheExpiry: 5 * 60 * 1000 // 5 minutes
-    }),
+	const totalSources = computed(() => {
+		const total = incomes.value.reduce((total, income) => {
+			const sourceCount = income.income_source?.length || 0
+			return total + sourceCount
+		}, 0)
+		return total
+	})
 
-    getters: {
-        // Filtered incomes based on current filters
-        filteredIncomes: (state): ProcessedIncomeItem[] => {
-            return incomeService.filterIncomes(state.incomes, state.filters)
-        },
+	const filteredIncomes = computed(() => {
+		let filtered = [...incomes.value]
 
-        // Grouped income data
-        groupedIncome: (state): GroupedIncome => {
-            const filtered = incomeService.filterIncomes(state.incomes, state.filters)
-            return incomeService.groupIncomeByType(filtered)
-        },
+		// Apply search filter
+		if (filters.value.searchTerm) {
+			const searchTerm = filters.value.searchTerm.toLowerCase()
+			filtered = filtered.filter((income) =>
+				income.income_source?.some((source) =>
+					source.type.toLowerCase().includes(searchTerm),
+				),
+			)
+		}
 
-        // Summary statistics
-        incomeSummary: (state): IncomeSummary => {
-            const filtered = incomeService.filterIncomes(state.incomes, state.filters)
-            return incomeService.calculateIncomeStats(filtered)
-        },
+		// Apply type filter
+		if (filters.value.type) {
+			filtered = filtered.filter((income) =>
+				income.income_source?.some(
+					(source) => source.type === filters.value.type,
+				),
+			)
+		}
 
-        // Recurring income sources
-        recurringIncomes: (state): ProcessedIncomeItem[] => {
-            const filtered = incomeService.filterIncomes(state.incomes, state.filters)
-            return filtered.filter(income =>
-                income.sources.some(source => source.isRecurring)
-            )
-        },
+		// Apply frequency filter
+		if (filters.value.frequency) {
+			if (filters.value.frequency === "one-time") {
+				filtered = filtered.filter((income) =>
+					income.income_source?.some(
+						(source) => !convertRecurFlag_ToBoolean(source.recur),
+					),
+				)
+			} else {
+				filtered = filtered.filter((income) =>
+					income.income_source?.some(
+						(source) =>
+							convertRecurFlag_ToBoolean(source.recur) &&
+							source.recur_frequency === filters.value.frequency,
+					),
+				)
+			}
+		}
 
-        // One-time income sources
-        oneTimeIncomes: (state): ProcessedIncomeItem[] => {
-            const filtered = incomeService.filterIncomes(state.incomes, state.filters)
-            return filtered.filter(income =>
-                income.sources.some(source => !source.isRecurring)
-            )
-        },
+		// Apply recurring filter
+		if (filters.value.isRecurring !== null) {
+			filtered = filtered.filter((income) =>
+				income.income_source?.some(
+					(source) =>
+						convertRecurFlag_ToBoolean(source.recur) ===
+						filters.value.isRecurring,
+				),
+			)
+		}
 
-        // Total monthly income (recurring + one-time for current month) - uses filtered data
-        totalMonthlyIncome: (state): number => {
-            const filtered = incomeService.filterIncomes(state.incomes, state.filters)
-            return incomeService.calculateTotalMonthlyIncome(filtered)
-        },
+		// Apply amount filters
+		if (filters.value.amountMin) {
+			const minAmount = Number.parseFloat(filters.value.amountMin)
+			filtered = filtered.filter(
+				(income) => convertIncomeAmount(income.monthly_income) >= minAmount,
+			)
+		}
 
-        // Total recurring income - uses filtered data
-        totalRecurringIncome: (state): number => {
-            let total = 0
-            const filtered = incomeService.filterIncomes(state.incomes, state.filters)
-            filtered.forEach(income => {
-                income.sources.forEach(source => {
-                    if (source.isRecurring) {
-                        total += source.amount
-                    }
-                })
-            })
-            return total
-        },
+		if (filters.value.amountMax) {
+			const maxAmount = Number.parseFloat(filters.value.amountMax)
+			filtered = filtered.filter(
+				(income) => convertIncomeAmount(income.monthly_income) <= maxAmount,
+			)
+		}
 
-        // Total one-time income (for current month only) - uses filtered data
-        totalOneTimeIncome: (state): number => {
-            const now = new Date()
-            const currentYear = now.getFullYear()
-            const currentMonth = now.getMonth()
+		// Apply date filters
+		if (filters.value.dateFrom) {
+			const fromDate = new Date(filters.value.dateFrom)
+			filtered = filtered.filter(
+				(income) => new Date(income.creation) >= fromDate,
+			)
+		}
 
-            let total = 0
-            const filtered = incomeService.filterIncomes(state.incomes, state.filters)
-            filtered.forEach(income => {
-                income.sources.forEach(source => {
-                    if (!source.isRecurring) {
-                        const sourceDate = new Date(source.dateTime)
-                        if (sourceDate.getFullYear() === currentYear && sourceDate.getMonth() === currentMonth) {
-                            total += source.amount
-                        }
-                    }
-                })
-            })
-            return total
-        },
+		if (filters.value.dateTo) {
+			const toDate = new Date(filters.value.dateTo)
+			filtered = filtered.filter(
+				(income) => new Date(income.creation) <= toDate,
+			)
+		}
 
-        // Income count (total number of income sources)
-        incomeCount: (state): number => {
-            let totalSources = 0
-            const filteredIncomes = incomeService.filterIncomes(state.incomes, state.filters)
-            filteredIncomes.forEach(income => {
-                if (income.sources && Array.isArray(income.sources)) {
-                    totalSources += income.sources.length
-                }
-            })
-            return totalSources
-        },
+		// Apply sorting
+		filtered.sort((a, b) => {
+			let aValue: any, bValue: any
 
-        // Income record count (number of income documents)
-        incomeRecordCount: (state): number => {
-            return incomeService.filterIncomes(state.incomes, state.filters).length
-        },
+			switch (filters.value.sortBy) {
+				case "amount":
+					aValue = convertIncomeAmount(a.monthly_income)
+					bValue = convertIncomeAmount(b.monthly_income)
+					break
+				case "date":
+					aValue = new Date(a.creation)
+					bValue = new Date(b.creation)
+					break
+				default:
+					aValue = new Date(a.creation)
+					bValue = new Date(b.creation)
+			}
 
-        // Total income count (unfiltered)
-        totalIncomeCount: (state): number => {
-            return state.incomes.length
-        },
+			if (filters.value.sortOrder === "asc") {
+				return aValue > bValue ? 1 : -1
+			} else {
+				return aValue < bValue ? 1 : -1
+			}
+		})
 
-        // Total income sources count (unfiltered)
-        totalIncomeSourcesCount: (state): number => {
-            let totalSources = 0
-            state.incomes.forEach(income => {
-                if (income.sources && Array.isArray(income.sources)) {
-                    totalSources += income.sources.length
-                }
-            })
-            return totalSources
-        },
+		return filtered
+	})
 
-        // Check if cache is valid
-        isCacheValid: (state): boolean => {
-            if (!state.lastFetch) {
-                return false
-            }
+	// Actions - using exact backend API
+	async function fetchIncomes(forceRefresh = false) {
+		if (loading.value) return
 
-            const isValid = Date.now() - state.lastFetch < state.cacheExpiry
-            return isValid
-        },
+		try {
+			loading.value = true
+			error.value = ""
 
-        // Check if filters are applied
-        hasActiveFilters: (state): boolean => {
-            const defaultFilters = getDefaultFilters()
-            return Object.keys(state.filters).some(key => {
-                const currentValue = state.filters[key as keyof IncomeFilters]
-                const defaultValue = defaultFilters[key as keyof IncomeFilters]
-                return currentValue !== defaultValue && currentValue !== '' && currentValue !== null
-            })
-        },
+			const result = await incomeService.getUserIncome({
+				filters: filters.value,
+				forceRefresh,
+				useCache: !forceRefresh,
+			})
 
-        // Available income types for filtering
-        availableIncomeTypes: (state): string[] => {
-            const types = new Set<string>()
-            state.incomes.forEach(income => {
-                income.sources.forEach(source => {
-                    types.add(source.type)
-                })
-            })
-            return Array.from(types).sort()
-        }
-    },
+			incomes.value = result
+			lastFetch.value = Date.now()
+		} catch (err) {
+			error.value =
+				err instanceof Error ? err.message : "Failed to fetch incomes"
+			console.error("Store: Error fetching incomes:", err)
+		} finally {
+			loading.value = false
+		}
+	}
 
-    actions: {
-        /**
-         * Load income records
-         */
-        async loadIncomes(options: IncomeServiceOptions = {}): Promise<ProcessedIncomeItem[]> {
-            const { forceRefresh = false } = options
+	async function fetchIncomesWithAnalytics(forceRefresh = false) {
+		if (loading.value) return
 
-            try {
-                // Check cache validity
-                if (!forceRefresh && this.isCacheValid && this.incomes.length > 0) {
-                    return this.incomes
-                }
+		try {
+			loading.value = true
+			error.value = ""
 
-                this.loading = true
-                this.error = ''
+			const result = await incomeService.getUserIncomeWithAnalytics({
+				filters: filters.value,
+				forceRefresh,
+				useCache: !forceRefresh,
+			})
 
-                const incomes = await incomeService.getUserIncome({
-                    useCache: !forceRefresh,
-                    forceReload: forceRefresh,
-                    includeDetails: true
-                })
+			incomes.value = result.incomes
+			analytics.value = result.analytics
+			lastFetch.value = Date.now()
+		} catch (err) {
+			error.value =
+				err instanceof Error ? err.message : "Failed to fetch income analytics"
+			console.error("Store: Error fetching income analytics:", err)
+		} finally {
+			loading.value = false
+		}
+	}
 
-                this.incomes = incomes
-                this.lastFetch = Date.now()
+	async function fetchIncomeTypes(forceRefresh = false) {
+		try {
+			const result = await incomeService.getIncomeTypes({
+				forceRefresh,
+				useCache: !forceRefresh,
+			})
 
-                return incomes
-            } catch (error: any) {
-                this.error = error.message || 'Failed to load income records'
-                throw error
-            } finally {
-                this.loading = false
-            }
-        },
+			incomeTypes.value = result
+		} catch (err) {
+			error.value =
+				err instanceof Error ? err.message : "Failed to fetch income types"
+			console.error("Store: Error fetching income types:", err)
+		}
+	}
 
-        /**
-         * Load income types
-         */
-        async loadIncomeTypes(options: IncomeServiceOptions = {}): Promise<IncomeType[]> {
-            try {
-                const incomeTypes = await incomeService.getIncomeTypes(options)
-                this.incomeTypes = incomeTypes
-                return incomeTypes
-            } catch (error: any) {
-                this.error = error.message || 'Failed to load income types'
-                throw error
-            }
-        },
+	async function createIncome(incomeData: IncomeFormData) {
+		try {
+			loading.value = true
+			error.value = ""
 
-        /**
-         * Get monthly summary
-         */
-        async getMonthlySummary(options: IncomeServiceOptions = {}): Promise<IncomeSummary> {
-            try {
-                return await incomeService.getMonthlySummary(options)
-            } catch (error: any) {
-                this.error = error.message || 'Failed to get monthly summary'
-                throw error
-            }
-        },
+			await incomeService.createOrUpdateIncome(incomeData)
 
-        /**
-         * Refresh incomes (force reload)
-         */
-        async refreshIncomes(): Promise<ProcessedIncomeItem[]> {
-            return await this.loadIncomes({ forceRefresh: true })
-        },
+			// Refresh data after creation
+			await fetchIncomes(true)
+		} catch (err) {
+			error.value =
+				err instanceof Error ? err.message : "Failed to create income"
+			console.error("Store: Error creating income:", err)
+			throw err
+		} finally {
+			loading.value = false
+		}
+	}
 
-        /**
-         * Add new income
-         */
-        async addIncome(formData: IncomeFormData): Promise<ProcessedIncomeItem> {
-            try {
-                this.loading = true
-                this.error = ''
+	async function updateIncome(incomeData: IncomeFormData) {
+		try {
+			loading.value = true
+			error.value = ""
 
-                const newIncome = await incomeService.createOrUpdateIncome(formData)
+			await incomeService.createOrUpdateIncome(incomeData)
 
-                // Add to local state
-                this.incomes.unshift(newIncome)
-                this.lastFetch = Date.now()
+			// Refresh data after update
+			await fetchIncomes(true)
+		} catch (err) {
+			error.value =
+				err instanceof Error ? err.message : "Failed to update income"
+			console.error("Store: Error updating income:", err)
+			throw err
+		} finally {
+			loading.value = false
+		}
+	}
 
-                return newIncome
-            } catch (error: any) {
-                this.error = error.message || 'Failed to add income'
-                throw error
-            } finally {
-                this.loading = false
-            }
-        },
+	async function deleteIncome(incomeId: string) {
+		try {
+			loading.value = true
+			error.value = ""
 
-        /**
-         * Update existing income
-         */
-        async updateIncome(originalIncome: ProcessedIncomeItem, updatedData: IncomeFormData): Promise<ProcessedIncomeItem> {
-            try {
-                this.loading = true
-                this.error = ''
+			await incomeService.deleteIncome(incomeId)
 
-                const updatedIncome = await incomeService.createOrUpdateIncome(updatedData, originalIncome)
+			// Remove from local state
+			incomes.value = incomes.value.filter((income) => income.name !== incomeId)
+		} catch (err) {
+			error.value =
+				err instanceof Error ? err.message : "Failed to delete income"
+			console.error("Store: Error deleting income:", err)
+			throw err
+		} finally {
+			loading.value = false
+		}
+	}
 
-                // Update in local state
-                const index = this.incomes.findIndex(income => income.id === originalIncome.id)
-                if (index !== -1) {
-                    this.incomes[index] = updatedIncome
-                }
+	function updateFilters(newFilters: Partial<IncomeFilters>) {
+		filters.value = { ...filters.value, ...newFilters }
+	}
 
-                this.lastFetch = Date.now()
-                return updatedIncome
-            } catch (error: any) {
-                this.error = error.message || 'Failed to update income'
-                throw error
-            } finally {
-                this.loading = false
-            }
-        },
+	function resetFilters() {
+		filters.value = {
+			searchTerm: "",
+			dateFrom: "",
+			dateTo: "",
+			amountMin: "",
+			amountMax: "",
+			type: "",
+			frequency: "",
+			isRecurring: null,
+			sortBy: "date",
+			sortOrder: "desc",
+		}
+	}
 
-        /**
-         * Remove income
-         */
-        async removeIncome(income: ProcessedIncomeItem): Promise<void> {
-            try {
-                this.loading = true
-                this.error = ''
+	function clearCache() {
+		incomeService.clearCache()
+		lastFetch.value = null
+	}
 
-                await incomeService.deleteIncome(income.id)
+	return {
+		// State
+		incomes,
+		incomeTypes,
+		analytics,
+		loading,
+		error,
+		filters,
+		lastFetch,
 
-                // Remove from local state
-                const index = this.incomes.findIndex(i => i.id === income.id)
-                if (index !== -1) {
-                    this.incomes.splice(index, 1)
-                }
+		// Computed
+		totalMonthlyIncome,
+		totalRecurringIncome,
+		totalOneTimeIncome,
+		totalSources,
+		filteredIncomes,
 
-                this.lastFetch = Date.now()
-            } catch (error: any) {
-                this.error = error.message || 'Failed to remove income'
-                throw error
-            } finally {
-                this.loading = false
-            }
-        },
-
-        /**
-         * Update filters
-         */
-        updateFilters(newFilters: Partial<IncomeFilters>): void {
-            this.filters = { ...this.filters, ...newFilters }
-            this.saveFilterPreferences()
-        },
-
-        /**
-         * Reset filters to default
-         */
-        resetFilters(): void {
-            this.filters = getDefaultFilters()
-            this.saveFilterPreferences()
-        },
-
-        /**
-         * Save filter preferences to localStorage
-         */
-        saveFilterPreferences(): void {
-            try {
-                localStorage.setItem('artha_income_filters', JSON.stringify(this.filters))
-            } catch (error) {
-                console.warn('Failed to save filter preferences:', error)
-            }
-        },
-
-        /**
-         * Load filter preferences from localStorage
-         */
-        loadFilterPreferences(): void {
-            try {
-                const saved = localStorage.getItem('artha_income_filters')
-                if (saved) {
-                    const parsedFilters = JSON.parse(saved)
-                    this.filters = { ...getDefaultFilters(), ...parsedFilters }
-                }
-            } catch (error) {
-                console.warn('Failed to load filter preferences:', error)
-                this.filters = getDefaultFilters()
-            }
-        },
-
-        /**
-         * Clear cache
-         */
-        clearCache(): void {
-            this.incomes = []
-            this.incomeTypes = []
-            this.lastFetch = null
-            this.error = ''
-            incomeService.clearCache()
-        },
-
-        /**
-         * Reset store to initial state
-         */
-        reset(): void {
-            this.incomes = []
-            this.incomeTypes = []
-            this.loading = false
-            this.error = ''
-            this.filters = getDefaultFilters()
-            this.lastFetch = null
-            incomeService.reset()
-        },
-
-        /**
-         * Get date range for quick filter
-         */
-        getDateRangeForQuickFilter(filter: string): { from: string; to: string } | null {
-            const now = new Date()
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
-            switch (filter) {
-                case 'today':
-                    return {
-                        from: today.toISOString().split('T')[0],
-                        to: today.toISOString().split('T')[0]
-                    }
-
-                case 'this-week': {
-                    const startOfWeek = new Date(today)
-                    startOfWeek.setDate(today.getDate() - today.getDay())
-                    return {
-                        from: startOfWeek.toISOString().split('T')[0],
-                        to: today.toISOString().split('T')[0]
-                    }
-                }
-
-                case 'this-month': {
-                    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-                    return {
-                        from: startOfMonth.toISOString().split('T')[0],
-                        to: today.toISOString().split('T')[0]
-                    }
-                }
-
-                case 'last-month': {
-                    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-                    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
-                    return {
-                        from: startOfLastMonth.toISOString().split('T')[0],
-                        to: endOfLastMonth.toISOString().split('T')[0]
-                    }
-                }
-
-                case 'last-3-months': {
-                    const threeMonthsAgo = new Date(today)
-                    threeMonthsAgo.setMonth(today.getMonth() - 3)
-                    return {
-                        from: threeMonthsAgo.toISOString().split('T')[0],
-                        to: today.toISOString().split('T')[0]
-                    }
-                }
-
-                case 'this-year': {
-                    const startOfYear = new Date(today.getFullYear(), 0, 1)
-                    return {
-                        from: startOfYear.toISOString().split('T')[0],
-                        to: today.toISOString().split('T')[0]
-                    }
-                }
-
-                default:
-                    return null
-            }
-        },
-
-        /**
-         * Get cache statistics
-         */
-        getCacheStats(): Record<string, any> {
-            return {
-                incomesCount: this.incomes.length,
-                incomeTypesCount: this.incomeTypes.length,
-                lastFetch: this.lastFetch,
-                cacheValid: this.isCacheValid,
-                serviceStats: incomeService.getCacheStats()
-            }
-        }
-    }
-}) 
+		// Actions
+		fetchIncomes,
+		fetchIncomesWithAnalytics,
+		fetchIncomeTypes,
+		createIncome,
+		updateIncome,
+		deleteIncome,
+		updateFilters,
+		resetFilters,
+		clearCache,
+	}
+})

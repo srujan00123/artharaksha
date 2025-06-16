@@ -243,227 +243,245 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { 
-    Activity, 
-    AlertTriangle, 
-    Heart, 
-    Plus, 
-    Edit2, 
-    Trash2, 
-    Search,
-    AlertCircle
-} from 'lucide-vue-next'
-import { useSupport } from '../../composables/useSupport'
-import { 
-    CONDITION_TYPES, 
-    getConditionTypeIcon, 
-    getSeverityColor,
-    calculateRiskLevel 
-} from '../../types/support'
-import ConditionModal from '../../components/support/ConditionModal.vue'
-import { toast } from '../../utils/toast'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import {
+	Activity,
+	AlertCircle,
+	AlertTriangle,
+	Edit2,
+	Heart,
+	Plus,
+	Search,
+	Trash2,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import ConditionModal from "../../components/support/ConditionModal.vue"
+import { useSupport } from "../../composables/useSupport"
+import {
+	CONDITION_TYPES,
+	calculateRiskLevel,
+	getConditionTypeIcon,
+	getSeverityColor,
+} from "../../types/support"
+import { toast } from "../../utils/toast"
 
 // Support composable
 const support = useSupport({ autoInitialize: true })
 
 // Reactive data
-const searchQuery = ref('')
+const searchQuery = ref("")
 const selectedType = ref(null)
 const showAddConditionModal = ref(false)
 const editingCondition = ref(null)
 
 // Computed properties
 const userHealthConditions = computed(() => {
-    return support.householdProfile.value?.health_conditions || []
+	return support.householdProfile.value?.health_conditions || []
 })
 
 const riskLevel = computed(() => {
-    if (!support.householdProfile.value) return 'medium'
-    return calculateRiskLevel(support.householdProfile.value)
+	if (!support.householdProfile.value) return "medium"
+	return calculateRiskLevel(support.householdProfile.value)
 })
 
 const severeConditionsCount = computed(() => {
-    return userHealthConditions.value.filter(condition => 
-        (condition.severity || condition.condition_details?.default_severity) === 'Severe'
-    ).length
+	return userHealthConditions.value.filter(
+		(condition) =>
+			(condition.severity || condition.condition_details?.default_severity) ===
+			"Severe",
+	).length
 })
 
 const filteredHealthConditions = computed(() => {
-    let conditions = support.healthConditions.value
+	let conditions = support.healthConditions.value
 
-    // Filter by search query
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase()
-        conditions = conditions.filter(condition =>
-            condition.condition_name.toLowerCase().includes(query) ||
-            condition.condition_type.toLowerCase().includes(query)
-        )
-    }
+	// Filter by search query
+	if (searchQuery.value) {
+		const query = searchQuery.value.toLowerCase()
+		conditions = conditions.filter(
+			(condition) =>
+				condition.condition_name.toLowerCase().includes(query) ||
+				condition.condition_type.toLowerCase().includes(query),
+		)
+	}
 
-    // Filter by type
-    if (selectedType.value) {
-        conditions = conditions.filter(condition =>
-            condition.condition_type === selectedType.value
-        )
-    }
+	// Filter by type
+	if (selectedType.value) {
+		conditions = conditions.filter(
+			(condition) => condition.condition_type === selectedType.value,
+		)
+	}
 
-    // Exclude already added conditions
-    const userConditionNames = userHealthConditions.value.map(uc => uc.condition)
-    conditions = conditions.filter(condition =>
-        !userConditionNames.includes(condition.name)
-    )
+	// Exclude already added conditions
+	const userConditionNames = userHealthConditions.value.map(
+		(uc) => uc.condition,
+	)
+	conditions = conditions.filter(
+		(condition) => !userConditionNames.includes(condition.name),
+	)
 
-    return conditions
+	return conditions
 })
 
 // Methods
 const getRiskLevelColor = (level) => {
-    switch (level) {
-        case 'low': return 'text-green-600'
-        case 'medium': return 'text-yellow-600'
-        case 'high': return 'text-red-600'
-        default: return 'text-gray-600'
-    }
+	switch (level) {
+		case "low":
+			return "text-green-600"
+		case "medium":
+			return "text-yellow-600"
+		case "high":
+			return "text-red-600"
+		default:
+			return "text-gray-600"
+	}
 }
 
 const getSeverityBadgeClass = (severity) => {
-    switch (severity) {
-        case 'Mild':
-            return 'bg-green-100 text-green-800'
-        case 'Moderate':
-            return 'bg-yellow-100 text-yellow-800'
-        case 'Severe':
-            return 'bg-red-100 text-red-800'
-        default:
-            return 'bg-gray-100 text-gray-800'
-    }
+	switch (severity) {
+		case "Mild":
+			return "bg-green-100 text-green-800"
+		case "Moderate":
+			return "bg-yellow-100 text-yellow-800"
+		case "Severe":
+			return "bg-red-100 text-red-800"
+		default:
+			return "bg-gray-100 text-gray-800"
+	}
 }
 
 const selectConditionToAdd = (condition) => {
-    editingCondition.value = {
-        condition: condition.name,
-        severity: condition.default_severity,
-        duration_override: condition.default_duration,
-        notes: ''
-    }
-    showAddConditionModal.value = true
+	editingCondition.value = {
+		condition: condition.name,
+		severity: condition.default_severity,
+		duration_override: condition.default_duration,
+		notes: "",
+	}
+	showAddConditionModal.value = true
 }
 
 const editCondition = (condition) => {
-    editingCondition.value = { ...condition }
-    showAddConditionModal.value = true
+	editingCondition.value = { ...condition }
+	showAddConditionModal.value = true
 }
 
 const removeCondition = async (condition) => {
-    if (confirm('Are you sure you want to remove this health condition?')) {
-        try {
-            const updatedConditions = userHealthConditions.value.filter(c => c.name !== condition.name)
-            await support.updateHealthConditions(updatedConditions)
-            
-            // Force refresh the household profile and clear all related caches
-            await support.refreshHouseholdProfile()
-            await support.refreshEligibleSchemes()
-            
-            toast.success('Health condition removed successfully')
-            
-        } catch (error) {
-            console.error('Error removing condition:', error)
-            toast.error('Failed to remove condition. Please try again.')
-        }
-    }
+	if (confirm("Are you sure you want to remove this health condition?")) {
+		try {
+			const updatedConditions = userHealthConditions.value.filter(
+				(c) => c.name !== condition.name,
+			)
+			await support.updateHealthConditions(updatedConditions)
+
+			// Force refresh the household profile and clear all related caches
+			await support.refreshHouseholdProfile()
+			await support.refreshEligibleSchemes()
+
+			toast.success("Health condition removed successfully")
+		} catch (error) {
+			console.error("Error removing condition:", error)
+			toast.error("Failed to remove condition. Please try again.")
+		}
+	}
 }
 
 const closeConditionModal = () => {
-    showAddConditionModal.value = false
-    editingCondition.value = null
+	showAddConditionModal.value = false
+	editingCondition.value = null
 }
 
 const saveCondition = async (conditionData) => {
-    try {
-        let updatedConditions = [...userHealthConditions.value]
-        const isEditing = editingCondition.value && editingCondition.value.name
-        
-        if (isEditing) {
-            // Update existing condition
-            const index = updatedConditions.findIndex(c => c.name === editingCondition.value.name)
-            if (index !== -1) {
-                updatedConditions[index] = { ...updatedConditions[index], ...conditionData }
-            }
-        } else {
-            // Add new condition
-            updatedConditions.push(conditionData)
-        }
-        
-        await support.updateHealthConditions(updatedConditions)
-        
-        // Force refresh the household profile and clear all related caches
-        await support.refreshHouseholdProfile()
-        await support.refreshEligibleSchemes()
-        
-        toast.success(isEditing ? 'Health condition updated successfully' : 'Health condition added successfully')
-        
-        closeConditionModal()
-    } catch (error) {
-        console.error('Error saving condition:', error)
-        toast.error('Failed to save condition. Please try again.')
-    }
+	try {
+		const updatedConditions = [...userHealthConditions.value]
+		const isEditing = editingCondition.value && editingCondition.value.name
+
+		if (isEditing) {
+			// Update existing condition
+			const index = updatedConditions.findIndex(
+				(c) => c.name === editingCondition.value.name,
+			)
+			if (index !== -1) {
+				updatedConditions[index] = {
+					...updatedConditions[index],
+					...conditionData,
+				}
+			}
+		} else {
+			// Add new condition
+			updatedConditions.push(conditionData)
+		}
+
+		await support.updateHealthConditions(updatedConditions)
+
+		// Force refresh the household profile and clear all related caches
+		await support.refreshHouseholdProfile()
+		await support.refreshEligibleSchemes()
+
+		toast.success(
+			isEditing
+				? "Health condition updated successfully"
+				: "Health condition added successfully",
+		)
+
+		closeConditionModal()
+	} catch (error) {
+		console.error("Error saving condition:", error)
+		toast.error("Failed to save condition. Please try again.")
+	}
 }
 
 // Lifecycle
 onMounted(async () => {
-    try {
-        // Initialize support system if not already done
-        if (!support.state.value.isInitialized) {
-            await support.initialize()
-        }
-        
-        // Load health conditions and household profile
-        await Promise.all([
-            support.loadHealthConditions(),
-            support.loadHouseholdProfile()
-        ])
-    } catch (error) {
-        console.error('Error loading data:', error)
-    }
+	try {
+		// Initialize support system if not already done
+		if (!support.state.value.isInitialized) {
+			await support.initialize()
+		}
+
+		// Load health conditions and household profile
+		await Promise.all([
+			support.loadHealthConditions(),
+			support.loadHouseholdProfile(),
+		])
+	} catch (error) {
+		console.error("Error loading data:", error)
+	}
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>

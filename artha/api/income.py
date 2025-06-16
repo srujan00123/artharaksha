@@ -31,9 +31,10 @@ def get_income_types():
 
 
 @frappe.whitelist()
-def get_user_income(filters=None):
+def get_user_income(filters=None, include_analytics=False):
     """
-    Get income records for the current user's household profile with optional filtering
+    Get income records for the current user's household profile with optional filtering and analytics
+    Unified endpoint that handles all complex filtering needs
     """
     try:
         # Get user's household profile
@@ -44,6 +45,22 @@ def get_user_income(filters=None):
         )
         
         if not household_profile:
+            if include_analytics:
+                return {
+                    "income_records": [],
+                    "analytics": {
+                        "total_income": 0,
+                        "recurring_income": 0,
+                        "one_time_income": 0,
+                        "income_by_type": {},
+                        "monthly_trends": [],
+                        "summary": {
+                            "total_sources": 0,
+                            "average_source_amount": 0,
+                            "top_income_type": ""
+                        }
+                    }
+                }
             return []
         
         # Parse filters if provided
@@ -56,8 +73,13 @@ def get_user_income(filters=None):
         # Build base query conditions
         conditions = {"household_profile": household_profile}
         
-        # Apply date range filter
+        # Enhanced date filtering logic
+        start_date = None
+        end_date = None
+        
+        # Handle multiple date filter formats
         if filters.get('dateRange'):
+            # Legacy format support
             date_range = filters['dateRange']
             today = getdate()
             
@@ -74,17 +96,61 @@ def get_user_income(filters=None):
                 last_month = today.replace(day=1) - timedelta(days=1)
                 start_date = last_month.replace(day=1)
                 end_date = last_month
+            elif date_range == 'last-3-months':
+                start_date = (today.replace(day=1) - timedelta(days=90)).replace(day=1)
+                end_date = today
             elif date_range == 'this-year':
                 start_date = today.replace(month=1, day=1)
                 end_date = today
-            else:
-                start_date = None
-                end_date = None
+        elif filters.get('dateFrom') or filters.get('dateTo'):
+            # New format - direct date range
+            if filters.get('dateFrom'):
+                start_date = getdate(filters['dateFrom'])
+            if filters.get('dateTo'):
+                end_date = getdate(filters['dateTo'])
+        elif filters.get('period'):
+            # Period-based filtering for analytics
+            period = filters['period']
+            today = getdate()
             
-            if start_date and end_date:
-                conditions["creation"] = ["between", [start_date, end_date]]
+            if period == "this_month":
+                start_date = today.replace(day=1)
+                end_date = today
+            elif period == "last_month":
+                last_month = today.replace(day=1) - timedelta(days=1)
+                start_date = last_month.replace(day=1)
+                end_date = last_month
+            elif period == "last_3_months":
+                start_date = (today.replace(day=1) - timedelta(days=90)).replace(day=1)
+                end_date = today
+            elif period == "last_6_months":
+                start_date = (today.replace(day=1) - timedelta(days=180)).replace(day=1)
+                end_date = today
+            elif period == "this_year":
+                start_date = today.replace(month=1, day=1)
+                end_date = today
         
-        # Get income records with detailed sources
+        # Apply date filter to income records
+        if start_date and end_date:
+            conditions["creation"] = ["between", [start_date, end_date]]
+        elif start_date:
+            conditions["creation"] = [">=", start_date]
+        elif end_date:
+            conditions["creation"] = ["<=", end_date]
+        
+        # Determine sort order
+        sort_by = filters.get('sortBy', 'date')
+        sort_order = filters.get('sortOrder', 'desc')
+        
+        order_by_field = "creation"
+        if sort_by == 'amount':
+            order_by_field = "monthly_income"
+        elif sort_by == 'date':
+            order_by_field = "creation"
+        
+        order_by = f"{order_by_field} {sort_order}"
+        
+        # Get income records
         income_records = frappe.get_all(
             "Income",
             filters=conditions,
@@ -92,18 +158,41 @@ def get_user_income(filters=None):
                 "name", "household_profile", "monthly_income", 
                 "creation", "modified", "owner"
             ],
-            order_by="creation desc"
+            order_by=order_by
         )
         
-        # Get income sources for each record and apply source-level filters
+        # Initialize analytics data if requested
+        analytics_data = None
+        if include_analytics:
+            analytics_data = {
+                "total_income": 0,
+                "recurring_income": 0,
+                "one_time_income": 0,
+                "income_by_type": {},
+                "monthly_trends": [],
+                "summary": {
+                    "total_sources": 0,
+                    "average_source_amount": 0,
+                    "top_income_type": ""
+                },
+                "period": filters.get('period', ''),
+                "start_date": start_date.isoformat() if start_date else "",
+                "end_date": end_date.isoformat() if end_date else ""
+            }
+            monthly_data = {}
+            total_sources = 0
+            total_amount = 0
+            type_amounts = {}
+        
+        # Process each income record
+        filtered_records = []
         for record in income_records:
             source_conditions = {"parent": record.name}
             
-            # Apply type filter
-            if filters.get('type'):
-                source_conditions["type"] = filters['type']
+            # Apply source-level filters
+            if filters.get('type') or filters.get('incomeType'):
+                source_conditions["type"] = filters.get('type') or filters.get('incomeType')
             
-            # Apply frequency filter
             if filters.get('frequency'):
                 if filters['frequency'] == 'one-time':
                     source_conditions["recur"] = 0
@@ -111,7 +200,10 @@ def get_user_income(filters=None):
                     source_conditions["recur"] = 1
                     if filters['frequency'] != 'recurring':
                         source_conditions["recur_frequency"] = filters['frequency']
+            elif filters.get('isRecurring') is not None:
+                source_conditions["recur"] = 1 if filters['isRecurring'] else 0
             
+            # Get income sources
             income_sources = frappe.get_all(
                 "Income Source Type",
                 filters=source_conditions,
@@ -121,17 +213,153 @@ def get_user_income(filters=None):
                 ],
                 order_by="creation"
             )
-            record.income_source = income_sources
+            
+            # Apply amount filters at source level
+            if filters.get('amountMin') or filters.get('amountMax'):
+                filtered_sources = []
+                for source in income_sources:
+                    amount = flt(source.income)
+                    if filters.get('amountMin') and amount < flt(filters['amountMin']):
+                        continue
+                    if filters.get('amountMax') and amount > flt(filters['amountMax']):
+                        continue
+                    filtered_sources.append(source)
+                income_sources = filtered_sources
+            
+            # Apply search term filter
+            if filters.get('searchTerm'):
+                search_term = filters['searchTerm'].lower()
+                filtered_sources = []
+                for source in income_sources:
+                    if search_term in source.type.lower():
+                        filtered_sources.append(source)
+                income_sources = filtered_sources
+            
+            # Apply date filters to sources if specified
+            if (start_date or end_date) and income_sources:
+                filtered_sources = []
+                for source in income_sources:
+                    source_date = getdate(source.date_time) if source.date_time else getdate(record.creation)
+                    
+                    if start_date and source_date < start_date:
+                        continue
+                    if end_date and source_date > end_date:
+                        continue
+                    
+                    filtered_sources.append(source)
+                income_sources = filtered_sources
+            
+            # Only include records that have matching sources after filtering
+            if income_sources or not any([
+                filters.get('type'), filters.get('incomeType'), filters.get('frequency'), 
+                filters.get('isRecurring') is not None, filters.get('amountMin'), 
+                filters.get('amountMax'), filters.get('searchTerm')
+            ]):
+                record.income_source = income_sources
+                filtered_records.append(record)
+                
+                # Calculate analytics if requested
+                if include_analytics and income_sources:
+                    month_key = record.creation.strftime("%Y-%m")
+                    if month_key not in monthly_data:
+                        monthly_data[month_key] = {
+                            "total": 0,
+                            "recurring": 0,
+                            "one_time": 0
+                        }
+                    
+                    for source in income_sources:
+                        amount = flt(source.income)
+                        total_sources += 1
+                        total_amount += amount
+                        
+                        # Convert to monthly equivalent for consistent comparison
+                        monthly_amount = amount
+                        if source.recur and source.recur_frequency:
+                            conversion_factors = {
+                                'daily': 30,
+                                'weekly': 4.33,
+                                'bi-weekly': 2.17,
+                                'monthly': 1,
+                                'quarterly': 1/3,
+                                'semi-annually': 1/6,
+                                'annually': 1/12,
+                                'yearly': 1/12
+                            }
+                            factor = conversion_factors.get(source.recur_frequency.lower(), 1)
+                            monthly_amount = amount * factor
+                        
+                        analytics_data["total_income"] += monthly_amount
+                        monthly_data[month_key]["total"] += monthly_amount
+                        
+                        if source.recur:
+                            analytics_data["recurring_income"] += monthly_amount
+                            monthly_data[month_key]["recurring"] += monthly_amount
+                        else:
+                            analytics_data["one_time_income"] += amount
+                            monthly_data[month_key]["one_time"] += amount
+                        
+                        # Group by type
+                        if source.type not in analytics_data["income_by_type"]:
+                            analytics_data["income_by_type"][source.type] = 0
+                        analytics_data["income_by_type"][source.type] += monthly_amount
+                        
+                        # Track for summary
+                        if source.type not in type_amounts:
+                            type_amounts[source.type] = 0
+                        type_amounts[source.type] += monthly_amount
         
-        # Filter out records with no matching sources if filters are applied
-        if filters.get('type') or filters.get('frequency'):
-            income_records = [record for record in income_records if record.income_source]
+        # Generate monthly trends and summary for analytics
+        if include_analytics:
+            # Monthly trends
+            for month_key in sorted(monthly_data.keys()):
+                month_date = datetime.strptime(month_key, "%Y-%m")
+                analytics_data["monthly_trends"].append({
+                    "month": month_date.strftime("%b %Y"),
+                    "total": monthly_data[month_key]["total"],
+                    "recurring": monthly_data[month_key]["recurring"],
+                    "one_time": monthly_data[month_key]["one_time"]
+                })
+            
+            # Summary statistics
+            analytics_data["summary"]["total_sources"] = total_sources
+            analytics_data["summary"]["average_source_amount"] = total_amount / total_sources if total_sources > 0 else 0
+            
+            # Find top income type
+            if type_amounts:
+                top_type = max(type_amounts.items(), key=lambda x: x[1])
+                analytics_data["summary"]["top_income_type"] = top_type[0]
         
-        return income_records
+        if include_analytics:
+            return {
+                "income_records": filtered_records,
+                "analytics": analytics_data
+            }
+        
+        return filtered_records
         
     except Exception as e:
         frappe.log_error(f"Error fetching user income: {str(e)}")
         frappe.throw(_("Failed to fetch income records"))
+
+
+# Keep get_income_analytics as a wrapper for backward compatibility
+@frappe.whitelist()
+def get_income_analytics(period="last_3_months", filters=None):
+    """
+    DEPRECATED: Use get_user_income with include_analytics=True instead
+    Get comprehensive income analytics for specified period with filtering
+    """
+    if isinstance(filters, str):
+        filters = json.loads(filters)
+    
+    if not filters:
+        filters = {}
+    
+    filters['period'] = period
+    
+    result = get_user_income(filters=filters, include_analytics=True)
+    return result.get('analytics', {})
 
 
 @frappe.whitelist()
@@ -262,168 +490,6 @@ def create_or_update_income(monthly_income, income_source, income_name=None):
     except Exception as e:
         frappe.log_error(f"Error creating/updating income: {str(e)}")
         frappe.throw(_("Failed to save income record: {0}").format(str(e)))
-
-
-@frappe.whitelist()
-def get_income_analytics(period="last_3_months", filters=None):
-    """
-    Get comprehensive income analytics for specified period with filtering
-    """
-    try:
-        # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile", 
-            {"user": frappe.session.user}, 
-            "name"
-        )
-        
-        if not household_profile:
-            return {
-                "total_income": 0,
-                "recurring_income": 0,
-                "one_time_income": 0,
-                "income_by_type": {},
-                "monthly_trends": [],
-                "period": period,
-                "start_date": "",
-                "end_date": ""
-            }
-        
-        # Parse filters if provided
-        if isinstance(filters, str):
-            filters = json.loads(filters)
-        
-        if not filters:
-            filters = {}
-        
-        # Calculate date range based on period
-        today = getdate()
-        if period == "this_month":
-            start_date = today.replace(day=1)
-            end_date = today
-        elif period == "last_month":
-            last_month = today.replace(day=1) - timedelta(days=1)
-            start_date = last_month.replace(day=1)
-            end_date = last_month
-        elif period == "last_3_months":
-            start_date = (today.replace(day=1) - timedelta(days=90)).replace(day=1)
-            end_date = today
-        elif period == "last_6_months":
-            start_date = (today.replace(day=1) - timedelta(days=180)).replace(day=1)
-            end_date = today
-        elif period == "this_year":
-            start_date = today.replace(month=1, day=1)
-            end_date = today
-        else:
-            start_date = today.replace(day=1)
-            end_date = today
-        
-        # Get income records in date range
-        income_records = frappe.get_all(
-            "Income",
-            filters={
-                "household_profile": household_profile,
-                "creation": ["between", [start_date, end_date]]
-            },
-            fields=["name", "monthly_income", "creation"]
-        )
-        
-        total_income = 0
-        recurring_income = 0
-        one_time_income = 0
-        income_by_type = {}
-        monthly_data = {}
-        
-        for record in income_records:
-            # Get income sources with optional filtering
-            source_conditions = {"parent": record.name}
-            
-            # Apply filters
-            if filters.get('type'):
-                source_conditions["type"] = filters['type']
-            
-            if filters.get('frequency'):
-                if filters['frequency'] == 'one-time':
-                    source_conditions["recur"] = 0
-                else:
-                    source_conditions["recur"] = 1
-                    if filters['frequency'] != 'recurring':
-                        source_conditions["recur_frequency"] = filters['frequency']
-            
-            sources = frappe.get_all(
-                "Income Source Type",
-                filters=source_conditions,
-                fields=["type", "income", "recur", "recur_frequency", "date_time"]
-            )
-            
-            # Calculate monthly data
-            month_key = record.creation.strftime("%Y-%m")
-            if month_key not in monthly_data:
-                monthly_data[month_key] = {
-                    "total": 0,
-                    "recurring": 0,
-                    "one_time": 0
-                }
-            
-            for source in sources:
-                amount = flt(source.income)
-                
-                # Convert to monthly equivalent for consistent comparison
-                monthly_amount = amount
-                if source.recur and source.recur_frequency:
-                    conversion_factors = {
-                        'daily': 30,
-                        'weekly': 4.33,
-                        'bi-weekly': 2.17,
-                        'monthly': 1,
-                        'quarterly': 1/3,
-                        'semi-annually': 1/6,
-                        'annually': 1/12,
-                        'yearly': 1/12
-                    }
-                    factor = conversion_factors.get(source.recur_frequency.lower(), 1)
-                    monthly_amount = amount * factor
-                
-                total_income += monthly_amount
-                monthly_data[month_key]["total"] += monthly_amount
-                
-                if source.recur:
-                    recurring_income += monthly_amount
-                    monthly_data[month_key]["recurring"] += monthly_amount
-                else:
-                    one_time_income += amount  # Keep original amount for one-time
-                    monthly_data[month_key]["one_time"] += amount
-                
-                # Group by type
-                if source.type not in income_by_type:
-                    income_by_type[source.type] = 0
-                income_by_type[source.type] += monthly_amount
-        
-        # Generate monthly trends
-        monthly_trends = []
-        for month_key in sorted(monthly_data.keys()):
-            month_date = datetime.strptime(month_key, "%Y-%m")
-            monthly_trends.append({
-                "month": month_date.strftime("%b %Y"),
-                "total": monthly_data[month_key]["total"],
-                "recurring": monthly_data[month_key]["recurring"],
-                "one_time": monthly_data[month_key]["one_time"]
-            })
-        
-        return {
-            "total_income": total_income,
-            "recurring_income": recurring_income,
-            "one_time_income": one_time_income,
-            "income_by_type": income_by_type,
-            "monthly_trends": monthly_trends,
-            "period": period,
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat()
-        }
-        
-    except Exception as e:
-        frappe.log_error(f"Error getting income analytics: {str(e)}")
-        frappe.throw(_("Failed to get income analytics"))
 
 
 @frappe.whitelist()
@@ -598,56 +664,3 @@ def get_income_insights():
     except Exception as e:
         frappe.log_error(f"Error getting income insights: {str(e)}")
         frappe.throw(_("Failed to get income insights")) 
-
-
-@frappe.whitelist(allow_guest=True, methods=["POST"])
-def register_account(email, password):
-    """
-    Register a new user with 'Artha User' role, no verification, direct creation.
-    Also create a Household Profile, Expense, and Income document linked to the user.
-    Do not return anything, do not log in automatically.
-    Log errors after each step for debugging.
-    """
-    try:
-        if not email or not password:
-            frappe.throw(_("Email/Username and password are required."))
-
-        # Check if user already exists
-        if frappe.db.exists("User", email):
-            frappe.throw(_("User already exists."))
-
-        # Create user
-        user = frappe.new_doc("User")
-        user.email = email
-        user.first_name = email.split('@')[0] if '@' in email else email
-        user.new_password = password
-        user.save(ignore_permissions=True)
-        frappe.log_error(f"User created: {user.email}")
-
-        # Assign only 'Artha User' role
-        user.add_roles("Artha User")
-        frappe.log_error(f"Role assigned: Artha User to {user.email}")
-
-        # Create Household Profile (only set user field)
-        household_profile = frappe.new_doc("Household Profile")
-        household_profile.user = user.email
-        household_profile.save(ignore_permissions=True)
-        frappe.log_error(f"Household Profile created: {household_profile.name}")
-
-        # Create Expense document (only set required field)
-        expense = frappe.new_doc("Expense")
-        expense.household_profile = household_profile.name
-        expense.save(ignore_permissions=True)
-        frappe.log_error(f"Expense created: {expense.name}")
-
-        # Create Income document (only set required field)
-        income = frappe.new_doc("Income")
-        income.household_profile = household_profile.name
-        income.save(ignore_permissions=True)
-        frappe.log_error(f"Income created: {income.name}")
-
-        # Do not log in or return anything
-        return None
-    except Exception as e:
-        frappe.log_error(f"Registration failed: {str(e)}")
-        raise 

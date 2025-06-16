@@ -3,410 +3,439 @@
  * Manages user profile data and preferences
  */
 
-import { defineStore } from 'pinia'
-import { apiService, API_ENDPOINTS } from '../services/api-service.js'
-import { cacheService, CACHE_KEYS } from '../services/cache-service.js'
-import { session } from '../data/session.js'
-import type { User } from '../types/Core/User'
+import { defineStore } from "pinia"
+import { session } from "../data/session.js"
+import { API_ENDPOINTS, apiService } from "../services/api-service.js"
+import { CACHE_KEYS, cacheService } from "../services/cache-service.js"
+import type { User } from "../types/Core/User"
 
 // Cache configuration
 const CACHE_EXPIRY = {
-    USER_PROFILE: 10 * 60 * 1000, // 10 minutes
-    USER_PREFERENCES: 30 * 60 * 1000 // 30 minutes
+	USER_PROFILE: 10 * 60 * 1000, // 10 minutes
+	USER_PREFERENCES: 30 * 60 * 1000, // 30 minutes
 }
 
 // User preferences interface
 interface UserPreferences {
-    emailNotifications: boolean
-    cheAlerts: boolean
-    monthlyReports: boolean
-    language: string
-    timeZone: string
-    theme: 'Light' | 'Dark' | 'Automatic'
+	emailNotifications: boolean
+	cheAlerts: boolean
+	monthlyReports: boolean
+	language: string
+	timeZone: string
+	theme: "Light" | "Dark" | "Automatic"
 }
 
 // Store state interface
 interface UserStoreState {
-    currentUser: User | null
-    preferences: UserPreferences
-    loading: boolean
-    error: string
-    lastFetch: number | null
+	currentUser: User | null
+	preferences: UserPreferences
+	loading: boolean
+	error: string
+	lastFetch: number | null
 }
 
 // Default preferences
 const getDefaultPreferences = (): UserPreferences => ({
-    emailNotifications: true,
-    cheAlerts: true,
-    monthlyReports: false,
-    language: 'en',
-    timeZone: 'Asia/Kolkata',
-    theme: 'Light'
+	emailNotifications: true,
+	cheAlerts: true,
+	monthlyReports: false,
+	language: "en",
+	timeZone: "Asia/Kolkata",
+	theme: "Light",
 })
 
-export const useUserStore = defineStore('user', {
-    state: (): UserStoreState => ({
-        currentUser: null,
-        preferences: getDefaultPreferences(),
-        loading: false,
-        error: '',
-        lastFetch: null
-    }),
+export const useUserStore = defineStore("user", {
+	state: (): UserStoreState => ({
+		currentUser: null,
+		preferences: getDefaultPreferences(),
+		loading: false,
+		error: "",
+		lastFetch: null,
+	}),
 
-    getters: {
-        // User display information
-        userDisplayName: (state): string => {
-            if (state.currentUser?.full_name) {
-                return state.currentUser.full_name
-            }
-            if (state.currentUser?.email) {
-                const email = state.currentUser.email
-                if (email.includes('@')) {
-                    return email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                }
-                return email
-            }
-            return 'User'
-        },
+	getters: {
+		// User display information
+		userDisplayName: (state): string => {
+			if (state.currentUser?.full_name) {
+				return state.currentUser.full_name
+			}
+			if (state.currentUser?.email) {
+				const email = state.currentUser.email
+				if (email.includes("@")) {
+					return email
+						.split("@")[0]
+						.replace(/[._]/g, " ")
+						.replace(/\b\w/g, (l) => l.toUpperCase())
+				}
+				return email
+			}
+			return "User"
+		},
 
-        userInitials: (state): string => {
-            const name = state.currentUser?.full_name || state.currentUser?.email || 'User'
-            if (name === 'User') return 'U'
-            return name.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase()
-        },
+		userInitials: (state): string => {
+			const name =
+				state.currentUser?.full_name || state.currentUser?.email || "User"
+			if (name === "User") return "U"
+			return name
+				.split(" ")
+				.map((word) => word[0])
+				.join("")
+				.substring(0, 2)
+				.toUpperCase()
+		},
 
-        // Check if user data is loaded
-        isLoaded: (state): boolean => {
-            return !!state.currentUser && !!state.lastFetch
-        },
+		// Check if user data is loaded
+		isLoaded: (state): boolean => {
+			return !!state.currentUser && !!state.lastFetch
+		},
 
-        // Check if cache is valid
-        isCacheValid: (state): boolean => {
-            if (!state.lastFetch) return false
-            return Date.now() - state.lastFetch < CACHE_EXPIRY.USER_PROFILE
-        }
-    },
+		// Check if cache is valid
+		isCacheValid: (state): boolean => {
+			if (!state.lastFetch) return false
+			return Date.now() - state.lastFetch < CACHE_EXPIRY.USER_PROFILE
+		},
+	},
 
-    actions: {
-        /**
-         * Load current user profile
-         */
-        async loadUserProfile(forceRefresh = false): Promise<User | null> {
-            try {
-                // Check cache first
-                if (!forceRefresh && this.isCacheValid && this.currentUser) {
-                    return this.currentUser
-                }
+	actions: {
+		/**
+		 * Load current user profile
+		 */
+		async loadUserProfile(forceRefresh = false): Promise<User | null> {
+			try {
+				// Check cache first
+				if (!forceRefresh && this.isCacheValid && this.currentUser) {
+					return this.currentUser
+				}
 
-                // Check cache service
-                if (!forceRefresh) {
-                    const cached = cacheService.get(CACHE_KEYS.USER_PROFILE, {
-                        userId: session.user,
-                        maxAge: CACHE_EXPIRY.USER_PROFILE
-                    })
-                    if (cached) {
-                        this.currentUser = cached
-                        this.lastFetch = Date.now()
-                        return cached
-                    }
-                }
+				// Check cache service
+				if (!forceRefresh) {
+					const cached = cacheService.get(CACHE_KEYS.USER_PROFILE, {
+						userId: session.user,
+						maxAge: CACHE_EXPIRY.USER_PROFILE,
+					})
+					if (cached) {
+						this.currentUser = cached
+						this.lastFetch = Date.now()
+						return cached
+					}
+				}
 
-                this.loading = true
-                this.error = ''
+				this.loading = true
+				this.error = ""
 
-                // Try custom profile endpoint first (more efficient)
-                try {
-                    const profileResource = apiService.createResource({
-                        url: API_ENDPOINTS.USER.PROFILE
-                    })
+				// Try custom profile endpoint first (more efficient)
+				try {
+					const profileResource = apiService.createResource({
+						url: API_ENDPOINTS.USER.PROFILE,
+					})
 
-                    const userData = await apiService.execute(profileResource.submit)
+					const userData = await apiService.execute(profileResource.submit)
 
-                    if (userData) {
-                        this.currentUser = userData as User
-                        this.lastFetch = Date.now()
+					if (userData) {
+						this.currentUser = userData as User
+						this.lastFetch = Date.now()
 
-                        // Cache the user data
-                        cacheService.set(CACHE_KEYS.USER_PROFILE, userData, {
-                            userId: session.user,
-                            maxAge: CACHE_EXPIRY.USER_PROFILE
-                        })
+						// Cache the user data
+						cacheService.set(CACHE_KEYS.USER_PROFILE, userData, {
+							userId: session.user,
+							maxAge: CACHE_EXPIRY.USER_PROFILE,
+						})
 
-                        return this.currentUser
-                    }
-                } catch (profileError) {
-                    console.warn('Custom profile endpoint failed, falling back to standard get:', profileError)
+						return this.currentUser
+					}
+				} catch (profileError) {
+					console.warn(
+						"Custom profile endpoint failed, falling back to standard get:",
+						profileError,
+					)
 
-                    // Fallback to standard frappe.client.get endpoint
-                    const userResource = apiService.createResource({
-                        url: API_ENDPOINTS.USER.GET,
-                        params: {
-                            doctype: 'User',
-                            name: session.user,
-                            fields: [
-                                'name', 'email', 'first_name', 'middle_name', 'last_name', 'full_name',
-                                'phone', 'mobile_no', 'location', 'bio', 'user_image', 'language',
-                                'time_zone', 'desk_theme', 'enabled', 'user_type', 'last_active',
-                                'creation', 'modified'
-                            ]
-                        }
-                    })
+					// Fallback to standard frappe.client.get endpoint
+					const userResource = apiService.createResource({
+						url: API_ENDPOINTS.USER.GET,
+						params: {
+							doctype: "User",
+							name: session.user,
+							fields: [
+								"name",
+								"email",
+								"first_name",
+								"middle_name",
+								"last_name",
+								"full_name",
+								"phone",
+								"mobile_no",
+								"location",
+								"bio",
+								"user_image",
+								"language",
+								"time_zone",
+								"desk_theme",
+								"enabled",
+								"user_type",
+								"last_active",
+								"creation",
+								"modified",
+							],
+						},
+					})
 
-                    const userData = await apiService.execute(userResource.submit)
+					const userData = await apiService.execute(userResource.submit)
 
-                    if (userData) {
-                        this.currentUser = userData as User
-                        this.lastFetch = Date.now()
+					if (userData) {
+						this.currentUser = userData as User
+						this.lastFetch = Date.now()
 
-                        // Cache the user data
-                        cacheService.set(CACHE_KEYS.USER_PROFILE, userData, {
-                            userId: session.user,
-                            maxAge: CACHE_EXPIRY.USER_PROFILE
-                        })
+						// Cache the user data
+						cacheService.set(CACHE_KEYS.USER_PROFILE, userData, {
+							userId: session.user,
+							maxAge: CACHE_EXPIRY.USER_PROFILE,
+						})
 
-                        return this.currentUser
-                    }
-                }
+						return this.currentUser
+					}
+				}
 
-                throw new Error('Failed to load user profile')
+				throw new Error("Failed to load user profile")
+			} catch (error: any) {
+				this.error = error.message || "Failed to load user profile"
+				console.error("Failed to load user profile:", error)
+				throw error
+			} finally {
+				this.loading = false
+			}
+		},
 
-            } catch (error: any) {
-                this.error = error.message || 'Failed to load user profile'
-                console.error('Failed to load user profile:', error)
-                throw error
-            } finally {
-                this.loading = false
-            }
-        },
+		/**
+		 * Update user profile
+		 */
+		async updateUserProfile(updates: Partial<User>): Promise<User> {
+			try {
+				this.loading = true
+				this.error = ""
 
-        /**
-         * Update user profile
-         */
-        async updateUserProfile(updates: Partial<User>): Promise<User> {
-            try {
-                this.loading = true
-                this.error = ''
+				// Use standard frappe.client.set_value endpoint
+				const updateResource = apiService.createResource({
+					url: API_ENDPOINTS.USER.UPDATE,
+					params: {
+						doctype: "User",
+						name: session.user,
+						fieldname: updates,
+						value: null, // Will be handled by the updates object
+					},
+				})
 
-                // Use standard frappe.client.set_value endpoint
-                const updateResource = apiService.createResource({
-                    url: API_ENDPOINTS.USER.UPDATE,
-                    params: {
-                        doctype: 'User',
-                        name: session.user,
-                        fieldname: updates,
-                        value: null // Will be handled by the updates object
-                    }
-                })
+				// For multiple field updates, use the custom update_profile endpoint
+				const profileUpdateResource = apiService.createResource({
+					url: API_ENDPOINTS.USER.UPDATE_PROFILE,
+					params: updates,
+				})
 
-                // For multiple field updates, use the custom update_profile endpoint
-                const profileUpdateResource = apiService.createResource({
-                    url: API_ENDPOINTS.USER.UPDATE_PROFILE,
-                    params: updates
-                })
+				await apiService.execute(profileUpdateResource.submit)
 
-                await apiService.execute(profileUpdateResource.submit)
+				// Reload user data
+				await this.loadUserProfile(true)
 
-                // Reload user data
-                await this.loadUserProfile(true)
+				return this.currentUser!
+			} catch (error: any) {
+				this.error = error.message || "Failed to update user profile"
+				console.error("Failed to update user profile:", error)
+				throw error
+			} finally {
+				this.loading = false
+			}
+		},
 
-                return this.currentUser!
+		/**
+		 * Load user preferences
+		 */
+		async loadUserPreferences(): Promise<UserPreferences> {
+			try {
+				// Check cache first
+				const cached = cacheService.get(CACHE_KEYS.USER_PREFERENCES, {
+					userId: session.user,
+					maxAge: CACHE_EXPIRY.USER_PREFERENCES,
+				})
+				if (cached) {
+					this.preferences = { ...getDefaultPreferences(), ...cached }
+					return this.preferences
+				}
 
-            } catch (error: any) {
-                this.error = error.message || 'Failed to update user profile'
-                console.error('Failed to update user profile:', error)
-                throw error
-            } finally {
-                this.loading = false
-            }
-        },
+				// Load from user document
+				if (this.currentUser) {
+					const preferences: UserPreferences = {
+						emailNotifications: true, // Default, could be stored in custom field
+						cheAlerts: true, // Default, could be stored in custom field
+						monthlyReports: false, // Default, could be stored in custom field
+						language: this.currentUser.language || "en",
+						timeZone: this.currentUser.time_zone || "Asia/Kolkata",
+						theme: this.currentUser.desk_theme || "Light",
+					}
 
-        /**
-         * Load user preferences
-         */
-        async loadUserPreferences(): Promise<UserPreferences> {
-            try {
-                // Check cache first
-                const cached = cacheService.get(CACHE_KEYS.USER_PREFERENCES, {
-                    userId: session.user,
-                    maxAge: CACHE_EXPIRY.USER_PREFERENCES
-                })
-                if (cached) {
-                    this.preferences = { ...getDefaultPreferences(), ...cached }
-                    return this.preferences
-                }
+					this.preferences = preferences
 
-                // Load from user document
-                if (this.currentUser) {
-                    const preferences: UserPreferences = {
-                        emailNotifications: true, // Default, could be stored in custom field
-                        cheAlerts: true, // Default, could be stored in custom field
-                        monthlyReports: false, // Default, could be stored in custom field
-                        language: this.currentUser.language || 'en',
-                        timeZone: this.currentUser.time_zone || 'Asia/Kolkata',
-                        theme: this.currentUser.desk_theme || 'Light'
-                    }
+					// Cache preferences
+					cacheService.set(CACHE_KEYS.USER_PREFERENCES, preferences, {
+						userId: session.user,
+						maxAge: CACHE_EXPIRY.USER_PREFERENCES,
+					})
 
-                    this.preferences = preferences
+					return preferences
+				}
 
-                    // Cache preferences
-                    cacheService.set(CACHE_KEYS.USER_PREFERENCES, preferences, {
-                        userId: session.user,
-                        maxAge: CACHE_EXPIRY.USER_PREFERENCES
-                    })
+				return getDefaultPreferences()
+			} catch (error: any) {
+				console.error("Failed to load user preferences:", error)
+				return getDefaultPreferences()
+			}
+		},
 
-                    return preferences
-                }
+		/**
+		 * Update user preferences
+		 */
+		async updateUserPreferences(
+			updates: Partial<UserPreferences>,
+		): Promise<void> {
+			try {
+				this.preferences = { ...this.preferences, ...updates }
 
-                return getDefaultPreferences()
+				// Update relevant user fields
+				const userUpdates: Partial<User> = {}
+				if (updates.language) userUpdates.language = updates.language
+				if (updates.timeZone) userUpdates.time_zone = updates.timeZone
+				if (updates.theme) userUpdates.desk_theme = updates.theme
 
-            } catch (error: any) {
-                console.error('Failed to load user preferences:', error)
-                return getDefaultPreferences()
-            }
-        },
+				// Update user document if needed
+				if (Object.keys(userUpdates).length > 0) {
+					await this.updateUserProfile(userUpdates)
+				}
 
-        /**
-         * Update user preferences
-         */
-        async updateUserPreferences(updates: Partial<UserPreferences>): Promise<void> {
-            try {
-                this.preferences = { ...this.preferences, ...updates }
+				// Cache updated preferences
+				cacheService.set(CACHE_KEYS.USER_PREFERENCES, this.preferences, {
+					userId: session.user,
+					maxAge: CACHE_EXPIRY.USER_PREFERENCES,
+				})
+			} catch (error: any) {
+				console.error("Failed to update user preferences:", error)
+				throw error
+			}
+		},
 
-                // Update relevant user fields
-                const userUpdates: Partial<User> = {}
-                if (updates.language) userUpdates.language = updates.language
-                if (updates.timeZone) userUpdates.time_zone = updates.timeZone
-                if (updates.theme) userUpdates.desk_theme = updates.theme
+		/**
+		 * Change user password
+		 */
+		async changePassword(
+			oldPassword: string,
+			newPassword: string,
+		): Promise<void> {
+			try {
+				this.loading = true
+				this.error = ""
 
-                // Update user document if needed
-                if (Object.keys(userUpdates).length > 0) {
-                    await this.updateUserProfile(userUpdates)
-                }
+				// Use standard password change endpoint
+				const passwordResource = apiService.createResource({
+					url: API_ENDPOINTS.USER.CHANGE_PASSWORD,
+					params: {
+						new_password: newPassword,
+						old_password: oldPassword,
+					},
+				})
 
-                // Cache updated preferences
-                cacheService.set(CACHE_KEYS.USER_PREFERENCES, this.preferences, {
-                    userId: session.user,
-                    maxAge: CACHE_EXPIRY.USER_PREFERENCES
-                })
+				await apiService.execute(passwordResource.submit)
+			} catch (error: any) {
+				this.error = error.message || "Failed to change password"
+				console.error("Failed to change password:", error)
+				throw error
+			} finally {
+				this.loading = false
+			}
+		},
 
-            } catch (error: any) {
-                console.error('Failed to update user preferences:', error)
-                throw error
-            }
-        },
+		/**
+		 * Upload user image
+		 */
+		async uploadUserImage(file: File): Promise<string> {
+			try {
+				this.loading = true
+				this.error = ""
 
-        /**
-         * Change user password
-         */
-        async changePassword(oldPassword: string, newPassword: string): Promise<void> {
-            try {
-                this.loading = true
-                this.error = ''
+				// Upload file using standard upload endpoint
+				const formData = new FormData()
+				formData.append("file", file, file.name)
+				formData.append("doctype", "User")
+				formData.append("docname", session.user || "")
+				formData.append("fieldname", "user_image")
+				formData.append("is_private", "0")
 
-                // Use standard password change endpoint
-                const passwordResource = apiService.createResource({
-                    url: API_ENDPOINTS.USER.CHANGE_PASSWORD,
-                    params: {
-                        new_password: newPassword,
-                        old_password: oldPassword
-                    }
-                })
+				const response = await fetch(
+					`/api/method/${API_ENDPOINTS.USER.UPLOAD_FILE}`,
+					{
+						method: "POST",
+						body: formData,
+						headers: {
+							"X-Frappe-CSRF-Token": (window as any).csrf_token,
+						},
+					},
+				)
 
-                await apiService.execute(passwordResource.submit)
+				if (!response.ok) {
+					throw new Error("Upload failed")
+				}
 
-            } catch (error: any) {
-                this.error = error.message || 'Failed to change password'
-                console.error('Failed to change password:', error)
-                throw error
-            } finally {
-                this.loading = false
-            }
-        },
+				const uploadResult = await response.json()
+				const fileUrl = uploadResult.message?.file_url || uploadResult.file_url
 
-        /**
-         * Upload user image
-         */
-        async uploadUserImage(file: File): Promise<string> {
-            try {
-                this.loading = true
-                this.error = ''
+				// Update user with new image using standard update endpoint
+				await this.updateUserProfile({
+					user_image: fileUrl,
+				})
 
-                // Upload file using standard upload endpoint
-                const formData = new FormData()
-                formData.append('file', file, file.name)
-                formData.append('doctype', 'User')
-                formData.append('docname', session.user || '')
-                formData.append('fieldname', 'user_image')
-                formData.append('is_private', '0')
+				return fileUrl
+			} catch (error: any) {
+				this.error = error.message || "Failed to upload user image"
+				console.error("Failed to upload user image:", error)
+				throw error
+			} finally {
+				this.loading = false
+			}
+		},
 
-                const response = await fetch(`/api/method/${API_ENDPOINTS.USER.UPLOAD_FILE}`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Frappe-CSRF-Token': (window as any).csrf_token
-                    }
-                })
+		/**
+		 * Clear cache and reset state
+		 */
+		clearCache(): void {
+			this.currentUser = null
+			this.preferences = getDefaultPreferences()
+			this.lastFetch = null
+			this.error = ""
 
-                if (!response.ok) {
-                    throw new Error('Upload failed')
-                }
+			// Clear cache service
+			cacheService.delete(CACHE_KEYS.USER_PROFILE, { userId: session.user })
+			cacheService.delete(CACHE_KEYS.USER_PREFERENCES, { userId: session.user })
+		},
 
-                const uploadResult = await response.json()
-                const fileUrl = uploadResult.message?.file_url || uploadResult.file_url
+		/**
+		 * Reset store state
+		 */
+		reset(): void {
+			this.currentUser = null
+			this.preferences = getDefaultPreferences()
+			this.loading = false
+			this.error = ""
+			this.lastFetch = null
+		},
 
-                // Update user with new image using standard update endpoint
-                await this.updateUserProfile({
-                    user_image: fileUrl
-                })
-
-                return fileUrl
-
-            } catch (error: any) {
-                this.error = error.message || 'Failed to upload user image'
-                console.error('Failed to upload user image:', error)
-                throw error
-            } finally {
-                this.loading = false
-            }
-        },
-
-        /**
-         * Clear cache and reset state
-         */
-        clearCache(): void {
-            this.currentUser = null
-            this.preferences = getDefaultPreferences()
-            this.lastFetch = null
-            this.error = ''
-
-            // Clear cache service
-            cacheService.delete(CACHE_KEYS.USER_PROFILE, { userId: session.user })
-            cacheService.delete(CACHE_KEYS.USER_PREFERENCES, { userId: session.user })
-        },
-
-        /**
-         * Reset store state
-         */
-        reset(): void {
-            this.currentUser = null
-            this.preferences = getDefaultPreferences()
-            this.loading = false
-            this.error = ''
-            this.lastFetch = null
-        },
-
-        /**
-         * Initialize store
-         */
-        async initialize(): Promise<void> {
-            if (session.user) {
-                try {
-                    await this.loadUserProfile()
-                    await this.loadUserPreferences()
-                } catch (error) {
-                    console.error('Failed to initialize user store:', error)
-                }
-            }
-        }
-    }
-}) 
+		/**
+		 * Initialize store
+		 */
+		async initialize(): Promise<void> {
+			if (session.user) {
+				try {
+					await this.loadUserProfile()
+					await this.loadUserPreferences()
+				} catch (error) {
+					console.error("Failed to initialize user store:", error)
+				}
+			}
+		},
+	},
+})

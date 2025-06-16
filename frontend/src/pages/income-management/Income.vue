@@ -94,7 +94,6 @@
       :filtered-count="filteredIncomeSources.length"
       :income-types="incomeTypes"
       @update:filters="handleFilterChange"
-      @cache-invalidated="handleCacheInvalidation"
       class="mb-6"
     />
 
@@ -324,53 +323,75 @@ import { IncomeForm, IncomeFilter } from '../../components/income'
 
 // Composables
 import { useIncome } from '../../composables/useIncome'
-import type { IncomeFilters, IncomeType } from '../../types/income'
+import type { 
+  IncomeFilters, 
+  IncomeFormData, 
+  IncomeFormUIData
+} from '../../types/income'
+import {
+  convertIncomeAmount,
+  convertRecurFlag_ToBoolean,
+  convertRecurFlag
+} from '../../types/income'
 
-// Initialize income composable with advanced analysis
-const incomeComposable = useIncome({ enableAdvancedAnalysis: true })
+// Initialize income composable
+const {
+  incomes,
+  incomeTypes,
+  loading,
+  error,
+  totalMonthlyIncome,
+  totalRecurringIncome,
+  totalOneTimeIncome,
+  totalSources,
+  filteredIncomes,
+  fetchIncomes,
+  createIncome,
+  updateIncome,
+  deleteIncome,
+  updateFilters,
+  resetFilters,
+  initialize
+} = useIncome()
 
 // Local state
 const showIncomeForm = ref(false)
 const editingSource = ref<any>(null)
 
-// Current filters state matching IncomeFilters interface
+// Current filters state
 const currentFilters = ref<IncomeFilters>({
   searchTerm: '',
   dateFrom: '',
   dateTo: '',
   amountMin: '',
   amountMax: '',
-  incomeType: '',
+  type: '',
+  frequency: '',
   isRecurring: null,
   sortBy: 'date',
-  sortOrder: 'desc',
-  period: ''
+  sortOrder: 'desc'
 })
 
-// Computed properties
-const incomes = computed(() => incomeComposable.incomes.value || [])
-const incomeTypes = computed(() => incomeComposable.incomeTypes.value || [])
-const loading = computed(() => incomeComposable.loading.value)
-const error = computed(() => incomeComposable.error.value)
-const totalMonthlyIncome = computed(() => incomeComposable.totalMonthlyIncome.value || 0)
-const totalRecurringIncome = computed(() => incomeComposable.totalRecurringIncome.value || 0)
-const totalOneTimeIncome = computed(() => incomeComposable.totalOneTimeIncome.value || 0)
-const incomeCount = computed(() => incomeComposable.incomeCount.value || 0)
+// Computed properties for display
+const incomeCount = computed(() => totalSources.value)
 
-// Use the composable's analysis state directly (matching expense pattern)
+// Get all income sources flattened from the store's filtered results
 const allIncomeSources = computed(() => {
-  // Get flattened sources from raw incomes (for total count)
   const sources: any[] = []
-  const rawIncomes = incomeComposable.allIncomes?.value || []
-  rawIncomes.forEach(income => {
-    if (income.sources && Array.isArray(income.sources)) {
-      income.sources.forEach(source => {
+  incomes.value.forEach(income => {
+    if (income.income_source && Array.isArray(income.income_source)) {
+      income.income_source.forEach(source => {
         sources.push({
           ...source,
-          sourceId: `${income.id}-${source.id}`,
-          incomeId: income.id,
-          createdAt: income.createdAt,
-          updatedAt: income.updatedAt
+          sourceId: `${income.name}-${source.name || source.idx}`,
+          incomeId: income.name,
+          createdAt: income.creation,
+          updatedAt: income.modified,
+          // Convert backend fields to display format
+          amount: source.income,
+          isRecurring: convertRecurFlag_ToBoolean(source.recur),
+          dateTime: source.date_time,
+          frequency: source.recur_frequency
         })
       })
     }
@@ -378,46 +399,28 @@ const allIncomeSources = computed(() => {
   return sources.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 })
 
-// Use the composable's grouped income data directly (like expense pattern)
+// Use filtered incomes from store
 const filteredIncomeSources = computed(() => {
-  // Get the flattened and filtered sources from the composable's analysis state
-  const groupedData = incomeComposable.groupedIncome.value
-  if (!groupedData) return []
-  
-  // Combine recurring and one-time sources
-  const allFilteredSources = [
-    ...groupedData.recurring.items,
-    ...groupedData.oneTime.items
-  ]
-  
-  // Apply sorting based on current filters
-  allFilteredSources.sort((a, b) => {
-    let aValue: any, bValue: any
-    
-    switch (currentFilters.value.sortBy) {
-      case 'amount':
-        aValue = a.amount
-        bValue = b.amount
-        break
-      case 'type':
-        aValue = a.type
-        bValue = b.type
-        break
-      case 'date':
-      default:
-        aValue = new Date(a.dateTime)
-        bValue = new Date(b.dateTime)
-        break
-    }
-    
-    if (currentFilters.value.sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1
-    } else {
-      return aValue < bValue ? 1 : -1
+  const sources: any[] = []
+  filteredIncomes.value.forEach(income => {
+    if (income.income_source && Array.isArray(income.income_source)) {
+      income.income_source.forEach(source => {
+        sources.push({
+          ...source,
+          sourceId: `${income.name}-${source.name || source.idx}`,
+          incomeId: income.name,
+          createdAt: income.creation,
+          updatedAt: income.modified,
+          // Convert backend fields to display format
+          amount: source.income,
+          isRecurring: convertRecurFlag_ToBoolean(source.recur),
+          dateTime: source.date_time,
+          frequency: source.recur_frequency
+        })
+      })
     }
   })
-
-  return allFilteredSources
+  return sources.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 })
 
 // Utility functions
@@ -436,13 +439,13 @@ const formatDate = (dateString: string) => {
 
 const formatFrequency = (frequency: string) => {
   if (!frequency) return 'Monthly'
-  return frequency.replace('every ', '').charAt(0).toUpperCase() + frequency.replace('every ', '').slice(1)
+  return frequency.charAt(0).toUpperCase() + frequency.slice(1)
 }
 
 // Event handlers
 const handleRefresh = async () => {
   try {
-    await incomeComposable.refreshIncomes()
+    await fetchIncomes(true)
   } catch (error) {
     console.error('Failed to refresh incomes:', error)
   }
@@ -450,21 +453,11 @@ const handleRefresh = async () => {
 
 const handleFilterChange = async (filters: IncomeFilters) => {
   console.log('Income page: Filter change received:', filters)
-  console.log('Income page: All sources before filtering:', allIncomeSources.value.map(s => ({ type: s.type, dateTime: s.dateTime, amount: s.amount })))
   currentFilters.value = { ...filters }
   
-  // Update filters in composable to ensure store state is updated
-  await incomeComposable.updateFilters(filters)
-  console.log('Income page: Filters updated in composable')
-  console.log('Income page: Filtered incomes count:', incomes.value.length)
-  console.log('Income page: Filtered sources count:', filteredIncomeSources.value.length)
-  console.log('Income page: Filtered sources:', filteredIncomeSources.value.map(s => ({ type: s.type, dateTime: s.dateTime, amount: s.amount })))
-}
-
-const handleCacheInvalidation = async () => {
-  console.log('Income page: Cache invalidation requested')
-  // Only invalidate cache when explicitly requested (e.g., from filter component)
-  await incomeComposable.invalidateAndRefresh()
+  // Update filters in store and refetch
+  updateFilters(filters)
+  await fetchIncomes(true)
 }
 
 const clearFilters = async () => {
@@ -475,15 +468,15 @@ const clearFilters = async () => {
     dateTo: '',
     amountMin: '',
     amountMax: '',
-    incomeType: '',
+    type: '',
+    frequency: '',
     isRecurring: null,
     sortBy: 'date',
-    sortOrder: 'desc',
-    period: ''
+    sortOrder: 'desc'
   }
   currentFilters.value = defaultFilters
-  // Reset filters in composable
-  await incomeComposable.resetFilters()
+  resetFilters()
+  await fetchIncomes(true)
 }
 
 const openIncomeForm = () => {
@@ -505,93 +498,34 @@ const editIncomeSource = (source: any) => {
   showIncomeForm.value = true
 }
 
-const handleIncomeSubmit = async (formData: any) => {
+const handleIncomeSubmit = async (formData: IncomeFormUIData) => {
   console.log('Income Dashboard: Form submitted with data:', formData)
   
   try {
+    // Convert form data to backend API format
+    const backendFormData: IncomeFormData = {
+      monthly_income: formData.amount, // Backend calculates monthly income
+      income_source: [{
+        type: formData.type,
+        income: formData.amount,
+        recur: convertRecurFlag(formData.isRecurring),
+        date_time: formData.dateTime,
+        recur_frequency: formData.frequency
+      }],
+      income_name: editingSource.value ? editingSource.value.incomeId : undefined
+    }
+    
     if (editingSource.value) {
-      console.log('Income Dashboard: Updating existing source:', editingSource.value)
-      // Update existing income source
-      const parentIncome = incomes.value.find(income => income.id === editingSource.value.incomeId)
-      if (parentIncome) {
-        const updatedSources = parentIncome.sources.map(source => 
-          source.id === editingSource.value.id 
-            ? {
-                ...source,
-                type: formData.type,
-                amount: formData.amount,
-                isRecurring: formData.isRecurring,
-                frequency: formData.frequency,
-                dateTime: formData.dateTime
-              }
-            : source
-        )
-        
-        // Recalculate monthly income
-        let monthlyAmount = 0
-        updatedSources.forEach(source => {
-          if (source.isRecurring && source.frequency) {
-            const conversionFactors = {
-              'every day': 30,
-              'every week': 4.33,
-              'every month': 1,
-              'every year': 1/12
-            }
-            const factor = conversionFactors[source.frequency as keyof typeof conversionFactors] || 1
-            monthlyAmount += Math.round(source.amount * factor)
-          }
-        })
-        
-        const updatedIncomeData = {
-          monthlyIncome: monthlyAmount,
-          sources: updatedSources.map(source => ({
-            type: source.type,
-            amount: source.amount,
-            isRecurring: source.isRecurring,
-            dateTime: source.dateTime,
-            frequency: source.frequency
-          }))
-        }
-        
-        console.log('Income Dashboard: Calling updateIncome with:', updatedIncomeData)
-        await incomeComposable.updateIncome(parentIncome, updatedIncomeData)
-      }
+      console.log('Income Dashboard: Updating existing income')
+      await updateIncome(backendFormData)
     } else {
-      console.log('Income Dashboard: Creating new income source')
-      // Create new income source
-      // Calculate monthly income based on frequency
-      let monthlyAmount = formData.amount
-      if (formData.isRecurring && formData.frequency) {
-        const conversionFactors = {
-          'every day': 30,
-          'every week': 4.33,
-          'every month': 1,
-          'every year': 1/12
-        }
-        const factor = conversionFactors[formData.frequency as keyof typeof conversionFactors] || 1
-        monthlyAmount = Math.round(formData.amount * factor)
-      } else if (!formData.isRecurring) {
-        monthlyAmount = 0 // One-time income doesn't contribute to monthly
-      }
-      
-      const newIncomeData = {
-        monthlyIncome: monthlyAmount,
-        sources: [{
-          type: formData.type,
-          amount: formData.amount,
-          isRecurring: formData.isRecurring,
-          dateTime: formData.dateTime,
-          frequency: formData.frequency
-        }]
-      }
-      
-      console.log('Income Dashboard: Calling createIncome with:', newIncomeData)
-      await incomeComposable.createIncome(newIncomeData)
+      console.log('Income Dashboard: Creating new income')
+      await createIncome(backendFormData)
     }
     
     console.log('Income Dashboard: Refreshing incomes...')
     // Refresh data
-    await incomeComposable.refreshIncomes()
+    await fetchIncomes(true)
     
     console.log('Income Dashboard: Closing form...')
     // Close form after successful submission
@@ -602,49 +536,18 @@ const handleIncomeSubmit = async (formData: any) => {
   } catch (error) {
     console.error('Income Dashboard: Failed to save income:', error)
     alert('Failed to save income. Please try again.')
-    throw error // Re-throw so form can handle the error
+    throw error
   }
 }
 
 const deleteIncomeSource = async (source: any) => {
   if (confirm(`Are you sure you want to delete the ${source.type} income source (₹${source.amount.toLocaleString('en-IN')})?`)) {
     try {
-      // Find the parent income record
-      const parentIncome = incomes.value.find(income => income.id === source.incomeId)
-      if (parentIncome) {
-        // Remove this source from the parent income
-        const updatedSources = parentIncome.sources.filter(s => s.id !== source.id)
-        
-        if (updatedSources.length === 0) {
-          // If no sources left, delete the entire income record
-          await incomeComposable.deleteIncome(parentIncome)
-        } else {
-          // Update the income record with remaining sources
-          // Recalculate monthly income
-          let monthlyAmount = 0
-          updatedSources.forEach(src => {
-            if (src.isRecurring && src.frequency) {
-              const conversionFactors = {
-                'every day': 30,
-                'every week': 4.33,
-                'every month': 1,
-                'every year': 1/12
-              }
-              const factor = conversionFactors[src.frequency as keyof typeof conversionFactors] || 1
-              monthlyAmount += Math.round(src.amount * factor)
-            }
-          })
-          
-          const updatedIncomeData = {
-            monthlyIncome: monthlyAmount,
-            sources: updatedSources
-          }
-          await incomeComposable.updateIncome(parentIncome, updatedIncomeData)
-        }
-        
-        // Refresh data
-        await incomeComposable.refreshIncomes()
-      }
+      // Delete the entire income record
+      await deleteIncome(source.incomeId)
+      
+      // Refresh data
+      await fetchIncomes(true)
     } catch (error) {
       console.error('Failed to delete income source:', error)
       alert('Failed to delete income source. Please try again.')
@@ -655,14 +558,8 @@ const deleteIncomeSource = async (source: any) => {
 // Lifecycle
 onMounted(async () => {
   try {
-    // Initialize composable and load filter preferences
-    await incomeComposable.initialize()
-    
-    // Load income types for filters
-    await incomeComposable.loadIncomeTypes()
-    
-    // Only load data if not already cached - this prevents unnecessary refetching
-    await incomeComposable.ensureDataLoaded()
+    // Initialize with analytics and load all data
+    await initialize({ withAnalytics: true, forceRefresh: false })
     
   } catch (error) {
     console.error('Income Dashboard: Initialization failed:', error)
@@ -674,4 +571,4 @@ onMounted(async () => {
 .income-management {
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
 }
-</style> 
+</style>

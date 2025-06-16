@@ -318,230 +318,246 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { X, Building, Plus, Trash2, AlertTriangle } from 'lucide-vue-next'
-import { Button } from 'frappe-ui'
-import { supportService } from '../../services/support-service'
-import { DOCUMENT_TYPES } from '../../types/support'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { Button } from "frappe-ui"
+import { AlertTriangle, Building, Plus, Trash2, X } from "lucide-vue-next"
+import { computed, onMounted, ref, watch } from "vue"
+import { supportService } from "../../services/support-service"
+import { DOCUMENT_TYPES } from "../../types/support"
 
 // Props
 const props = defineProps({
-  application: {
-    type: Object,
-    default: null
-  },
-  schemes: {
-    type: Array,
-    default: () => []
-  }
+	application: {
+		type: Object,
+		default: null,
+	},
+	schemes: {
+		type: Array,
+		default: () => [],
+	},
 })
 
 // Emits
-const emit = defineEmits(['close', 'save'])
+const emit = defineEmits(["close", "save"])
 
 // Reactive data
 const loading = ref(false)
 const deleting = ref(false)
 const showDeleteConfirm = ref(false)
 const formData = ref({
-  isCustom: false,
-  schemeReference: '',
-  schemeType: 'Welfare Scheme',
-  customSchemeName: '',
-  customSchemeType: 'Welfare Scheme',
-  customCoverageAmount: null,
-  description: '',
-  documents: [],
-  applicationDate: '',
-  status: 'pending',
-  approvalDate: '',
-  rejectionReason: '',
-  certificateUrl: ''
+	isCustom: false,
+	schemeReference: "",
+	schemeType: "Welfare Scheme",
+	customSchemeName: "",
+	customSchemeType: "Welfare Scheme",
+	customCoverageAmount: null,
+	description: "",
+	documents: [],
+	applicationDate: "",
+	status: "pending",
+	approvalDate: "",
+	rejectionReason: "",
+	certificateUrl: "",
 })
 
 // Computed properties
 const isEditing = computed(() => !!props.application)
 
-const welfareSchemes = computed(() => 
-  props.schemes.filter(scheme => scheme.scheme_source === 'welfare')
+const welfareSchemes = computed(() =>
+	props.schemes.filter((scheme) => scheme.scheme_source === "welfare"),
 )
 
-const insuranceSchemes = computed(() => 
-  props.schemes.filter(scheme => scheme.scheme_source === 'insurance')
+const insuranceSchemes = computed(() =>
+	props.schemes.filter((scheme) => scheme.scheme_source === "insurance"),
 )
 
 // Methods
 function closeModal() {
-  emit('close')
+	emit("close")
 }
 
 function addDocument() {
-  formData.value.documents.push({ description: '', url: '' })
+	formData.value.documents.push({ description: "", url: "" })
 }
 
 function removeDocument(index) {
-  formData.value.documents.splice(index, 1)
+	formData.value.documents.splice(index, 1)
 }
 
 async function submitApplication() {
-  try {
-    loading.value = true
+	try {
+		loading.value = true
 
-    const applicationData = {
-      custom_scheme: formData.value.isCustom ? 1 : 0,
-      description: formData.value.description,
-      documents_submitted: formData.value.documents.filter(doc => doc.description.trim()).map(doc => ({ ...doc, url: doc.url || '' })),
-      application_date: formData.value.applicationDate || new Date().toISOString().split('T')[0]
-    }
+		const applicationData = {
+			custom_scheme: formData.value.isCustom ? 1 : 0,
+			description: formData.value.description,
+			documents_submitted: formData.value.documents
+				.filter((doc) => doc.description.trim())
+				.map((doc) => ({ ...doc, url: doc.url || "" })),
+			application_date:
+				formData.value.applicationDate ||
+				new Date().toISOString().split("T")[0],
+		}
 
-    if (formData.value.isCustom) {
-      applicationData.custom_scheme_name = formData.value.customSchemeName
-      applicationData.custom_scheme_type = formData.value.customSchemeType
-      applicationData.custom_coverage_amount = formData.value.customCoverageAmount
-    } else {
-      applicationData.scheme_reference = formData.value.schemeReference
-      // Determine scheme type based on selected scheme
-      const selectedScheme = props.schemes.find(s => s.name === formData.value.schemeReference)
-      applicationData.scheme_type = selectedScheme?.scheme_source === 'welfare' ? 'Welfare Scheme' : 'Insurance Scheme'
-    }
+		if (formData.value.isCustom) {
+			applicationData.custom_scheme_name = formData.value.customSchemeName
+			applicationData.custom_scheme_type = formData.value.customSchemeType
+			applicationData.custom_coverage_amount =
+				formData.value.customCoverageAmount
+		} else {
+			applicationData.scheme_reference = formData.value.schemeReference
+			// Determine scheme type based on selected scheme
+			const selectedScheme = props.schemes.find(
+				(s) => s.name === formData.value.schemeReference,
+			)
+			applicationData.scheme_type =
+				selectedScheme?.scheme_source === "welfare"
+					? "Welfare Scheme"
+					: "Insurance Scheme"
+		}
 
-    // Add editing-specific fields
-    if (isEditing.value) {
-      applicationData.status = formData.value.status
-      if (formData.value.approvalDate) {
-        applicationData.approval_date = formData.value.approvalDate
-      }
-      if (formData.value.rejectionReason) {
-        applicationData.rejection_reason = formData.value.rejectionReason
-      }
-      if (formData.value.certificateUrl) {
-        applicationData.certificate_url = formData.value.certificateUrl
-      }
-    }
+		// Add editing-specific fields
+		if (isEditing.value) {
+			applicationData.status = formData.value.status
+			if (formData.value.approvalDate) {
+				applicationData.approval_date = formData.value.approvalDate
+			}
+			if (formData.value.rejectionReason) {
+				applicationData.rejection_reason = formData.value.rejectionReason
+			}
+			if (formData.value.certificateUrl) {
+				applicationData.certificate_url = formData.value.certificateUrl
+			}
+		}
 
-    let response
-    if (isEditing.value) {
-      response = await supportService.updateSchemeApplication(props.application.name, applicationData)
-    } else {
-      response = await supportService.createSchemeApplication(applicationData)
-    }
+		let response
+		if (isEditing.value) {
+			response = await supportService.updateSchemeApplication(
+				props.application.name,
+				applicationData,
+			)
+		} else {
+			response = await supportService.createSchemeApplication(applicationData)
+		}
 
-    emit('save', response)
-    closeModal()
-
-  } catch (error) {
-    console.error('Error submitting application:', error)
-    // Handle error (show toast, etc.)
-  } finally {
-    loading.value = false
-  }
+		emit("save", response)
+		closeModal()
+	} catch (error) {
+		console.error("Error submitting application:", error)
+		// Handle error (show toast, etc.)
+	} finally {
+		loading.value = false
+	}
 }
 
 function confirmDelete() {
-  showDeleteConfirm.value = true
+	showDeleteConfirm.value = true
 }
 
 function cancelDelete() {
-  showDeleteConfirm.value = false
+	showDeleteConfirm.value = false
 }
 
 async function deleteApplication() {
-  try {
-    deleting.value = true
-    await supportService.deleteSchemeApplication(props.application.name)
-    emit('save', null)
-    closeModal()
-  } catch (error) {
-    console.error('Error deleting application:', error)
-    // Handle error (show toast, etc.)
-  } finally {
-    deleting.value = false
-  }
+	try {
+		deleting.value = true
+		await supportService.deleteSchemeApplication(props.application.name)
+		emit("save", null)
+		closeModal()
+	} catch (error) {
+		console.error("Error deleting application:", error)
+		// Handle error (show toast, etc.)
+	} finally {
+		deleting.value = false
+	}
 }
 
 // Initialize form data
 function initializeForm() {
-  if (props.application) {
-    formData.value = {
-      isCustom: !!props.application.custom_scheme,
-      schemeReference: props.application.scheme_reference || '',
-      schemeType: props.application.scheme_type || 'Welfare Scheme',
-      customSchemeName: props.application.custom_scheme_name || '',
-      customSchemeType: props.application.custom_scheme_type || 'Welfare Scheme',
-      customCoverageAmount: props.application.custom_coverage_amount || null,
-      description: props.application.description || '',
-      documents: props.application.documents_submitted || [],
-      applicationDate: props.application.application_date || '',
-      status: props.application.status || 'pending',
-      approvalDate: props.application.approval_date || '',
-      rejectionReason: props.application.rejection_reason || '',
-      certificateUrl: props.application.certificate_url || ''
-    }
-  } else {
-    formData.value = {
-      isCustom: false,
-      schemeReference: '',
-      schemeType: 'Welfare Scheme',
-      customSchemeName: '',
-      customSchemeType: 'Welfare Scheme',
-      customCoverageAmount: null,
-      description: '',
-      documents: [],
-      applicationDate: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      approvalDate: '',
-      rejectionReason: '',
-      certificateUrl: ''
-    }
-  }
+	if (props.application) {
+		formData.value = {
+			isCustom: !!props.application.custom_scheme,
+			schemeReference: props.application.scheme_reference || "",
+			schemeType: props.application.scheme_type || "Welfare Scheme",
+			customSchemeName: props.application.custom_scheme_name || "",
+			customSchemeType:
+				props.application.custom_scheme_type || "Welfare Scheme",
+			customCoverageAmount: props.application.custom_coverage_amount || null,
+			description: props.application.description || "",
+			documents: props.application.documents_submitted || [],
+			applicationDate: props.application.application_date || "",
+			status: props.application.status || "pending",
+			approvalDate: props.application.approval_date || "",
+			rejectionReason: props.application.rejection_reason || "",
+			certificateUrl: props.application.certificate_url || "",
+		}
+	} else {
+		formData.value = {
+			isCustom: false,
+			schemeReference: "",
+			schemeType: "Welfare Scheme",
+			customSchemeName: "",
+			customSchemeType: "Welfare Scheme",
+			customCoverageAmount: null,
+			description: "",
+			documents: [],
+			applicationDate: new Date().toISOString().split("T")[0],
+			status: "pending",
+			approvalDate: "",
+			rejectionReason: "",
+			certificateUrl: "",
+		}
+	}
 }
 
 // Lifecycle
 onMounted(() => {
-  initializeForm()
+	initializeForm()
 })
 
 // Watch for prop changes
-watch(() => props.application, () => {
-  initializeForm()
-}, { immediate: true })
+watch(
+	() => props.application,
+	() => {
+		initializeForm()
+	},
+	{ immediate: true },
+)
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script> 

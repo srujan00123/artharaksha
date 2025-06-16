@@ -506,40 +506,42 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import QuickActionButton from "@/components/QuickActionButton.vue"
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { useExpense } from "@/composables/useExpense"
+import { useIncome } from "@/composables/useIncome"
+import { useSupport } from "@/composables/useSupport"
+import { useExpenseStore } from "@/stores/expense"
+import { useSupportStore } from "@/stores/support"
+import { useUserStore } from "@/stores/user"
+import { getSchemeDisplayName, getStatusLabel } from "@/types/support"
 import {
-    Clock,
-    TrendingUp,
-    PieChart,
-    Shield,
-    Heart,
-    ChevronRight,
-    FileText,
-    CreditCard,
-    Plus,
-    BarChart,
-    User,
-    Calendar,
-    AlertCircle,
-    AlertTriangle,
-    RefreshCw
-} from 'lucide-vue-next'
-import { Button, Card } from 'frappe-ui'
-import { formatCurrency, formatDate, getCHEColorClass, getCHEStatusText, calculateCHE } from '@/utils'
-import { useExpenseStore } from '@/stores/expense'
-import { useSupportStore } from '@/stores/support'
-import { useUserStore } from '@/stores/user'
-import { useIncome } from '@/composables/useIncome'
-import { useExpense } from '@/composables/useExpense'
-import { useSupport } from '@/composables/useSupport'
-import { useRouter } from 'vue-router'
-import { 
-    getSchemeDisplayName, 
-    getStatusLabel
-} from '@/types/support'
-import QuickActionButton from '@/components/QuickActionButton.vue'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+	calculateCHE,
+	formatCurrency,
+	formatDate,
+	getCHEColorClass,
+	getCHEStatusText,
+} from "@/utils"
+import { Button, Card } from "frappe-ui"
+import {
+	AlertCircle,
+	AlertTriangle,
+	BarChart,
+	Calendar,
+	ChevronRight,
+	Clock,
+	CreditCard,
+	FileText,
+	Heart,
+	PieChart,
+	Plus,
+	RefreshCw,
+	Shield,
+	TrendingUp,
+	User,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import { useRouter } from "vue-router"
 
 // Router for navigation
 const router = useRouter()
@@ -557,391 +559,434 @@ const supportComposable = useSupport()
 // Loading and error states
 const isLoading = ref(true)
 const hasError = ref(false)
-const errorMessage = ref('')
-const lastUpdated = ref('')
+const errorMessage = ref("")
+const lastUpdated = ref("")
 
 // Date filters - initialize with current month
 const initializeDateFilters = () => {
-    const now = new Date()
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    
-    return {
-        dateFrom: firstDay.toISOString().split('T')[0],
-        dateTo: lastDay.toISOString().split('T')[0]
-    }
+	const now = new Date()
+	const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+	const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+	return {
+		dateFrom: firstDay.toISOString().split("T")[0],
+		dateTo: lastDay.toISOString().split("T")[0],
+	}
 }
 
 const dateFilters = ref(initializeDateFilters())
 
 // Static data
 const eligibleSchemesCount = ref(12)
-const currentDate = computed(() => new Date().toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-}))
+const currentDate = computed(() =>
+	new Date().toLocaleDateString("en-US", {
+		weekday: "long",
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	}),
+)
 
 // User info
-const userDisplayName = computed(() => userStore.userDisplayName || 'User')
+const userDisplayName = computed(() => userStore.userDisplayName || "User")
 
 // Income data from composable
 const totalMonthlyIncome = computed(() => {
-    const value = incomeComposable.totalMonthlyIncome
-    return (typeof value === 'object' && value?.value !== undefined) ? value.value : (value || 0)
+	const value = incomeComposable.totalMonthlyIncome
+	return typeof value === "object" && value?.value !== undefined
+		? value.value
+		: value || 0
 })
 const totalRecurringIncome = computed(() => {
-    const value = incomeComposable.totalRecurringIncome
-    return (typeof value === 'object' && value?.value !== undefined) ? value.value : (value || 0)
+	const value = incomeComposable.totalRecurringIncome
+	return typeof value === "object" && value?.value !== undefined
+		? value.value
+		: value || 0
 })
 const totalOneTimeIncome = computed(() => {
-    const value = incomeComposable.totalOneTimeIncome
-    return (typeof value === 'object' && value?.value !== undefined) ? value.value : (value || 0)
+	const value = incomeComposable.totalOneTimeIncome
+	return typeof value === "object" && value?.value !== undefined
+		? value.value
+		: value || 0
 })
 const recurringIncomeCount = computed(() => {
-    const incomes = incomeComposable.incomes
-    const incomeArray = (typeof incomes === 'object' && incomes?.value !== undefined) ? incomes.value : (incomes || [])
-    let recurringCount = 0
-    incomeArray.forEach(income => {
-        if (income.sources) {
-            recurringCount += income.sources.filter(source => source.isRecurring).length
-        }
-    })
-    return recurringCount
+	const incomes = incomeComposable.incomes
+	const incomeArray =
+		typeof incomes === "object" && incomes?.value !== undefined
+			? incomes.value
+			: incomes || []
+	let recurringCount = 0
+	incomeArray.forEach((income) => {
+		if (income.sources) {
+			recurringCount += income.sources.filter(
+				(source) => source.isRecurring,
+			).length
+		}
+	})
+	return recurringCount
 })
 const recentIncomeEntries = computed(() => {
-    const incomes = incomeComposable.incomes
-    const incomeArray = (typeof incomes === 'object' && incomes?.value !== undefined) ? incomes.value : (incomes || [])
-    const allSources = []
-    incomeArray.forEach(income => {
-        if (income.sources) {
-            income.sources.forEach(source => {
-                allSources.push({
-                    name: source.type,
-                    type: source.type,
-                    amount: source.amount,
-                    frequency: source.isRecurring ? 'monthly' : 'one-time',
-                    date: income.creation || new Date().toISOString()
-                })
-            })
-        }
-    })
-    return allSources
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 3)
+	const incomes = incomeComposable.incomes
+	const incomeArray =
+		typeof incomes === "object" && incomes?.value !== undefined
+			? incomes.value
+			: incomes || []
+	const allSources = []
+	incomeArray.forEach((income) => {
+		if (income.sources) {
+			income.sources.forEach((source) => {
+				allSources.push({
+					name: source.type,
+					type: source.type,
+					amount: source.amount,
+					frequency: source.isRecurring ? "monthly" : "one-time",
+					date: income.creation || new Date().toISOString(),
+				})
+			})
+		}
+	})
+	return allSources
+		.sort((a, b) => new Date(b.date) - new Date(a.date))
+		.slice(0, 3)
 })
 
 // Expense data from composable
 const totalExpenseAmount = computed(() => {
-    const value = expenseComposable.totalExpenseAmount
-    return (typeof value === 'object' && value?.value !== undefined) ? value.value : (value || 0)
+	const value = expenseComposable.totalExpenseAmount
+	return typeof value === "object" && value?.value !== undefined
+		? value.value
+		: value || 0
 })
 const totalExpenseCount = computed(() => {
-    const expenses = expenseComposable.expenses
-    const expenseArray = (typeof expenses === 'object' && expenses?.value !== undefined) ? expenses.value : (expenses || [])
-    return expenseArray.length
+	const expenses = expenseComposable.expenses
+	const expenseArray =
+		typeof expenses === "object" && expenses?.value !== undefined
+			? expenses.value
+			: expenses || []
+	return expenseArray.length
 })
 const recentExpenses = computed(() => {
-    const expenses = expenseComposable.expenses
-    const expenseArray = (typeof expenses === 'object' && expenses?.value !== undefined) ? expenses.value : (expenses || [])
-    return expenseArray
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 3)
-        .map(expense => ({
-            name: expense.name,
-            category: expense.category,
-            amount: expense.amount,
-            provider: expense.provider,
-            date: expense.date
-        }))
+	const expenses = expenseComposable.expenses
+	const expenseArray =
+		typeof expenses === "object" && expenses?.value !== undefined
+			? expenses.value
+			: expenses || []
+	return expenseArray
+		.sort((a, b) => new Date(b.date) - new Date(a.date))
+		.slice(0, 3)
+		.map((expense) => ({
+			name: expense.name,
+			category: expense.category,
+			amount: expense.amount,
+			provider: expense.provider,
+			date: expense.date,
+		}))
 })
 
 // Medical and other expense counts - use groupedExpenses from composable
 const medicalExpenseCount = computed(() => {
-    const grouped = expenseComposable.groupedExpenses
-    if (typeof grouped === 'object' && grouped?.value !== undefined) {
-        return grouped.value?.medical?.count || 0
-    }
-    return grouped?.medical?.count || 0
+	const grouped = expenseComposable.groupedExpenses
+	if (typeof grouped === "object" && grouped?.value !== undefined) {
+		return grouped.value?.medical?.count || 0
+	}
+	return grouped?.medical?.count || 0
 })
 
 const otherExpenseCount = computed(() => {
-    const grouped = expenseComposable.groupedExpenses
-    if (typeof grouped === 'object' && grouped?.value !== undefined) {
-        return grouped.value?.other?.count || 0
-    }
-    return grouped?.other?.count || 0
+	const grouped = expenseComposable.groupedExpenses
+	if (typeof grouped === "object" && grouped?.value !== undefined) {
+		return grouped.value?.other?.count || 0
+	}
+	return grouped?.other?.count || 0
 })
 
 // Support data from composable
 const applications = computed(() => {
-    const apps = supportComposable.applications
-    return (typeof apps === 'object' && apps?.value !== undefined) ? apps.value : (apps || [])
+	const apps = supportComposable.applications
+	return typeof apps === "object" && apps?.value !== undefined
+		? apps.value
+		: apps || []
 })
 const claims = computed(() => {
-    const claimsData = supportComposable.claims
-    return (typeof claimsData === 'object' && claimsData?.value !== undefined) ? claimsData.value : (claimsData || [])
+	const claimsData = supportComposable.claims
+	return typeof claimsData === "object" && claimsData?.value !== undefined
+		? claimsData.value
+		: claimsData || []
 })
 
 // Applications metrics
 const totalApplications = computed(() => applications.value.length)
-const pendingApplications = computed(() => 
-    applications.value.filter(app => app.status === 'pending' || app.status === 'under_review').length
+const pendingApplications = computed(
+	() =>
+		applications.value.filter(
+			(app) => app.status === "pending" || app.status === "under_review",
+		).length,
 )
-const approvedApplications = computed(() => 
-    applications.value.filter(app => app.status === 'approved').length
+const approvedApplications = computed(
+	() => applications.value.filter((app) => app.status === "approved").length,
 )
-const rejectedApplications = computed(() => 
-    applications.value.filter(app => app.status === 'rejected').length
+const rejectedApplications = computed(
+	() => applications.value.filter((app) => app.status === "rejected").length,
 )
 
 // Claims metrics
 const totalClaims = computed(() => claims.value.length)
-const approvedClaims = computed(() => 
-    claims.value.filter(claim => claim.status === 'approved' || claim.status === 'paid').length
+const approvedClaims = computed(
+	() =>
+		claims.value.filter(
+			(claim) => claim.status === "approved" || claim.status === "paid",
+		).length,
 )
-const totalBenefitsReceived = computed(() => 
-    claims.value.reduce((total, claim) => total + (claim.approved_amount || 0), 0)
+const totalBenefitsReceived = computed(() =>
+	claims.value.reduce(
+		(total, claim) => total + (claim.approved_amount || 0),
+		0,
+	),
 )
 const claimsSuccessRate = computed(() => {
-    if (totalClaims.value === 0) return 0
-    return Math.round((approvedClaims.value / totalClaims.value) * 100)
+	if (totalClaims.value === 0) return 0
+	return Math.round((approvedClaims.value / totalClaims.value) * 100)
 })
 
 // Recent activity data
 const recentApplications = computed(() => {
-    return applications.value
-        .sort((a, b) => new Date(b.date_applied) - new Date(a.date_applied))
-        .slice(0, 2)
+	return applications.value
+		.sort((a, b) => new Date(b.date_applied) - new Date(a.date_applied))
+		.slice(0, 2)
 })
 
 const recentClaims = computed(() => {
-    return claims.value
-        .sort((a, b) => new Date(b.claim_date) - new Date(a.claim_date))
-        .slice(0, 2)
+	return claims.value
+		.sort((a, b) => new Date(b.claim_date) - new Date(a.claim_date))
+		.slice(0, 2)
 })
 
 const hasRecentActivity = computed(() => {
-    return recentExpenses.value.length > 0 || 
-           recentIncomeEntries.value.length > 0 || 
-           recentApplications.value.length > 0 || 
-           recentClaims.value.length > 0
+	return (
+		recentExpenses.value.length > 0 ||
+		recentIncomeEntries.value.length > 0 ||
+		recentApplications.value.length > 0 ||
+		recentClaims.value.length > 0
+	)
 })
 
 // Financial calculations
 const expensePercentage = computed(() => {
-    if (totalMonthlyIncome.value === 0) return 0
-    return Math.min(Math.round((totalExpenseAmount.value / totalMonthlyIncome.value) * 100), 100)
+	if (totalMonthlyIncome.value === 0) return 0
+	return Math.min(
+		Math.round((totalExpenseAmount.value / totalMonthlyIncome.value) * 100),
+		100,
+	)
 })
 
 const cheRatio = computed(() => {
-    const annualIncome = totalMonthlyIncome.value * 12
-    const annualExpenses = totalExpenseAmount.value * 12
-    return calculateCHE(annualIncome, annualExpenses)
+	const annualIncome = totalMonthlyIncome.value * 12
+	const annualExpenses = totalExpenseAmount.value * 12
+	return calculateCHE(annualIncome, annualExpenses)
 })
 
 const monthlyBalance = computed(() => {
-    return totalMonthlyIncome.value - totalExpenseAmount.value
+	return totalMonthlyIncome.value - totalExpenseAmount.value
 })
 
 const savingsRate = computed(() => {
-    if (totalMonthlyIncome.value === 0) return 0
-    return Math.round((monthlyBalance.value / totalMonthlyIncome.value) * 100)
+	if (totalMonthlyIncome.value === 0) return 0
+	return Math.round((monthlyBalance.value / totalMonthlyIncome.value) * 100)
 })
 
 // Status badge helper
 function getStatusBadgeClass(status) {
-    const colors = {
-        'pending': 'bg-yellow-100 text-yellow-800',
-        'under_review': 'bg-blue-100 text-blue-800',
-        'approved': 'bg-green-100 text-green-800',
-        'rejected': 'bg-red-100 text-red-800',
-        'processing': 'bg-blue-100 text-blue-800',
-        'paid': 'bg-green-100 text-green-800'
-    }
-    return colors[status] || 'bg-gray-100 text-gray-800'
+	const colors = {
+		pending: "bg-yellow-100 text-yellow-800",
+		under_review: "bg-blue-100 text-blue-800",
+		approved: "bg-green-100 text-green-800",
+		rejected: "bg-red-100 text-red-800",
+		processing: "bg-blue-100 text-blue-800",
+		paid: "bg-green-100 text-green-800",
+	}
+	return colors[status] || "bg-gray-100 text-gray-800"
 }
 
 // Navigation handlers
 function navigateToIncome() {
-    router.push('/income-management')
+	router.push("/income-management")
 }
 
 function navigateToExpenses() {
-    router.push('/expenses/overview')
+	router.push("/expenses/overview")
 }
 
 function navigateToExpenseAnalyzer() {
-    router.push('/expenses/analyzer')
+	router.push("/expenses/analyzer")
 }
 
 function navigateToApplications() {
-    router.push('/applications-claims/applications')
+	router.push("/applications-claims/applications")
 }
 
 function navigateToClaims() {
-    router.push('/applications-claims/claims')
+	router.push("/applications-claims/claims")
 }
 
 function navigateToPrograms() {
-    router.push('/care-support/programs')
+	router.push("/care-support/programs")
 }
 
 function navigateToConditions() {
-    router.push('/care-support/conditions')
+	router.push("/care-support/conditions")
 }
 
 function navigateToIncomeReports() {
-    router.push('/income-management/reports')
+	router.push("/income-management/reports")
 }
 
 // Quick action navigation
 function navigateToExpenseForm() {
-    router.push('/expenses/overview?action=add')
+	router.push("/expenses/overview?action=add")
 }
 
 function navigateToIncomeForm() {
-    router.push('/income-management?action=add')
+	router.push("/income-management?action=add")
 }
 
 function navigateToNewApplication() {
-    router.push('/applications-claims/applications?action=new')
+	router.push("/applications-claims/applications?action=new")
 }
 
 function navigateToNewClaim() {
-    router.push('/applications-claims/claims?action=new')
+	router.push("/applications-claims/claims?action=new")
 }
 
 // Detail navigation
 function navigateToExpenseDetail(expenseId) {
-    router.push(`/expenses/detail/${expenseId}`)
+	router.push(`/expenses/detail/${expenseId}`)
 }
 
 function navigateToIncomeDetail(incomeId) {
-    router.push(`/income-management/detail/${incomeId}`)
+	router.push(`/income-management/detail/${incomeId}`)
 }
 
 function navigateToApplicationDetail(applicationId) {
-    router.push(`/applications-claims/applications/${applicationId}`)
+	router.push(`/applications-claims/applications/${applicationId}`)
 }
 
 function navigateToClaimDetail(claimId) {
-    router.push(`/applications-claims/claims/${claimId}`)
+	router.push(`/applications-claims/claims/${claimId}`)
 }
 
 // Date filter handlers
 const handleDateFilterChange = async () => {
-    try {
-        // Apply filters to all composables
-        const filters = {
-            dateFrom: dateFilters.value.dateFrom,
-            dateTo: dateFilters.value.dateTo
-        }
-        
-        await Promise.all([
-            incomeComposable.updateFilters(filters),
-            expenseComposable.updateFilters(filters),
-            supportComposable.updateFilters && supportComposable.updateFilters(filters)
-        ])
-        
-        lastUpdated.value = new Date().toLocaleTimeString()
-    } catch (error) {
-        console.error('Error applying date filters:', error)
-    }
+	try {
+		// Apply filters to all composables
+		const filters = {
+			dateFrom: dateFilters.value.dateFrom,
+			dateTo: dateFilters.value.dateTo,
+		}
+
+		await Promise.all([
+			incomeComposable.updateFilters(filters),
+			expenseComposable.updateFilters(filters),
+			supportComposable.updateFilters &&
+				supportComposable.updateFilters(filters),
+		])
+
+		lastUpdated.value = new Date().toLocaleTimeString()
+	} catch (error) {
+		console.error("Error applying date filters:", error)
+	}
 }
 
 const resetDateFilters = async () => {
-    dateFilters.value = initializeDateFilters()
-    await handleDateFilterChange()
+	dateFilters.value = initializeDateFilters()
+	await handleDateFilterChange()
 }
 
 const applyCurrentMonthFilter = async () => {
-    dateFilters.value = initializeDateFilters()
-    await handleDateFilterChange()
+	dateFilters.value = initializeDateFilters()
+	await handleDateFilterChange()
 }
 
 // Refresh dashboard
 async function refreshDashboard() {
-    isLoading.value = true
-    hasError.value = false
-    errorMessage.value = ''
-    
-    try {
-        await loadDashboardData()
-        lastUpdated.value = new Date().toLocaleTimeString()
-    } catch (error) {
-        hasError.value = true
-        errorMessage.value = error.message || 'Failed to refresh dashboard'
-    } finally {
-        isLoading.value = false
-    }
+	isLoading.value = true
+	hasError.value = false
+	errorMessage.value = ""
+
+	try {
+		await loadDashboardData()
+		lastUpdated.value = new Date().toLocaleTimeString()
+	} catch (error) {
+		hasError.value = true
+		errorMessage.value = error.message || "Failed to refresh dashboard"
+	} finally {
+		isLoading.value = false
+	}
 }
 
 // Load dashboard data
 async function loadDashboardData() {
-    try {
-        // Load all dashboard data in parallel
-        await Promise.all([
-            userStore.initialize(),
-            incomeComposable.ensureDataLoaded(),
-            expenseComposable.ensureDataLoaded(),
-            supportComposable.initialize()
-        ])
-    } catch (error) {
-        console.error('Error loading dashboard data:', error)
-        throw error
-    }
+	try {
+		// Load all dashboard data in parallel
+		await Promise.all([
+			userStore.initialize(),
+			incomeComposable.initialize({ withAnalytics: true, forceRefresh: false }),
+			expenseComposable.initialize && expenseComposable.initialize(),
+			supportComposable.initialize && supportComposable.initialize(),
+		])
+	} catch (error) {
+		console.error("Error loading dashboard data:", error)
+		throw error
+	}
 }
 
 // Lifecycle
 onMounted(async () => {
-    try {
-        await loadDashboardData()
-        lastUpdated.value = new Date().toLocaleTimeString()
-    } catch (error) {
-        hasError.value = true
-        errorMessage.value = error.message || 'Failed to load dashboard'
-        console.error('Dashboard initialization error:', error)
-    } finally {
-        isLoading.value = false
-    }
+	try {
+		await loadDashboardData()
+		lastUpdated.value = new Date().toLocaleTimeString()
+	} catch (error) {
+		hasError.value = true
+		errorMessage.value = error.message || "Failed to load dashboard"
+		console.error("Dashboard initialization error:", error)
+	} finally {
+		isLoading.value = false
+	}
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>

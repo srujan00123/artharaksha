@@ -75,149 +75,147 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { Upload, AlertCircle, FileText, Image, File, X } from 'lucide-vue-next'
-import { uploadFile } from '@/utils'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { uploadFile } from "@/utils"
+import { AlertCircle, File, FileText, Image, Upload, X } from "lucide-vue-next"
+import { computed, ref } from "vue"
 
 const props = defineProps({
-    acceptedTypes: {
-        type: Array,
-        default: () => ['image/*', 'application/pdf']
-    },
-    maxSizeMB: {
-        type: Number,
-        default: 5
-    },
-    multiple: {
-        type: Boolean,
-        default: false
-    }
+	acceptedTypes: {
+		type: Array,
+		default: () => ["image/*", "application/pdf"],
+	},
+	maxSizeMB: {
+		type: Number,
+		default: 5,
+	},
+	multiple: {
+		type: Boolean,
+		default: false,
+	},
 })
 
-const emit = defineEmits(['upload', 'remove', 'error'])
+const emit = defineEmits(["upload", "remove", "error"])
 
 const files = ref([])
-const error = ref('')
+const error = ref("")
 const isDragging = ref(false)
 const previewImage = ref(null)
 
 const fileTypeText = computed(() => {
-    const types = props.acceptedTypes.map(type => {
-        if (type === 'image/*') return 'Images'
-        if (type === 'application/pdf') return 'PDF'
-        return type
-    })
-    return types.join(', ')
+	const types = props.acceptedTypes.map((type) => {
+		if (type === "image/*") return "Images"
+		if (type === "application/pdf") return "PDF"
+		return type
+	})
+	return types.join(", ")
 })
 
 async function processFiles(fileList) {
-    error.value = ''
-    const newFiles = Array.from(fileList)
+	error.value = ""
+	const newFiles = Array.from(fileList)
 
-    for (const file of newFiles) {
-        try {
-            // Validate and convert file
-            const base64 = await uploadFile(file, {
-                maxSize: props.maxSizeMB * 1024 * 1024,
-                allowedTypes: props.acceptedTypes
-            })
+	for (const file of newFiles) {
+		try {
+			// Validate and convert file
+			const base64 = await uploadFile(file, {
+				maxSize: props.maxSizeMB * 1024 * 1024,
+				allowedTypes: props.acceptedTypes,
+			})
 
-            const fileData = {
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                base64: base64,
-                file: file
-            }
+			const fileData = {
+				name: file.name,
+				size: file.size,
+				type: file.type,
+				base64: base64,
+				file: file,
+			}
 
-            if (props.multiple) {
-                files.value.push(fileData)
-            } else {
-                files.value = [fileData]
-            }
+			if (props.multiple) {
+				files.value.push(fileData)
+			} else {
+				files.value = [fileData]
+			}
 
-            emit('upload', fileData)
-
-        } catch (err) {
-            error.value = err.message
-            emit('error', err.message)
-            break
-        }
-    }
+			emit("upload", fileData)
+		} catch (err) {
+			error.value = err.message
+			emit("error", err.message)
+			break
+		}
+	}
 }
 
 function handleFileSelect(event) {
-    const selectedFiles = event.target.files
-    if (selectedFiles?.length > 0) {
-        processFiles(selectedFiles)
-    }
+	const selectedFiles = event.target.files
+	if (selectedFiles?.length > 0) {
+		processFiles(selectedFiles)
+	}
 }
 
 function handleDrop(event) {
-    event.preventDefault()
-    isDragging.value = false
+	event.preventDefault()
+	isDragging.value = false
 
-    const droppedFiles = event.dataTransfer.files
-    if (droppedFiles?.length > 0) {
-        processFiles(droppedFiles)
-    }
+	const droppedFiles = event.dataTransfer.files
+	if (droppedFiles?.length > 0) {
+		processFiles(droppedFiles)
+	}
 }
 
 function removeFile(index) {
-    const removedFile = files.value[index]
-    files.value.splice(index, 1)
-    emit('remove', removedFile)
+	const removedFile = files.value[index]
+	files.value.splice(index, 1)
+	emit("remove", removedFile)
 }
 
 function previewFile(file) {
-    if (file.type?.includes('image')) {
-        previewImage.value = URL.createObjectURL(file.file)
-    }
+	if (file.type?.includes("image")) {
+		previewImage.value = URL.createObjectURL(file.file)
+	}
 }
 
 function formatFileSize(bytes) {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    if (bytes === 0) return '0 Bytes'
-    const i = Math.floor(Math.log(bytes) / Math.log(1024))
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
+	const sizes = ["Bytes", "KB", "MB", "GB"]
+	if (bytes === 0) return "0 Bytes"
+	const i = Math.floor(Math.log(bytes) / Math.log(1024))
+	return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i]
 }
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>

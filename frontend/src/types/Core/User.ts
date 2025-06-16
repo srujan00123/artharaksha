@@ -1,5 +1,4 @@
-
-export interface User{
+export interface User {
 	name: string
 	creation: string
 	modified: string

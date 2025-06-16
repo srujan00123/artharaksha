@@ -99,30 +99,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { X } from 'lucide-vue-next'
-import { Button } from 'frappe-ui'
-import { useSupport } from '../../composables/useSupport'
-import type { SupportFilters } from '../../types/support'
+import { Button } from "frappe-ui"
+import { X } from "lucide-vue-next"
+import { computed, onMounted, ref, watch } from "vue"
+import { useSupport } from "../../composables/useSupport"
+import type { SupportFilters } from "../../types/support"
 
 // Props
 interface Props {
-  modelValue?: SupportFilters
+	modelValue?: SupportFilters
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  modelValue: () => ({
-    type: '',
-    scheme_source: '',
-    search: ''
-  })
+	modelValue: () => ({
+		type: "",
+		scheme_source: "",
+		search: "",
+	}),
 })
 
 // Emits
 const emit = defineEmits<{
-  'update:modelValue': [filters: SupportFilters]
-  'filter-change': [filters: SupportFilters]
-  'cache-invalidated': []
+	"update:modelValue": [filters: SupportFilters]
+	"filter-change": [filters: SupportFilters]
+	"cache-invalidated": []
 }>()
 
 // Composables
@@ -133,87 +133,93 @@ const availableTypes = ref<string[]>([])
 
 // Local filters with proper typing
 const localFilters = ref<SupportFilters>({
-  type: '',
-  scheme_source: '',
-  search: ''
+	type: "",
+	scheme_source: "",
+	search: "",
 })
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return localFilters.value.type !== '' ||
-         localFilters.value.scheme_source !== '' ||
-         localFilters.value.search !== ''
+	return (
+		localFilters.value.type !== "" ||
+		localFilters.value.scheme_source !== "" ||
+		localFilters.value.search !== ""
+	)
 })
 
 // Methods
 const applyFilters = () => {
-  const filters = { ...localFilters.value }
-  
-  // Emit cache invalidation event for parent to handle
-  emit('cache-invalidated')
-  emit('update:modelValue', filters)
-  emit('filter-change', filters)
+	const filters = { ...localFilters.value }
+
+	// Emit cache invalidation event for parent to handle
+	emit("cache-invalidated")
+	emit("update:modelValue", filters)
+	emit("filter-change", filters)
 }
 
 const clearFilters = () => {
-  localFilters.value = {
-    type: '',
-    scheme_source: '',
-    search: ''
-  }
-  applyFilters()
+	localFilters.value = {
+		type: "",
+		scheme_source: "",
+		search: "",
+	}
+	applyFilters()
 }
 
 const clearFilter = (filterKey: keyof SupportFilters) => {
-  (localFilters.value[filterKey] as string) = ''
-  applyFilters()
+	;(localFilters.value[filterKey] as string) = ""
+	applyFilters()
 }
 
 const formatSchemeSource = (source: string) => {
-  switch (source) {
-    case 'welfare':
-      return 'Welfare Schemes'
-    case 'insurance':
-      return 'Insurance Schemes'
-    default:
-      return source
-  }
+	switch (source) {
+		case "welfare":
+			return "Welfare Schemes"
+		case "insurance":
+			return "Insurance Schemes"
+		default:
+			return source
+	}
 }
 
 const loadAvailableTypes = async () => {
-  try {
-    // Load available types from both welfare and insurance schemes
-    const [welfareSchemes, insuranceSchemes] = await Promise.all([
-      supportComposable.loadWelfareSchemes(),
-      supportComposable.loadInsuranceSchemes()
-    ])
-    
-    const types = new Set<string>()
-    
-    welfareSchemes.forEach(scheme => {
-      if (scheme.type) types.add(scheme.type)
-    })
-    
-    insuranceSchemes.forEach(scheme => {
-      if (scheme.type) types.add(scheme.type)
-    })
-    
-    availableTypes.value = Array.from(types).sort()
-  } catch (error) {
-    console.error('Failed to load available types:', error)
-  }
+	try {
+		// Load available types from both welfare and insurance schemes
+		const [welfareSchemes, insuranceSchemes] = await Promise.all([
+			supportComposable.loadWelfareSchemes(),
+			supportComposable.loadInsuranceSchemes(),
+		])
+
+		const types = new Set<string>()
+
+		welfareSchemes.forEach((scheme) => {
+			if (scheme.type) types.add(scheme.type)
+		})
+
+		insuranceSchemes.forEach((scheme) => {
+			if (scheme.type) types.add(scheme.type)
+		})
+
+		availableTypes.value = Array.from(types).sort()
+	} catch (error) {
+		console.error("Failed to load available types:", error)
+	}
 }
 
 // Watchers
-watch(() => props.modelValue, (newFilters) => {
-  if (newFilters) {
-    localFilters.value = { ...newFilters }
-  }
-}, { immediate: true, deep: true })
+watch(
+	() => props.modelValue,
+	(newFilters) => {
+		if (newFilters) {
+			localFilters.value = { ...newFilters }
+		}
+	},
+	{ immediate: true, deep: true },
+)
 
 // Initialize
 onMounted(() => {
-  loadAvailableTypes()
+	loadAvailableTypes()
 })
 </script>
 

@@ -76,61 +76,60 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { session } from '@/data/session'
-import { Heart } from 'lucide-vue-next'
-import { call } from 'frappe-ui'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { session } from "@/data/session"
+import { call } from "frappe-ui"
+import { Heart } from "lucide-vue-next"
+import { ref } from "vue"
 
 const showRegister = ref(false)
-const registerEmail = ref('')
-const registerPassword = ref('')
-const registerError = ref('')
+const registerEmail = ref("")
+const registerPassword = ref("")
+const registerError = ref("")
 const registerLoading = ref(false)
 
 function submit(e) {
-  let formData = new FormData(e.target)
-  session.login.submit({
-    email: formData.get('email'),
-    password: formData.get('password'),
-  })
+	const formData = new FormData(e.target)
+	session.login.submit({
+		email: formData.get("email"),
+		password: formData.get("password"),
+	})
 }
 
 async function register() {
-  registerError.value = ''
-  registerLoading.value = true
-  try {
-    const result = await call('artha.api.auth.register_account', {
-      email: registerEmail.value,
-      password: registerPassword.value
-    })
-    // On success, log the user in
-    session.login.submit({
-      email: registerEmail.value,
-      password: registerPassword.value
-    })
-    showRegister.value = false
-  } catch (err) {
-    registerError.value = err.message || 'Registration failed.'
-  } finally {
-    registerLoading.value = false
-  }
+	registerError.value = ""
+	registerLoading.value = true
+	try {
+		const result = await call("artha.api.auth.register_account", {
+			email: registerEmail.value,
+			password: registerPassword.value,
+		})
+		// On success, log the user in
+		session.login.submit({
+			email: registerEmail.value,
+			password: registerPassword.value,
+		})
+		showRegister.value = false
+	} catch (err) {
+		registerError.value = err.message || "Registration failed."
+	} finally {
+		registerLoading.value = false
+	}
 }
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 </script>

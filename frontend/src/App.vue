@@ -11,10 +11,10 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import AppLayout from '@/layouts/AppLayout.vue'
-import { usePageTitle } from '@/composables/usePageTitle'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { usePageTitle } from "@/composables/usePageTitle"
+import AppLayout from "@/layouts/AppLayout.vue"
+import { onMounted } from "vue"
 
 // Initialize page title management
 const { setTitle } = usePageTitle()
@@ -24,11 +24,11 @@ const { initializeTheme } = useAdvancedTheme()
 
 // Set initial title and theme on app mount
 onMounted(() => {
-  // Initialize theme system
-  initializeTheme()
-  
-  // The usePageTitle composable will handle route-based title updates automatically
-  // This ensures the title is set correctly on initial load
+	// Initialize theme system
+	initializeTheme()
+
+	// The usePageTitle composable will handle route-based title updates automatically
+	// This ensures the title is set correctly on initial load
 })
 </script>
 

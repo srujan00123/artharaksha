@@ -21,13 +21,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, provide } from 'vue'
+import { computed, onMounted, provide } from "vue"
 
 // Components
-import { ExpenseForm } from '../../components'
+import { ExpenseForm } from "../../components"
 
 // Composables
-import { useExpense } from '../../composables/useExpense'
+import { useExpense } from "../../composables/useExpense"
 
 // Initialize composable
 const composableResult = useExpense({ enableAdvancedAnalysis: true }) as any
@@ -41,41 +41,41 @@ const showExpenseForm = computed(() => state.showExpenseForm)
 const editingExpense = computed(() => state.editingExpense)
 
 // Provide state and actions to child components
-provide('expenseState', state)
-provide('expenseActions', actions)
+provide("expenseState", state)
+provide("expenseActions", actions)
 
 // Event Handlers
 const handleRefresh = async () => {
-  try {
-    await actions.refreshExpenses()
-  } catch (error) {
-    console.error('Failed to refresh expenses:', error)
-  }
+	try {
+		await actions.refreshExpenses()
+	} catch (error) {
+		console.error("Failed to refresh expenses:", error)
+	}
 }
 
 const handleAddExpense = () => {
-  actions.openExpenseForm()
+	actions.openExpenseForm()
 }
 
 const handleCloseExpenseForm = () => {
-  actions.closeExpenseForm()
+	actions.closeExpenseForm()
 }
 
 const handleExpenseFormSuccess = async () => {
-  try {
-    await actions.loadExpenses()
-  } catch (error) {
-    console.error('Failed to reload expenses after form success:', error)
-  }
+	try {
+		await actions.loadExpenses()
+	} catch (error) {
+		console.error("Failed to reload expenses after form success:", error)
+	}
 }
 
 // Lifecycle
 onMounted(async () => {
-  try {
-    await actions.initialize()
-  } catch (error) {
-    console.error('ExpenseLayout: Initialization failed:', error)
-  }
+	try {
+		await actions.initialize()
+	} catch (error) {
+		console.error("ExpenseLayout: Initialization failed:", error)
+	}
 })
 </script>
 

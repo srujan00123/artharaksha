@@ -61,52 +61,65 @@
 </template>
 
 <script setup>
-import { ref, computed, defineEmits, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { Search, X } from 'lucide-vue-next'
-import { Input } from 'frappe-ui'
-import { debounce } from '@/utils'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { debounce } from "@/utils"
+import { Input } from "frappe-ui"
+import { Search, X } from "lucide-vue-next"
+import {
+	computed,
+	defineEmits,
+	nextTick,
+	onMounted,
+	onUnmounted,
+	ref,
+	watch,
+} from "vue"
 
 const props = defineProps({
-    placeholder: {
-        type: String,
-        default: 'Search...'
-    },
-    debounceMs: {
-        type: Number,
-        default: 300
-    },
-    disabled: {
-        type: Boolean,
-        default: false
-    },
-    suggestions: {
-        type: Array,
-        default: () => []
-    },
-    enableSuggestions: {
-        type: Boolean,
-        default: false
-    },
-    maxSuggestions: {
-        type: Number,
-        default: 5
-    },
-    minSearchLength: {
-        type: Number,
-        default: 1
-    },
-    autoFocus: {
-        type: Boolean,
-        default: false
-    }
+	placeholder: {
+		type: String,
+		default: "Search...",
+	},
+	debounceMs: {
+		type: Number,
+		default: 300,
+	},
+	disabled: {
+		type: Boolean,
+		default: false,
+	},
+	suggestions: {
+		type: Array,
+		default: () => [],
+	},
+	enableSuggestions: {
+		type: Boolean,
+		default: false,
+	},
+	maxSuggestions: {
+		type: Number,
+		default: 5,
+	},
+	minSearchLength: {
+		type: Number,
+		default: 1,
+	},
+	autoFocus: {
+		type: Boolean,
+		default: false,
+	},
 })
 
-const emit = defineEmits(['search', 'clear', 'suggestion-select', 'focus', 'blur'])
+const emit = defineEmits([
+	"search",
+	"clear",
+	"suggestion-select",
+	"focus",
+	"blur",
+])
 
 // Reactive state
-const searchTerm = ref('')
+const searchTerm = ref("")
 const isSearching = ref(false)
 const isFocused = ref(false)
 const selectedSuggestionIndex = ref(-1)
@@ -115,227 +128,232 @@ const searchInput = ref(null)
 
 // Computed properties
 const showSuggestions = computed(() => {
-    return props.enableSuggestions &&
-        isFocused.value &&
-        searchTerm.value.length >= props.minSearchLength
+	return (
+		props.enableSuggestions &&
+		isFocused.value &&
+		searchTerm.value.length >= props.minSearchLength
+	)
 })
 
 const searchSuggestions = computed(() => {
-    if (!props.enableSuggestions || !searchTerm.value) return []
+	if (!props.enableSuggestions || !searchTerm.value) return []
 
-    const filtered = props.suggestions.filter(suggestion => {
-        const searchText = suggestion.label || suggestion.text || suggestion
-        return searchText.toLowerCase().includes(searchTerm.value.toLowerCase())
-    })
+	const filtered = props.suggestions.filter((suggestion) => {
+		const searchText = suggestion.label || suggestion.text || suggestion
+		return searchText.toLowerCase().includes(searchTerm.value.toLowerCase())
+	})
 
-    return filtered.slice(0, props.maxSuggestions)
+	return filtered.slice(0, props.maxSuggestions)
 })
 
 // Debounced search function with loading state
 const debouncedSearch = debounce(async (term) => {
-    try {
-        isSearching.value = true
-        emit('search', term)
-    } catch (error) {
-        console.error('Search error:', error)
-    } finally {
-        // Small delay to show loading state
-        setTimeout(() => {
-            isSearching.value = false
-        }, 150)
-    }
+	try {
+		isSearching.value = true
+		emit("search", term)
+	} catch (error) {
+		console.error("Search error:", error)
+	} finally {
+		// Small delay to show loading state
+		setTimeout(() => {
+			isSearching.value = false
+		}, 150)
+	}
 }, props.debounceMs)
 
 // Event handlers
 function handleInput(event) {
-    const value = event.target.value
-    searchTerm.value = value
-    selectedSuggestionIndex.value = -1
+	const value = event.target.value
+	searchTerm.value = value
+	selectedSuggestionIndex.value = -1
 
-    if (value.length >= props.minSearchLength) {
-        debouncedSearch(value)
-    } else {
-        isSearching.value = false
-        emit('search', value)
-    }
+	if (value.length >= props.minSearchLength) {
+		debouncedSearch(value)
+	} else {
+		isSearching.value = false
+		emit("search", value)
+	}
 }
 
 function handleKeydown(event) {
-    if (!showSuggestions.value || searchSuggestions.value.length === 0) {
-        return
-    }
+	if (!showSuggestions.value || searchSuggestions.value.length === 0) {
+		return
+	}
 
-    switch (event.key) {
-        case 'ArrowDown':
-            event.preventDefault()
-            selectedSuggestionIndex.value = Math.min(
-                selectedSuggestionIndex.value + 1,
-                searchSuggestions.value.length - 1
-            )
-            break
+	switch (event.key) {
+		case "ArrowDown":
+			event.preventDefault()
+			selectedSuggestionIndex.value = Math.min(
+				selectedSuggestionIndex.value + 1,
+				searchSuggestions.value.length - 1,
+			)
+			break
 
-        case 'ArrowUp':
-            event.preventDefault()
-            selectedSuggestionIndex.value = Math.max(
-                selectedSuggestionIndex.value - 1,
-                -1
-            )
-            break
+		case "ArrowUp":
+			event.preventDefault()
+			selectedSuggestionIndex.value = Math.max(
+				selectedSuggestionIndex.value - 1,
+				-1,
+			)
+			break
 
-        case 'Enter':
-            event.preventDefault()
-            if (selectedSuggestionIndex.value >= 0) {
-                selectSuggestion(searchSuggestions.value[selectedSuggestionIndex.value])
-            } else {
-                // Submit search as-is
-                emit('search', searchTerm.value)
-                hideSuggestions()
-            }
-            break
+		case "Enter":
+			event.preventDefault()
+			if (selectedSuggestionIndex.value >= 0) {
+				selectSuggestion(searchSuggestions.value[selectedSuggestionIndex.value])
+			} else {
+				// Submit search as-is
+				emit("search", searchTerm.value)
+				hideSuggestions()
+			}
+			break
 
-        case 'Escape':
-            event.preventDefault()
-            if (showSuggestions.value) {
-                hideSuggestions()
-            } else {
-                clearSearch()
-            }
-            break
+		case "Escape":
+			event.preventDefault()
+			if (showSuggestions.value) {
+				hideSuggestions()
+			} else {
+				clearSearch()
+			}
+			break
 
-        case 'Tab':
-            // Allow tab to close suggestions
-            hideSuggestions()
-            break
-    }
+		case "Tab":
+			// Allow tab to close suggestions
+			hideSuggestions()
+			break
+	}
 }
 
 function handleFocus() {
-    isFocused.value = true
-    emit('focus')
+	isFocused.value = true
+	emit("focus")
 }
 
 function handleBlur() {
-    // Delay hiding suggestions to allow for click events
-    setTimeout(() => {
-        isFocused.value = false
-        selectedSuggestionIndex.value = -1
-        emit('blur')
-    }, 150)
+	// Delay hiding suggestions to allow for click events
+	setTimeout(() => {
+		isFocused.value = false
+		selectedSuggestionIndex.value = -1
+		emit("blur")
+	}, 150)
 }
 
 function selectSuggestion(suggestion) {
-    const suggestionText = suggestion.label || suggestion.text || suggestion
-    searchTerm.value = suggestionText
-    selectedSuggestionIndex.value = -1
+	const suggestionText = suggestion.label || suggestion.text || suggestion
+	searchTerm.value = suggestionText
+	selectedSuggestionIndex.value = -1
 
-    emit('suggestion-select', suggestion)
-    emit('search', suggestionText)
+	emit("suggestion-select", suggestion)
+	emit("search", suggestionText)
 
-    hideSuggestions()
+	hideSuggestions()
 
-    // Focus back to input
-    nextTick(() => {
-        if (searchInput.value) {
-            searchInput.value.focus()
-        }
-    })
+	// Focus back to input
+	nextTick(() => {
+		if (searchInput.value) {
+			searchInput.value.focus()
+		}
+	})
 }
 
 function clearSearch() {
-    searchTerm.value = ''
-    selectedSuggestionIndex.value = -1
-    isSearching.value = false
-    emit('search', '')
-    emit('clear')
+	searchTerm.value = ""
+	selectedSuggestionIndex.value = -1
+	isSearching.value = false
+	emit("search", "")
+	emit("clear")
 
-    // Focus back to input
-    nextTick(() => {
-        if (searchInput.value) {
-            searchInput.value.focus()
-        }
-    })
+	// Focus back to input
+	nextTick(() => {
+		if (searchInput.value) {
+			searchInput.value.focus()
+		}
+	})
 }
 
 function hideSuggestions() {
-    isFocused.value = false
-    selectedSuggestionIndex.value = -1
+	isFocused.value = false
+	selectedSuggestionIndex.value = -1
 }
 
 // Click outside handler
 function handleClickOutside(event) {
-    if (searchContainer.value && !searchContainer.value.contains(event.target)) {
-        hideSuggestions()
-    }
+	if (searchContainer.value && !searchContainer.value.contains(event.target)) {
+		hideSuggestions()
+	}
 }
 
 // Lifecycle
 onMounted(() => {
-    if (props.autoFocus && searchInput.value) {
-        searchInput.value.focus()
-    }
+	if (props.autoFocus && searchInput.value) {
+		searchInput.value.focus()
+	}
 
-    document.addEventListener('click', handleClickOutside)
+	document.addEventListener("click", handleClickOutside)
 })
 
 onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside)
+	document.removeEventListener("click", handleClickOutside)
 })
 
 // Watch for external changes
-watch(() => props.suggestions, () => {
-    // Reset selection when suggestions change
-    selectedSuggestionIndex.value = -1
-})
+watch(
+	() => props.suggestions,
+	() => {
+		// Reset selection when suggestions change
+		selectedSuggestionIndex.value = -1
+	},
+)
 
 // Expose methods for parent components
 defineExpose({
-    focus: () => {
-        if (searchInput.value) {
-            searchInput.value.focus()
-        }
-    },
-    clear: clearSearch,
-    getValue: () => searchTerm.value,
-    setValue: (value) => {
-        searchTerm.value = value
-    }
+	focus: () => {
+		if (searchInput.value) {
+			searchInput.value.focus()
+		}
+	},
+	clear: clearSearch,
+	getValue: () => searchTerm.value,
+	setValue: (value) => {
+		searchTerm.value = value
+	},
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>
 

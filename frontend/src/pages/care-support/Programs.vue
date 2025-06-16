@@ -330,200 +330,214 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { Button } from "frappe-ui"
 import {
-    Search,
-    Building,
-    Shield,
-    CheckCircle,
-    DollarSign,
-    AlertCircle
-} from 'lucide-vue-next'
-import { Button } from 'frappe-ui'
-import { useSupport } from '../../composables/useSupport'
-import { formatCurrency } from '../../utils'
-import SchemeDetailsModal from '../../components/support/SchemeDetailsModal.vue'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+	AlertCircle,
+	Building,
+	CheckCircle,
+	DollarSign,
+	Search,
+	Shield,
+} from "lucide-vue-next"
+import { computed, onMounted, ref, watch } from "vue"
+import SchemeDetailsModal from "../../components/support/SchemeDetailsModal.vue"
+import { useSupport } from "../../composables/useSupport"
+import { formatCurrency } from "../../utils"
 
 // Support composable
 const support = useSupport({ autoInitialize: true })
 
 // Reactive data
-const searchQuery = ref('')
-const selectedSource = ref('')
-const selectedType = ref('')
+const searchQuery = ref("")
+const selectedSource = ref("")
+const selectedType = ref("")
 const selectedScheme = ref(null)
 const currentPage = ref(1)
 const itemsPerPage = 12
 
 // Computed properties
 const totalSchemes = computed(() => support.allSchemes.value.length)
-const welfareCount = computed(() => support.allSchemes.value.filter(s => s.scheme_source === 'welfare').length)
-const insuranceCount = computed(() => support.allSchemes.value.filter(s => s.scheme_source === 'insurance').length)
-const eligibleCount = computed(() => support.eligibleSchemes.value.filter(scheme => scheme.is_eligible).length)
+const welfareCount = computed(
+	() =>
+		support.allSchemes.value.filter((s) => s.scheme_source === "welfare")
+			.length,
+)
+const insuranceCount = computed(
+	() =>
+		support.allSchemes.value.filter((s) => s.scheme_source === "insurance")
+			.length,
+)
+const eligibleCount = computed(
+	() =>
+		support.eligibleSchemes.value.filter((scheme) => scheme.is_eligible).length,
+)
 
 const filteredSchemes = computed(() => {
-    let schemes = support.allSchemes.value
+	let schemes = support.allSchemes.value
 
-    // Apply search filter
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase()
-        schemes = schemes.filter(scheme =>
-            scheme.scheme_name?.toLowerCase().includes(query) ||
-            scheme.description?.toLowerCase().includes(query)
-        )
-    }
+	// Apply search filter
+	if (searchQuery.value) {
+		const query = searchQuery.value.toLowerCase()
+		schemes = schemes.filter(
+			(scheme) =>
+				scheme.scheme_name?.toLowerCase().includes(query) ||
+				scheme.description?.toLowerCase().includes(query),
+		)
+	}
 
-    // Apply source filter
-    if (selectedSource.value) {
-        schemes = schemes.filter(scheme => scheme.scheme_source === selectedSource.value)
-    }
+	// Apply source filter
+	if (selectedSource.value) {
+		schemes = schemes.filter(
+			(scheme) => scheme.scheme_source === selectedSource.value,
+		)
+	}
 
-    // Apply type filter
-    if (selectedType.value) {
-        schemes = schemes.filter(scheme => scheme.type === selectedType.value)
-    }
+	// Apply type filter
+	if (selectedType.value) {
+		schemes = schemes.filter((scheme) => scheme.type === selectedType.value)
+	}
 
-    return schemes
+	return schemes
 })
 
 const eligibleSchemes = computed(() => {
-    return support.eligibleSchemes.value.filter(scheme => scheme.is_eligible)
+	return support.eligibleSchemes.value.filter((scheme) => scheme.is_eligible)
 })
 
-const totalPages = computed(() => Math.ceil(filteredSchemes.value.length / itemsPerPage))
+const totalPages = computed(() =>
+	Math.ceil(filteredSchemes.value.length / itemsPerPage),
+)
 
 const paginatedSchemes = computed(() => {
-    const start = (currentPage.value - 1) * itemsPerPage
-    const end = start + itemsPerPage
-    return filteredSchemes.value.slice(start, end)
+	const start = (currentPage.value - 1) * itemsPerPage
+	const end = start + itemsPerPage
+	return filteredSchemes.value.slice(start, end)
 })
 
 // Methods
 function getSchemeTypeBadgeClass(type) {
-    return type === 'Government' 
-        ? 'bg-blue-100 text-blue-800' 
-        : 'bg-purple-100 text-purple-800'
+	return type === "Government"
+		? "bg-blue-100 text-blue-800"
+		: "bg-purple-100 text-purple-800"
 }
 
 function getSchemeSourceBadgeClass(source) {
-    return source === 'welfare' 
-        ? 'bg-green-100 text-green-800' 
-        : 'bg-orange-100 text-orange-800'
+	return source === "welfare"
+		? "bg-green-100 text-green-800"
+		: "bg-orange-100 text-orange-800"
 }
 
 function getEligibilityBadgeClass(scheme) {
-    if (scheme.is_eligible) {
-        return 'bg-green-100 text-green-800'
-    } else if (scheme.eligibility_score > 0) {
-        return 'bg-yellow-100 text-yellow-800'
-    } else {
-        return 'bg-red-100 text-red-800'
-    }
+	if (scheme.is_eligible) {
+		return "bg-green-100 text-green-800"
+	} else if (scheme.eligibility_score > 0) {
+		return "bg-yellow-100 text-yellow-800"
+	} else {
+		return "bg-red-100 text-red-800"
+	}
 }
 
 function getEligibilityLabel(scheme) {
-    if (scheme.is_eligible) {
-        return 'Eligible'
-    } else if (scheme.eligibility_score > 0) {
-        return 'Partially Eligible'
-    } else {
-        return 'Not Eligible'
-    }
+	if (scheme.is_eligible) {
+		return "Eligible"
+	} else if (scheme.eligibility_score > 0) {
+		return "Partially Eligible"
+	} else {
+		return "Not Eligible"
+	}
 }
 
 function openSchemeDetails(scheme) {
-    selectedScheme.value = scheme
+	selectedScheme.value = scheme
 }
 
 function applyToScheme(scheme) {
-    const url = scheme.apply_url || scheme.apply_link
-    if (url) {
-        window.open(url, '_blank')
-    }
+	const url = scheme.apply_url || scheme.apply_link
+	if (url) {
+		window.open(url, "_blank")
+	}
 }
 
 // Helper methods to handle different field names between welfare and insurance schemes
 function getBenefits(scheme) {
-    return scheme.scheme_benefits || scheme.scheme_benefit || scheme.benefits || []
+	return (
+		scheme.scheme_benefits || scheme.scheme_benefit || scheme.benefits || []
+	)
 }
 
 function clearFilters() {
-    searchQuery.value = ''
-    selectedSource.value = ''
-    selectedType.value = ''
-    currentPage.value = 1
+	searchQuery.value = ""
+	selectedSource.value = ""
+	selectedType.value = ""
+	currentPage.value = 1
 }
 
 async function loadSchemes() {
-    try {
-        await Promise.all([
-            support.loadAllSchemes(null, true),
-            support.loadEligibleSchemes(true)
-        ])
-    } catch (error) {
-        console.error('Error loading schemes:', error)
-    }
+	try {
+		await Promise.all([
+			support.loadAllSchemes(null, true),
+			support.loadEligibleSchemes(true),
+		])
+	} catch (error) {
+		console.error("Error loading schemes:", error)
+	}
 }
 
 // Watch for filter changes to reset pagination
 watch([searchQuery, selectedSource, selectedType], () => {
-    currentPage.value = 1
+	currentPage.value = 1
 })
 
 // Lifecycle
 onMounted(async () => {
-    try {
-        // Initialize support system if not already done
-        if (!support.state.value.isInitialized) {
-            await support.initialize()
-        }
-        
-        // Load schemes and eligibility data
-        await Promise.all([
-            support.loadAllSchemes(),
-            support.loadEligibleSchemes()
-        ])
-    } catch (error) {
-        console.error('Error initializing programs data:', error)
-    }
+	try {
+		// Initialize support system if not already done
+		if (!support.state.value.isInitialized) {
+			await support.initialize()
+		}
+
+		// Load schemes and eligibility data
+		await Promise.all([support.loadAllSchemes(), support.loadEligibleSchemes()])
+	} catch (error) {
+		console.error("Error initializing programs data:", error)
+	}
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>

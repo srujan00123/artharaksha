@@ -1,9 +1,9 @@
-import { HouseholdProfileChild } from './HouseholdProfileChild'
-import { UserHealthCondition } from './UserHealthCondition'
-import { SchemeApplications } from './SchemeApplications'
-import { SchemeClaims } from './SchemeClaims'
+import type { HouseholdProfileChild } from "./HouseholdProfileChild"
+import type { SchemeApplications } from "./SchemeApplications"
+import type { SchemeClaims } from "./SchemeClaims"
+import type { UserHealthCondition } from "./UserHealthCondition"
 
-export interface HouseholdProfile{
+export interface HouseholdProfile {
 	name: string
 	creation: string
 	modified: string

@@ -189,19 +189,31 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { FileText, Clock, CheckCircle, XCircle, Shield, Building, Eye, Download, Plus, AlertCircle, Edit } from 'lucide-vue-next'
-import { Button } from 'frappe-ui'
-import { useSupport } from '../../composables/useSupport'
-import ApplicationModal from '../../components/support/ApplicationModal.vue'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { Button } from "frappe-ui"
+import {
+	AlertCircle,
+	Building,
+	CheckCircle,
+	Clock,
+	Download,
+	Edit,
+	Eye,
+	FileText,
+	Plus,
+	Shield,
+	XCircle,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import ApplicationModal from "../../components/support/ApplicationModal.vue"
+import { useSupport } from "../../composables/useSupport"
 
-import { 
-  getSchemeDisplayName, 
-  getCoverageAmount, 
-  formatCurrency,
-  getApplicationStatusColor
-} from '../../types/support'
+import {
+	formatCurrency,
+	getApplicationStatusColor,
+	getCoverageAmount,
+	getSchemeDisplayName,
+} from "../../types/support"
 
 // Support composable
 const support = useSupport({ autoInitialize: true })
@@ -214,134 +226,137 @@ const editingApplication = ref(null)
 const applications = computed(() => support.applications.value)
 const availableSchemes = computed(() => support.allSchemes.value)
 const totalApplications = computed(() => applications.value.length)
-const pendingApplications = computed(() => applications.value.filter(app => app.status === 'pending').length)
-const approvedApplications = computed(() => applications.value.filter(app => app.status === 'approved').length)
-const rejectedApplications = computed(() => applications.value.filter(app => app.status === 'rejected').length)
+const pendingApplications = computed(
+	() => applications.value.filter((app) => app.status === "pending").length,
+)
+const approvedApplications = computed(
+	() => applications.value.filter((app) => app.status === "approved").length,
+)
+const rejectedApplications = computed(
+	() => applications.value.filter((app) => app.status === "rejected").length,
+)
 
 // Methods
 function getStatusBadgeClass(status) {
-  const classes = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    approved: 'bg-green-100 text-green-800',
-    rejected: 'bg-red-100 text-red-800',
-    under_review: 'bg-blue-100 text-blue-800'
-  }
-  return classes[status] || 'bg-gray-100 text-gray-800'
+	const classes = {
+		pending: "bg-yellow-100 text-yellow-800",
+		approved: "bg-green-100 text-green-800",
+		rejected: "bg-red-100 text-red-800",
+		under_review: "bg-blue-100 text-blue-800",
+	}
+	return classes[status] || "bg-gray-100 text-gray-800"
 }
 
 function getStatusLabel(status) {
-  const labels = {
-    pending: 'Pending',
-    approved: 'Approved',
-    rejected: 'Rejected',
-    under_review: 'Under Review'
-  }
-  return labels[status] || status
+	const labels = {
+		pending: "Pending",
+		approved: "Approved",
+		rejected: "Rejected",
+		under_review: "Under Review",
+	}
+	return labels[status] || status
 }
 
 function formatDate(dateString) {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+	if (!dateString) return "N/A"
+	return new Date(dateString).toLocaleDateString("en-IN", {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	})
 }
 
 function getSchemeType(application) {
-  if (application.custom_scheme) {
-    return application.custom_scheme_type?.toLowerCase() || 'other'
-  }
-  return application.scheme_type === 'Welfare Scheme' ? 'welfare' : 'insurance'
+	if (application.custom_scheme) {
+		return application.custom_scheme_type?.toLowerCase() || "other"
+	}
+	return application.scheme_type === "Welfare Scheme" ? "welfare" : "insurance"
 }
 
 async function loadApplications() {
-  try {
-    await support.loadApplications(true) // Force refresh
-  } catch (err) {
-    console.error('Error loading applications:', err)
-  }
+	try {
+		await support.loadApplications(true) // Force refresh
+	} catch (err) {
+		console.error("Error loading applications:", err)
+	}
 }
 
 async function loadAvailableSchemes() {
-  try {
-    await support.loadAllSchemes()
-  } catch (err) {
-    console.error('Error loading schemes:', err)
-  }
+	try {
+		await support.loadAllSchemes()
+	} catch (err) {
+		console.error("Error loading schemes:", err)
+	}
 }
 
 function editApplication(application) {
-  editingApplication.value = application
-  showApplicationModal.value = true
+	editingApplication.value = application
+	showApplicationModal.value = true
 }
 
 function closeApplicationModal() {
-  showApplicationModal.value = false
-  editingApplication.value = null
+	showApplicationModal.value = false
+	editingApplication.value = null
 }
 
 async function handleApplicationSave(applicationData) {
-  try {
-    await loadApplications() // Refresh the applications list
-    closeApplicationModal()
-  } catch (err) {
-    console.error('Error after saving application:', err)
-  }
+	try {
+		await loadApplications() // Refresh the applications list
+		closeApplicationModal()
+	} catch (err) {
+		console.error("Error after saving application:", err)
+	}
 }
 
 // Lifecycle
 onMounted(async () => {
-  try {
-    // Initialize support system if not already done
-    if (!support.state.value.isInitialized) {
-      await support.initialize()
-    }
-    
-    // Load applications and available schemes
-    await Promise.all([
-      support.loadApplications(),
-      support.loadAllSchemes()
-    ])
-  } catch (error) {
-    console.error('Error initializing applications data:', error)
-  }
+	try {
+		// Initialize support system if not already done
+		if (!support.state.value.isInitialized) {
+			await support.initialize()
+		}
+
+		// Load applications and available schemes
+		await Promise.all([support.loadApplications(), support.loadAllSchemes()])
+	} catch (error) {
+		console.error("Error initializing applications data:", error)
+	}
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>

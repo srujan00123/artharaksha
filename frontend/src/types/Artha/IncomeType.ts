@@ -1,5 +1,4 @@
-
-export interface IncomeType{
+export interface IncomeType {
 	name: string
 	creation: string
 	modified: string

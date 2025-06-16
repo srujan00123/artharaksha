@@ -288,320 +288,368 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineProps, defineEmits } from 'vue'
-import { 
-  Heart, 
-  Stethoscope, 
-  Car, 
-  Hash, 
-  BarChart3, 
-  Download, 
-  X,
-  Pill,
-  Building2,
-  Bed,
-  Syringe,
-  Plane,
-  Home,
-  Utensils,
-  Phone
-} from 'lucide-vue-next'
-import VueApexCharts from 'vue3-apexcharts'
-import type { ProcessedExpenseItem } from '../../types/expense'
+import {
+	BarChart3,
+	Bed,
+	Building2,
+	Car,
+	Download,
+	Hash,
+	Heart,
+	Home,
+	Phone,
+	Pill,
+	Plane,
+	Stethoscope,
+	Syringe,
+	Utensils,
+	X,
+} from "lucide-vue-next"
+import { computed, defineEmits, defineProps, ref } from "vue"
+import VueApexCharts from "vue3-apexcharts"
+import type { ProcessedExpenseItem } from "../../types/expense"
 
 const apexchart = VueApexCharts
 
 // Props
 interface Props {
-  medicalExpenses: ProcessedExpenseItem[]
+	medicalExpenses: ProcessedExpenseItem[]
 }
 
 const props = defineProps<Props>()
 
 // Filter expenses based on backend isDirect field
-const directMedicalExpenses = computed(() => 
-  props.medicalExpenses.filter(expense => expense.isDirect === true)
+const directMedicalExpenses = computed(() =>
+	props.medicalExpenses.filter((expense) => expense.isDirect === true),
 )
 
-const indirectMedicalExpenses = computed(() => 
-  props.medicalExpenses.filter(expense => expense.isDirect === false)
+const indirectMedicalExpenses = computed(() =>
+	props.medicalExpenses.filter((expense) => expense.isDirect === false),
 )
 
-const directMedicalAmount = computed(() => 
-  directMedicalExpenses.value.reduce((sum, expense) => sum + expense.amount, 0)
+const directMedicalAmount = computed(() =>
+	directMedicalExpenses.value.reduce((sum, expense) => sum + expense.amount, 0),
 )
 
-const indirectMedicalAmount = computed(() => 
-  indirectMedicalExpenses.value.reduce((sum, expense) => sum + expense.amount, 0)
+const indirectMedicalAmount = computed(() =>
+	indirectMedicalExpenses.value.reduce(
+		(sum, expense) => sum + expense.amount,
+		0,
+	),
 )
 
 // Emits
 const emit = defineEmits<{
-  categorySelected: [category: CategoryBreakdown]
-  exportRequested: [data: any]
+	categorySelected: [category: CategoryBreakdown]
+	exportRequested: [data: any]
 }>()
 
 // Local state
-const viewMode = ref<'cards' | 'charts'>('cards')
+const viewMode = ref<"cards" | "charts">("cards")
 const selectedCategory = ref<CategoryBreakdown | null>(null)
 
 // Category breakdown interface
 interface CategoryBreakdown {
-  category: string
-  type: 'direct' | 'indirect'
-  count: number
-  totalAmount: number
-  averageAmount: number
-  percentage: number
-  expenses: ProcessedExpenseItem[]
+	category: string
+	type: "direct" | "indirect"
+	count: number
+	totalAmount: number
+	averageAmount: number
+	percentage: number
+	expenses: ProcessedExpenseItem[]
 }
 
-
-
 // Computed properties
-const totalMedicalAmount = computed(() => 
-  props.medicalExpenses.reduce((sum, expense) => sum + expense.amount, 0)
+const totalMedicalAmount = computed(() =>
+	props.medicalExpenses.reduce((sum, expense) => sum + expense.amount, 0),
 )
 
-const directMedicalPercentage = computed(() => 
-  totalMedicalAmount.value > 0 ? (directMedicalAmount.value / totalMedicalAmount.value) * 100 : 0
+const directMedicalPercentage = computed(() =>
+	totalMedicalAmount.value > 0
+		? (directMedicalAmount.value / totalMedicalAmount.value) * 100
+		: 0,
 )
 
-const indirectMedicalPercentage = computed(() => 
-  totalMedicalAmount.value > 0 ? (indirectMedicalAmount.value / totalMedicalAmount.value) * 100 : 0
+const indirectMedicalPercentage = computed(() =>
+	totalMedicalAmount.value > 0
+		? (indirectMedicalAmount.value / totalMedicalAmount.value) * 100
+		: 0,
 )
 
 const totalTransactions = computed(() => props.medicalExpenses.length)
 const directTransactions = computed(() => directMedicalExpenses.value.length)
-const indirectTransactions = computed(() => indirectMedicalExpenses.value.length)
+const indirectTransactions = computed(
+	() => indirectMedicalExpenses.value.length,
+)
 
 // Category breakdowns
 const directMedicalCategoriesComputed = computed((): CategoryBreakdown[] => {
-  const categoryMap = new Map<string, ProcessedExpenseItem[]>()
-  
-  directMedicalExpenses.value.forEach(expense => {
-    const category = expense.category
-    if (!categoryMap.has(category)) {
-      categoryMap.set(category, [])
-    }
-    categoryMap.get(category)!.push(expense)
-  })
+	const categoryMap = new Map<string, ProcessedExpenseItem[]>()
 
-  const totalDirect = directMedicalAmount.value
-  
-  return Array.from(categoryMap.entries()).map(([category, expenses]) => {
-    const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-    return {
-      category,
-      type: 'direct' as const,
-      count: expenses.length,
-      totalAmount,
-      averageAmount: totalAmount / expenses.length,
-      percentage: totalDirect > 0 ? (totalAmount / totalDirect) * 100 : 0,
-      expenses: expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    }
-  }).sort((a, b) => b.totalAmount - a.totalAmount)
+	directMedicalExpenses.value.forEach((expense) => {
+		const category = expense.category
+		if (!categoryMap.has(category)) {
+			categoryMap.set(category, [])
+		}
+		categoryMap.get(category)!.push(expense)
+	})
+
+	const totalDirect = directMedicalAmount.value
+
+	return Array.from(categoryMap.entries())
+		.map(([category, expenses]) => {
+			const totalAmount = expenses.reduce(
+				(sum, expense) => sum + expense.amount,
+				0,
+			)
+			return {
+				category,
+				type: "direct" as const,
+				count: expenses.length,
+				totalAmount,
+				averageAmount: totalAmount / expenses.length,
+				percentage: totalDirect > 0 ? (totalAmount / totalDirect) * 100 : 0,
+				expenses: expenses.sort(
+					(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+				),
+			}
+		})
+		.sort((a, b) => b.totalAmount - a.totalAmount)
 })
 
 const indirectMedicalCategoriesComputed = computed((): CategoryBreakdown[] => {
-  const categoryMap = new Map<string, ProcessedExpenseItem[]>()
-  
-  indirectMedicalExpenses.value.forEach(expense => {
-    const category = expense.category
-    if (!categoryMap.has(category)) {
-      categoryMap.set(category, [])
-    }
-    categoryMap.get(category)!.push(expense)
-  })
+	const categoryMap = new Map<string, ProcessedExpenseItem[]>()
 
-  const totalIndirect = indirectMedicalAmount.value
-  
-  return Array.from(categoryMap.entries()).map(([category, expenses]) => {
-    const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-    return {
-      category,
-      type: 'indirect' as const,
-      count: expenses.length,
-      totalAmount,
-      averageAmount: totalAmount / expenses.length,
-      percentage: totalIndirect > 0 ? (totalAmount / totalIndirect) * 100 : 0,
-      expenses: expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    }
-  }).sort((a, b) => b.totalAmount - a.totalAmount)
+	indirectMedicalExpenses.value.forEach((expense) => {
+		const category = expense.category
+		if (!categoryMap.has(category)) {
+			categoryMap.set(category, [])
+		}
+		categoryMap.get(category)!.push(expense)
+	})
+
+	const totalIndirect = indirectMedicalAmount.value
+
+	return Array.from(categoryMap.entries())
+		.map(([category, expenses]) => {
+			const totalAmount = expenses.reduce(
+				(sum, expense) => sum + expense.amount,
+				0,
+			)
+			return {
+				category,
+				type: "indirect" as const,
+				count: expenses.length,
+				totalAmount,
+				averageAmount: totalAmount / expenses.length,
+				percentage: totalIndirect > 0 ? (totalAmount / totalIndirect) * 100 : 0,
+				expenses: expenses.sort(
+					(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+				),
+			}
+		})
+		.sort((a, b) => b.totalAmount - a.totalAmount)
 })
 
 // Chart options and data
 const comparisonChartOptions = computed(() => ({
-  chart: {
-    type: 'donut',
-    height: 280
-  },
-  labels: ['Direct Medical', 'Indirect Medical'],
-  colors: ['#3b82f6', '#8b5cf6'],
-  legend: {
-    position: 'bottom',
-    fontSize: '12px'
-  },
-  tooltip: {
-    y: {
-      formatter: (value: number) => `₹${value.toLocaleString()}`
-    }
-  },
-  plotOptions: {
-    pie: {
-      donut: {
-        size: '45%',
-        labels: {
-          show: true,
-          total: {
-            show: true,
-            label: 'Total Medical',
-            formatter: () => `₹${totalMedicalAmount.value.toLocaleString()}`
-          }
-        }
-      }
-    }
-  },
-  dataLabels: {
-    enabled: true,
-    formatter: (val: number) => `${val.toFixed(1)}%`,
-    style: {
-      fontSize: '11px'
-    }
-  }
+	chart: {
+		type: "donut",
+		height: 280,
+	},
+	labels: ["Direct Medical", "Indirect Medical"],
+	colors: ["#3b82f6", "#8b5cf6"],
+	legend: {
+		position: "bottom",
+		fontSize: "12px",
+	},
+	tooltip: {
+		y: {
+			formatter: (value: number) => `₹${value.toLocaleString()}`,
+		},
+	},
+	plotOptions: {
+		pie: {
+			donut: {
+				size: "45%",
+				labels: {
+					show: true,
+					total: {
+						show: true,
+						label: "Total Medical",
+						formatter: () => `₹${totalMedicalAmount.value.toLocaleString()}`,
+					},
+				},
+			},
+		},
+	},
+	dataLabels: {
+		enabled: true,
+		formatter: (val: number) => `${val.toFixed(1)}%`,
+		style: {
+			fontSize: "11px",
+		},
+	},
 }))
 
 const comparisonChartSeries = computed(() => [
-  directMedicalAmount.value,
-  indirectMedicalAmount.value
+	directMedicalAmount.value,
+	indirectMedicalAmount.value,
 ])
 
 const categoryChartOptions = computed(() => ({
-  chart: {
-    type: 'bar',
-    height: 280
-  },
-  plotOptions: {
-    bar: {
-      horizontal: true,
-      columnWidth: '55%',
-      endingShape: 'rounded'
-    }
-  },
-  dataLabels: {
-    enabled: false
-  },
-  xaxis: {
-    categories: [
-      ...directMedicalCategoriesComputed.value.slice(0, 5).map(cat => cat.category),
-      ...indirectMedicalCategoriesComputed.value.slice(0, 5).map(cat => cat.category)
-    ],
-    labels: {
-      style: {
-        fontSize: '10px'
-      }
-    }
-  },
-  yaxis: {
-    title: {
-      text: 'Amount (₹)',
-      style: {
-        fontSize: '12px'
-      }
-    },
-    labels: {
-      formatter: (value: number) => `₹${value.toLocaleString()}`,
-      style: {
-        fontSize: '10px'
-      }
-    }
-  },
-  colors: ['#3b82f6', '#8b5cf6'],
-  tooltip: {
-    y: {
-      formatter: (val: number) => `₹${val.toLocaleString()}`
-    }
-  }
+	chart: {
+		type: "bar",
+		height: 280,
+	},
+	plotOptions: {
+		bar: {
+			horizontal: true,
+			columnWidth: "55%",
+			endingShape: "rounded",
+		},
+	},
+	dataLabels: {
+		enabled: false,
+	},
+	xaxis: {
+		categories: [
+			...directMedicalCategoriesComputed.value
+				.slice(0, 5)
+				.map((cat) => cat.category),
+			...indirectMedicalCategoriesComputed.value
+				.slice(0, 5)
+				.map((cat) => cat.category),
+		],
+		labels: {
+			style: {
+				fontSize: "10px",
+			},
+		},
+	},
+	yaxis: {
+		title: {
+			text: "Amount (₹)",
+			style: {
+				fontSize: "12px",
+			},
+		},
+		labels: {
+			formatter: (value: number) => `₹${value.toLocaleString()}`,
+			style: {
+				fontSize: "10px",
+			},
+		},
+	},
+	colors: ["#3b82f6", "#8b5cf6"],
+	tooltip: {
+		y: {
+			formatter: (val: number) => `₹${val.toLocaleString()}`,
+		},
+	},
 }))
 
-const categoryChartSeries = computed(() => [{
-  name: 'Amount',
-  data: [
-    ...directMedicalCategoriesComputed.value.slice(0, 5).map(cat => cat.totalAmount),
-    ...indirectMedicalCategoriesComputed.value.slice(0, 5).map(cat => cat.totalAmount)
-  ]
-}])
+const categoryChartSeries = computed(() => [
+	{
+		name: "Amount",
+		data: [
+			...directMedicalCategoriesComputed.value
+				.slice(0, 5)
+				.map((cat) => cat.totalAmount),
+			...indirectMedicalCategoriesComputed.value
+				.slice(0, 5)
+				.map((cat) => cat.totalAmount),
+		],
+	},
+])
 
 // Methods
 const toggleView = () => {
-  viewMode.value = viewMode.value === 'cards' ? 'charts' : 'cards'
+	viewMode.value = viewMode.value === "cards" ? "charts" : "cards"
 }
 
 const selectCategory = (category: CategoryBreakdown) => {
-  selectedCategory.value = category
-  emit('categorySelected', category)
+	selectedCategory.value = category
+	emit("categorySelected", category)
 }
 
 const closeModal = () => {
-  selectedCategory.value = null
+	selectedCategory.value = null
 }
 
 const exportData = () => {
-  const exportData = {
-    summary: {
-      totalMedical: totalMedicalAmount.value,
-      directMedical: directMedicalAmount.value,
-      indirectMedical: indirectMedicalAmount.value,
-      directPercentage: directMedicalPercentage.value,
-      indirectPercentage: indirectMedicalPercentage.value
-    },
-    directCategories: directMedicalCategoriesComputed.value,
-    indirectCategories: indirectMedicalCategoriesComputed.value
-  }
-  emit('exportRequested', exportData)
+	const exportData = {
+		summary: {
+			totalMedical: totalMedicalAmount.value,
+			directMedical: directMedicalAmount.value,
+			indirectMedical: indirectMedicalAmount.value,
+			directPercentage: directMedicalPercentage.value,
+			indirectPercentage: indirectMedicalPercentage.value,
+		},
+		directCategories: directMedicalCategoriesComputed.value,
+		indirectCategories: indirectMedicalCategoriesComputed.value,
+	}
+	emit("exportRequested", exportData)
 }
 
 const getCategoryIcon = (category: string) => {
-  const categoryLower = category.toLowerCase()
-  
-  if (categoryLower.includes('medicine') || categoryLower.includes('drug') || categoryLower.includes('pharmacy')) {
-    return Pill
-  }
-  if (categoryLower.includes('hospital') || categoryLower.includes('clinic')) {
-    return Building2
-  }
-  if (categoryLower.includes('bed') || categoryLower.includes('admission')) {
-    return Bed
-  }
-  if (categoryLower.includes('injection') || categoryLower.includes('vaccine')) {
-    return Syringe
-  }
-  if (categoryLower.includes('transport') || categoryLower.includes('travel') || categoryLower.includes('flight')) {
-    return categoryLower.includes('flight') ? Plane : Car
-  }
-  if (categoryLower.includes('accommodation') || categoryLower.includes('hotel')) {
-    return Home
-  }
-  if (categoryLower.includes('food') || categoryLower.includes('meal')) {
-    return Utensils
-  }
-  if (categoryLower.includes('phone') || categoryLower.includes('communication')) {
-    return Phone
-  }
-  
-  return Heart
+	const categoryLower = category.toLowerCase()
+
+	if (
+		categoryLower.includes("medicine") ||
+		categoryLower.includes("drug") ||
+		categoryLower.includes("pharmacy")
+	) {
+		return Pill
+	}
+	if (categoryLower.includes("hospital") || categoryLower.includes("clinic")) {
+		return Building2
+	}
+	if (categoryLower.includes("bed") || categoryLower.includes("admission")) {
+		return Bed
+	}
+	if (
+		categoryLower.includes("injection") ||
+		categoryLower.includes("vaccine")
+	) {
+		return Syringe
+	}
+	if (
+		categoryLower.includes("transport") ||
+		categoryLower.includes("travel") ||
+		categoryLower.includes("flight")
+	) {
+		return categoryLower.includes("flight") ? Plane : Car
+	}
+	if (
+		categoryLower.includes("accommodation") ||
+		categoryLower.includes("hotel")
+	) {
+		return Home
+	}
+	if (categoryLower.includes("food") || categoryLower.includes("meal")) {
+		return Utensils
+	}
+	if (
+		categoryLower.includes("phone") ||
+		categoryLower.includes("communication")
+	) {
+		return Phone
+	}
+
+	return Heart
 }
 
 const formatDate = (dateString: string): string => {
-  try {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  } catch {
-    return dateString
-  }
+	try {
+		return new Date(dateString).toLocaleDateString("en-IN", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		})
+	} catch {
+		return dateString
+	}
 }
 </script>
 

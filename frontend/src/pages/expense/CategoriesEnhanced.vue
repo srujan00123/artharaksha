@@ -261,188 +261,198 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { 
-  RefreshCw, 
-  AlertCircle, 
-  Heart,
-  ShoppingBag,
-  X,
-  Calculator,
-  TrendingUp
-} from 'lucide-vue-next'
-import { useExpense } from '../../composables/useExpense'
-import ExpenseFilter from '../../components/expense/ExpenseFilter.vue'
-import MedicalCategorization from '../../components/expense/MedicalCategorization.vue'
+import {
+	AlertCircle,
+	Calculator,
+	Heart,
+	RefreshCw,
+	ShoppingBag,
+	TrendingUp,
+	X,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import ExpenseFilter from "../../components/expense/ExpenseFilter.vue"
+import MedicalCategorization from "../../components/expense/MedicalCategorization.vue"
+import { useExpense } from "../../composables/useExpense"
 
-import type { 
-  ProcessedExpenseItem,
-  ExpenseFilters
-} from '../../types/expense'
+import type { ExpenseFilters, ProcessedExpenseItem } from "../../types/expense"
 
 // Composables
-const { 
-  expenses,
-  allExpenses,
-  loading,
-  error,
-  medicalExpenses,
-  otherExpenses,
-  totalExpenseAmount,
-  medicalExpenseAmount,
-  otherExpenseAmount,
-  expenseCount,
-  totalExpenseCount,
-  loadExpenses,
-  refreshExpenses,
-  updateFilters,
-  clearCache
+const {
+	expenses,
+	allExpenses,
+	loading,
+	error,
+	medicalExpenses,
+	otherExpenses,
+	totalExpenseAmount,
+	medicalExpenseAmount,
+	otherExpenseAmount,
+	expenseCount,
+	totalExpenseCount,
+	loadExpenses,
+	refreshExpenses,
+	updateFilters,
+	clearCache,
 } = useExpense({ enableAdvancedAnalysis: false })
-
-
 
 // Local state
 const selectedCategory = ref<CategoryBreakdown | null>(null)
 const expenseFilters = ref<ExpenseFilters>({
-  searchTerm: '',
-  dateFrom: '',
-  dateTo: '',
-  amountMin: '',
-  amountMax: '',
-  category: '',
-  type: '',
-  sortBy: 'date',
-  sortOrder: 'desc',
-  period: 'this-month'
+	searchTerm: "",
+	dateFrom: "",
+	dateTo: "",
+	amountMin: "",
+	amountMax: "",
+	category: "",
+	type: "",
+	sortBy: "date",
+	sortOrder: "desc",
+	period: "this-month",
 })
 
 // Category breakdown interface
 interface CategoryBreakdown {
-  category: string
-  type: 'medical' | 'other'
-  count: number
-  totalAmount: number
-  averageAmount: number
-  percentage: number
-  expenses: ProcessedExpenseItem[]
+	category: string
+	type: "medical" | "other"
+	count: number
+	totalAmount: number
+	averageAmount: number
+	percentage: number
+	expenses: ProcessedExpenseItem[]
 }
 
 // Computed properties for category analysis
 const medicalCategoryBreakdown = computed((): CategoryBreakdown[] => {
-  const categoryMap = new Map<string, ProcessedExpenseItem[]>()
-  
-  medicalExpenses.value.forEach(expense => {
-    const category = expense.category
-    if (!categoryMap.has(category)) {
-      categoryMap.set(category, [])
-    }
-    categoryMap.get(category)!.push(expense)
-  })
+	const categoryMap = new Map<string, ProcessedExpenseItem[]>()
 
-  const totalMedical = medicalExpenseAmount.value
-  
-  return Array.from(categoryMap.entries()).map(([category, expenses]) => {
-    const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-    return {
-      category,
-      type: 'medical' as const,
-      count: expenses.length,
-      totalAmount,
-      averageAmount: totalAmount / expenses.length,
-      percentage: totalMedical > 0 ? (totalAmount / totalMedical) * 100 : 0,
-      expenses: expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    }
-  }).sort((a, b) => b.totalAmount - a.totalAmount)
+	medicalExpenses.value.forEach((expense) => {
+		const category = expense.category
+		if (!categoryMap.has(category)) {
+			categoryMap.set(category, [])
+		}
+		categoryMap.get(category)!.push(expense)
+	})
+
+	const totalMedical = medicalExpenseAmount.value
+
+	return Array.from(categoryMap.entries())
+		.map(([category, expenses]) => {
+			const totalAmount = expenses.reduce(
+				(sum, expense) => sum + expense.amount,
+				0,
+			)
+			return {
+				category,
+				type: "medical" as const,
+				count: expenses.length,
+				totalAmount,
+				averageAmount: totalAmount / expenses.length,
+				percentage: totalMedical > 0 ? (totalAmount / totalMedical) * 100 : 0,
+				expenses: expenses.sort(
+					(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+				),
+			}
+		})
+		.sort((a, b) => b.totalAmount - a.totalAmount)
 })
 
 const otherCategoryBreakdown = computed((): CategoryBreakdown[] => {
-  const categoryMap = new Map<string, ProcessedExpenseItem[]>()
-  
-  otherExpenses.value.forEach(expense => {
-    const category = expense.category
-    if (!categoryMap.has(category)) {
-      categoryMap.set(category, [])
-    }
-    categoryMap.get(category)!.push(expense)
-  })
+	const categoryMap = new Map<string, ProcessedExpenseItem[]>()
 
-  const totalOther = otherExpenseAmount.value
-  
-  return Array.from(categoryMap.entries()).map(([category, expenses]) => {
-    const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-    return {
-      category,
-      type: 'other' as const,
-      count: expenses.length,
-      totalAmount,
-      averageAmount: totalAmount / expenses.length,
-      percentage: totalOther > 0 ? (totalAmount / totalOther) * 100 : 0,
-      expenses: expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    }
-  }).sort((a, b) => b.totalAmount - a.totalAmount)
+	otherExpenses.value.forEach((expense) => {
+		const category = expense.category
+		if (!categoryMap.has(category)) {
+			categoryMap.set(category, [])
+		}
+		categoryMap.get(category)!.push(expense)
+	})
+
+	const totalOther = otherExpenseAmount.value
+
+	return Array.from(categoryMap.entries())
+		.map(([category, expenses]) => {
+			const totalAmount = expenses.reduce(
+				(sum, expense) => sum + expense.amount,
+				0,
+			)
+			return {
+				category,
+				type: "other" as const,
+				count: expenses.length,
+				totalAmount,
+				averageAmount: totalAmount / expenses.length,
+				percentage: totalOther > 0 ? (totalAmount / totalOther) * 100 : 0,
+				expenses: expenses.sort(
+					(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+				),
+			}
+		})
+		.sort((a, b) => b.totalAmount - a.totalAmount)
 })
 
 const filteredExpenseCount = computed(() => expenses.value.length)
 
-
-
 // Methods
 const handleRefresh = async () => {
-  try {
-    clearCache()
-    await refreshExpenses()
-  } catch (err) {
-    console.error('Error refreshing data:', err)
-  }
+	try {
+		clearCache()
+		await refreshExpenses()
+	} catch (err) {
+		console.error("Error refreshing data:", err)
+	}
 }
 
 const handleFiltersUpdate = async (newFilters: ExpenseFilters) => {
-  expenseFilters.value = { ...newFilters }
-  await updateFilters(newFilters)
+	expenseFilters.value = { ...newFilters }
+	await updateFilters(newFilters)
 }
 
 const selectCategory = (category: CategoryBreakdown) => {
-  selectedCategory.value = selectedCategory.value?.category === category.category ? null : category
+	selectedCategory.value =
+		selectedCategory.value?.category === category.category ? null : category
 }
 
 const handleMedicalCategorySelected = (category: any) => {
-  console.log('Medical category selected:', category)
-  // Handle medical category selection if needed
+	console.log("Medical category selected:", category)
+	// Handle medical category selection if needed
 }
 
 const handleMedicalExport = (data: any) => {
-  console.log('Medical categorization export requested:', data)
-  // Handle export functionality
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `medical-categorization-${new Date().toISOString().split('T')[0]}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+	console.log("Medical categorization export requested:", data)
+	// Handle export functionality
+	const blob = new Blob([JSON.stringify(data, null, 2)], {
+		type: "application/json",
+	})
+	const url = URL.createObjectURL(blob)
+	const a = document.createElement("a")
+	a.href = url
+	a.download = `medical-categorization-${new Date().toISOString().split("T")[0]}.json`
+	document.body.appendChild(a)
+	a.click()
+	document.body.removeChild(a)
+	URL.revokeObjectURL(url)
 }
 
 const formatDate = (dateString: string): string => {
-  try {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  } catch {
-    return dateString
-  }
+	try {
+		return new Date(dateString).toLocaleDateString("en-IN", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		})
+	} catch {
+		return dateString
+	}
 }
 
 // Lifecycle
 onMounted(async () => {
-  try {
-    await loadExpenses({ useCache: true })
-  } catch (err) {
-    console.error('Error loading initial data:', err)
-  }
+	try {
+		await loadExpenses({ useCache: true })
+	} catch (err) {
+		console.error("Error loading initial data:", err)
+	}
 })
 </script>
 

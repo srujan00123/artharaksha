@@ -105,13 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { 
-  Lightbulb, 
-  TrendingUp, 
-  Heart, 
-  PieChart, 
-  Award 
-} from 'lucide-vue-next'
+import { Award, Heart, Lightbulb, PieChart, TrendingUp } from "lucide-vue-next"
 </script>
 
 <style scoped>

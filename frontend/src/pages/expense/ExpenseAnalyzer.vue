@@ -439,34 +439,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { 
-  ChevronUp, 
-  RefreshCw, 
-  FileText, 
-  DollarSign, 
-  Heart, 
-  ShoppingBag, 
-  AlertCircle, 
-  Receipt, 
-  Edit2, 
-  Trash2,
-  Plus,
-  Calendar,
-  Tag,
-  AlertTriangle
-} from 'lucide-vue-next'
-import type { 
-  ProcessedExpenseItem, 
-  ExpenseFilters
-} from '../../types/expense'
+import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/vue"
+import {
+	AlertCircle,
+	AlertTriangle,
+	Calendar,
+	ChevronUp,
+	DollarSign,
+	Edit2,
+	FileText,
+	Heart,
+	Plus,
+	Receipt,
+	RefreshCw,
+	ShoppingBag,
+	Tag,
+	Trash2,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import type { ExpenseFilters, ProcessedExpenseItem } from "../../types/expense"
 
 // Components
-import { ExpenseFilter, ExpenseForm } from '../../components'
+import { ExpenseFilter, ExpenseForm } from "../../components"
 
 // Composables
-import { useExpense } from '../../composables/useExpense'
+import { useExpense } from "../../composables/useExpense"
 
 // Initialize composable
 const composableResult = useExpense({ enableAdvancedAnalysis: true }) as any
@@ -483,126 +480,132 @@ const itemsPerPage = 20
 
 // Pagination computed properties
 const paginatedMedicalExpenses = computed(() => {
-  const items = state.groupedExpenses.medical.items
-  const total = items.length
-  const totalPages = Math.ceil(total / itemsPerPage)
-  const start = (medicalPage.value - 1) * itemsPerPage + 1
-  const end = Math.min(medicalPage.value * itemsPerPage, total)
-  const paginatedItems = items.slice((medicalPage.value - 1) * itemsPerPage, medicalPage.value * itemsPerPage)
+	const items = state.groupedExpenses.medical.items
+	const total = items.length
+	const totalPages = Math.ceil(total / itemsPerPage)
+	const start = (medicalPage.value - 1) * itemsPerPage + 1
+	const end = Math.min(medicalPage.value * itemsPerPage, total)
+	const paginatedItems = items.slice(
+		(medicalPage.value - 1) * itemsPerPage,
+		medicalPage.value * itemsPerPage,
+	)
 
-  return {
-    items: paginatedItems,
-    total,
-    totalPages,
-    start,
-    end
-  }
+	return {
+		items: paginatedItems,
+		total,
+		totalPages,
+		start,
+		end,
+	}
 })
 
 const paginatedOtherExpenses = computed(() => {
-  const items = state.groupedExpenses.other.items
-  const total = items.length
-  const totalPages = Math.ceil(total / itemsPerPage)
-  const start = (otherPage.value - 1) * itemsPerPage + 1
-  const end = Math.min(otherPage.value * itemsPerPage, total)
-  const paginatedItems = items.slice((otherPage.value - 1) * itemsPerPage, otherPage.value * itemsPerPage)
+	const items = state.groupedExpenses.other.items
+	const total = items.length
+	const totalPages = Math.ceil(total / itemsPerPage)
+	const start = (otherPage.value - 1) * itemsPerPage + 1
+	const end = Math.min(otherPage.value * itemsPerPage, total)
+	const paginatedItems = items.slice(
+		(otherPage.value - 1) * itemsPerPage,
+		otherPage.value * itemsPerPage,
+	)
 
-  return {
-    items: paginatedItems,
-    total,
-    totalPages,
-    start,
-    end
-  }
+	return {
+		items: paginatedItems,
+		total,
+		totalPages,
+		start,
+		end,
+	}
 })
 
 // Utility functions
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+	return new Date(dateString).toLocaleDateString("en-IN", {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	})
 }
 
 // Event Handlers
 const handleRefresh = async () => {
-  try {
-    await actions.refreshExpenses()
-  } catch (error) {
-    console.error('Failed to refresh expenses:', error)
-  }
+	try {
+		await actions.refreshExpenses()
+	} catch (error) {
+		console.error("Failed to refresh expenses:", error)
+	}
 }
 
 const handleFiltersUpdate = async (newFilters: Partial<ExpenseFilters>) => {
-  try {
-    // Reset pagination when filters change
-    medicalPage.value = 1
-    otherPage.value = 1
-    await actions.updateFilters(newFilters)
-  } catch (error) {
-    console.error('Failed to update filters:', error)
-  }
+	try {
+		// Reset pagination when filters change
+		medicalPage.value = 1
+		otherPage.value = 1
+		await actions.updateFilters(newFilters)
+	} catch (error) {
+		console.error("Failed to update filters:", error)
+	}
 }
 
 const handleFiltersReset = async () => {
-  try {
-    // Reset pagination when filters are reset
-    medicalPage.value = 1
-    otherPage.value = 1
-    await actions.resetFilters()
-  } catch (error) {
-    console.error('Failed to reset filters:', error)
-  }
+	try {
+		// Reset pagination when filters are reset
+		medicalPage.value = 1
+		otherPage.value = 1
+		await actions.resetFilters()
+	} catch (error) {
+		console.error("Failed to reset filters:", error)
+	}
 }
 
 const handleCacheInvalidated = async () => {
-  try {
-    await invalidateAndRefresh()
-  } catch (error) {
-    console.error('Failed to invalidate and refresh cache:', error)
-  }
+	try {
+		await invalidateAndRefresh()
+	} catch (error) {
+		console.error("Failed to invalidate and refresh cache:", error)
+	}
 }
 
 const handleAddExpense = () => {
-  actions.openExpenseForm()
+	actions.openExpenseForm()
 }
 
 const handleEditExpense = (expense: ProcessedExpenseItem) => {
-  actions.editExpense(expense)
+	actions.editExpense(expense)
 }
 
 const handleDeleteExpense = async (expense: ProcessedExpenseItem) => {
-  if (confirm('Are you sure you want to delete this expense?')) {
-    try {
-      await actions.deleteExpense(expense)
-    } catch (error) {
-      console.error('Failed to delete expense:', error)
-    }
-  }
+	if (confirm("Are you sure you want to delete this expense?")) {
+		try {
+			await actions.deleteExpense(expense)
+		} catch (error) {
+			console.error("Failed to delete expense:", error)
+		}
+	}
 }
 
 const handleCloseExpenseForm = () => {
-  actions.closeExpenseForm()
+	actions.closeExpenseForm()
 }
 
 const handleExpenseFormSuccess = async () => {
-  try {
-    await actions.loadExpenses()
-  } catch (error) {
-    console.error('Failed to reload expenses after form success:', error)
-  }
+	try {
+		await actions.loadExpenses()
+	} catch (error) {
+		console.error("Failed to reload expenses after form success:", error)
+	}
 }
 
 // Lifecycle
 onMounted(async () => {
-  try {
-    console.log('ExpenseAnalyzer: Initializing...')
-    await actions.initialize()
-    console.log('ExpenseAnalyzer: Initialization complete')
-  } catch (error) {
-    console.error('ExpenseAnalyzer: Initialization failed:', error)
-  }
+	try {
+		console.log("ExpenseAnalyzer: Initializing...")
+		await actions.initialize()
+		console.log("ExpenseAnalyzer: Initialization complete")
+	} catch (error) {
+		console.error("ExpenseAnalyzer: Initialization failed:", error)
+	}
 })
 </script>
 
