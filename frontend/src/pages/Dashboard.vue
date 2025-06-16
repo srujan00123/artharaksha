@@ -66,7 +66,7 @@
                         <div class="flex items-center space-x-2">
                             <label class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">From:</label>
                             <input
-                                v-model="dateFilters.dateFrom"
+                                v-model="dashboardFilters.dateFrom"
                                 type="date"
                                 class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
                                 @change="handleDateFilterChange"
@@ -75,7 +75,7 @@
                         <div class="flex items-center space-x-2">
                             <label class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">To:</label>
                             <input
-                                v-model="dateFilters.dateTo"
+                                v-model="dashboardFilters.dateTo"
                                 type="date"
                                 class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
                                 @change="handleDateFilterChange"
@@ -569,19 +569,12 @@ const hasError = ref(false)
 const errorMessage = ref("")
 const lastUpdated = ref("")
 
-// Date filters - initialize with current month
-const initializeDateFilters = () => {
-	const now = new Date()
-	const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-	const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-
-	return {
-		dateFrom: firstDay.toISOString().split("T")[0],
-		dateTo: lastDay.toISOString().split("T")[0],
-	}
-}
-
-const dateFilters = ref(initializeDateFilters())
+// 1. Add a ref for dashboardFilters
+const dashboardFilters = ref({
+  dateFrom: '',
+  dateTo: '',
+  // Add other filter fields as needed
+})
 
 // Static data
 const eligibleSchemesCount = ref(12)
@@ -881,70 +874,47 @@ function navigateToClaimDetail(claimId) {
 	router.push(`/applications-claims/claims/${claimId}`)
 }
 
-// Date filter handlers
+// 2. Update handleDateFilterChange to use dashboardFilters
 const handleDateFilterChange = async () => {
-	try {
-		// Apply filters to all composables
-		const filters = {
-			dateFrom: dateFilters.value.dateFrom,
-			dateTo: dateFilters.value.dateTo,
-		}
-
-		await Promise.all([
-			income.updateFilters(filters),
-			expenseComposable.updateFilters(filters),
-			supportComposable.updateFilters &&
-				supportComposable.updateFilters(filters),
-		])
-
-		lastUpdated.value = new Date().toLocaleTimeString()
-	} catch (error) {
-		console.error("Error applying date filters:", error)
-	}
+  try {
+    const filters = {
+      dateFrom: dashboardFilters.value.dateFrom,
+      dateTo: dashboardFilters.value.dateTo,
+    }
+    await Promise.all([
+      income.updateFilters(filters),
+      expenseComposable.updateFilters(filters),
+      supportComposable.updateFilters && supportComposable.updateFilters(filters),
+    ])
+    lastUpdated.value = new Date().toLocaleTimeString()
+  } catch (error) {
+    console.error("Error applying date filters:", error)
+  }
 }
 
+// 3. Update resetDateFilters and applyCurrentMonthFilter to update dashboardFilters
 const resetDateFilters = async () => {
-	dateFilters.value = initializeDateFilters()
-	await handleDateFilterChange()
+  const initial = initializeDateFilters()
+  dashboardFilters.value.dateFrom = initial.dateFrom
+  dashboardFilters.value.dateTo = initial.dateTo
+  await handleDateFilterChange()
 }
 
 const applyCurrentMonthFilter = async () => {
-	dateFilters.value = initializeDateFilters()
-	await handleDateFilterChange()
+  const initial = initializeDateFilters()
+  dashboardFilters.value.dateFrom = initial.dateFrom
+  dashboardFilters.value.dateTo = initial.dateTo
+  await handleDateFilterChange()
 }
 
-// Refresh dashboard
-async function refreshDashboard() {
-	isLoading.value = true
-	hasError.value = false
-	errorMessage.value = ""
+// 4. If you use a filter component, pass the props and event:
+// <YourFilterComponent :filters="dashboardFilters" @update:filters="handleDashboardFiltersUpdate" />
 
-	try {
-		await loadDashboardData()
-		lastUpdated.value = new Date().toLocaleTimeString()
-	} catch (error) {
-		hasError.value = true
-		errorMessage.value = error.message || "Failed to refresh dashboard"
-	} finally {
-		isLoading.value = false
-	}
-}
-
-// Load dashboard data
-async function loadDashboardData() {
-	try {
-		// Load all dashboard data in parallel
-		await Promise.all([
-			userStore.initialize(),
-			income.initialize({ withAnalytics: true, forceRefresh: false }),
-			income.fetchIncomes(true),
-			expenseComposable.initialize && expenseComposable.initialize(),
-			supportComposable.initialize && supportComposable.initialize(),
-		])
-	} catch (error) {
-		console.error("Error loading dashboard data:", error)
-		throw error
-	}
+// 5. Add a handler for filter updates
+function handleDashboardFiltersUpdate(newFilters) {
+  dashboardFilters.value = { ...newFilters }
+  // Optionally reload dashboard data here
+  handleDateFilterChange()
 }
 
 // Lifecycle
