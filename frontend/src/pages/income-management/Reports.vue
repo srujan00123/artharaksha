@@ -295,7 +295,7 @@
                   :class="getScoreColorClass('stability', scores.stability)">
                   <div class="text-2xl font-bold" :class="getScoreTextColor('stability', scores.stability)">
                     {{ scores.stability }}
-                  </div>
+              </div>
                 </div>
                 <h4
                   class="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
@@ -303,11 +303,11 @@
                 </h4>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ getScoreLabel('stability', scores.stability)
                   }}</p>
-                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
+              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
                   <div class="h-2 rounded-full transition-all duration-500"
                     :class="getScoreBarColor('stability', scores.stability)" :style="{ width: `${scores.stability}%` }">
-                  </div>
-                </div>
+              </div>
+            </div>
                 <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center">
                   <span>Click for details</span>
                   <ChevronDown class="w-3 h-3 ml-1 transition-transform duration-200"
@@ -379,7 +379,7 @@
                   :class="getScoreColorClass('diversification', scores.diversification)">
                   <div class="text-2xl font-bold" :class="getScoreTextColor('diversification', scores.diversification)">
                     {{ scores.diversification }}
-                  </div>
+              </div>
                 </div>
                 <h4
                   class="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
@@ -387,16 +387,16 @@
                 </h4>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ getScoreLabel('diversification',
                   scores.diversification) }}</p>
-                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
+              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
                   <div class="h-2 rounded-full transition-all duration-500"
                     :class="getScoreBarColor('diversification', scores.diversification)"
-                    :style="{ width: `${scores.diversification}%` }"></div>
-                </div>
+                  :style="{ width: `${scores.diversification}%` }"></div>
+              </div>
                 <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center">
                   <span>Click for details</span>
                   <ChevronDown class="w-3 h-3 ml-1 transition-transform duration-200"
                     :class="{ 'rotate-180': expandedScore === 'diversification' }" />
-                </div>
+            </div>
               </button>
 
               <!-- Expanded Diversification Details -->
@@ -465,7 +465,7 @@
                   :class="getScoreColorClass('growth', scores.growth)">
                   <div class="text-2xl font-bold" :class="getScoreTextColor('growth', scores.growth)">
                     {{ scores.growth }}
-                  </div>
+              </div>
                 </div>
                 <h4
                   class="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
@@ -473,15 +473,15 @@
                 </h4>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ getScoreLabel('growth', scores.growth) }}
                 </p>
-                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
+              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
                   <div class="h-2 rounded-full transition-all duration-500"
                     :class="getScoreBarColor('growth', scores.growth)" :style="{ width: `${scores.growth}%` }"></div>
-                </div>
+              </div>
                 <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center">
                   <span>Click for details</span>
                   <ChevronDown class="w-3 h-3 ml-1 transition-transform duration-200"
                     :class="{ 'rotate-180': expandedScore === 'growth' }" />
-                </div>
+            </div>
               </button>
 
               <!-- Expanded Growth Details -->
@@ -588,7 +588,7 @@
                   </div>
                   <p class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">{{ rec.description }}</p>
                   <p class="text-sm text-gray-700 dark:text-gray-300 dark:text-gray-600 mt-2 font-medium">{{ rec.action
-                  }}</p>
+                    }}</p>
                 </div>
               </div>
             </div>
@@ -856,11 +856,11 @@ const scores = computed(() => {
 const reportData = computed(() => {
   if (!incomes.value || incomes.value.length === 0) {
     return {
-      total_income: 0,
-      recurring_income: 0,
-      one_time_income: 0,
-      income_by_type: {},
-      monthly_trends: []
+  total_income: 0,
+  recurring_income: 0,
+  one_time_income: 0,
+  income_by_type: {},
+  monthly_trends: []
     }
   }
 

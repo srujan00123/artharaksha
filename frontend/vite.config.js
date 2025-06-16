@@ -3,7 +3,6 @@ import vue from "@vitejs/plugin-vue"
 import frappeui from "frappe-ui/vite"
 import { defineConfig } from "vite"
 
-// https://vitejs.dev/config/
 export default defineConfig({
 	plugins: [
 		frappeui({
@@ -24,6 +23,7 @@ export default defineConfig({
 		emptyOutDir: true,
 		target: "es2015",
 		sourcemap: true,
+		minify: "esbuild", // <-- added this line
 	},
 	resolve: {
 		alias: {
@@ -36,5 +36,8 @@ export default defineConfig({
 	},
 	server: {
 		allowedHosts: true,
+		watch: {
+			usePolling: true, // crucial if you're in Docker, WSL, or some VM
+		},
 	},
 })

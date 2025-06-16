@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" class="h-screen bg-gray-50 dark:bg-slate-900">
     <!-- App Layout for authenticated pages -->
     <AppLayout v-if="$route.meta?.layout === 'app'" />
 
@@ -19,21 +19,18 @@ import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
 // Initialize page title management
 const { setTitle } = usePageTitle()
 
-// Initialize advanced theme management
-const { initializeTheme } = useAdvancedTheme()
+// Initialize advanced theme management (happens automatically)
+useAdvancedTheme()
 
-// Set initial title and theme on app mount
+// Set initial title on app mount
 onMounted(() => {
-  // Initialize theme system
-  initializeTheme()
-  
   // The usePageTitle composable will handle route-based title updates automatically
   // This ensures the title is set correctly on initial load
 })
 </script>
 
 <style>
-/* Import theme CSS */
+/* Import basic theme CSS only */
 @import '@/styles/themes.css';
 @import '@/styles/advanced-themes.css';
 </style>

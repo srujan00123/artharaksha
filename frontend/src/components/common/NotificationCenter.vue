@@ -39,7 +39,7 @@
             <!-- Notifications List -->
             <div class="max-h-80 overflow-y-auto">
 
-
+                
                 <div v-if="notificationsList.length === 0" class="px-4 py-8 text-center">
                     <Bell class="w-8 h-8 mx-auto text-gray-400 dark:text-gray-500 mb-2" />
                     <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">No notifications yet</p>
@@ -95,11 +95,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import {
-    Bell,
-    CheckCircle,
-    AlertCircle,
-    Info,
+import { 
+    Bell, 
+    CheckCircle, 
+    AlertCircle, 
+    Info, 
     AlertTriangle
 } from 'lucide-vue-next'
 import { useNotifications } from '../../composables/useNotifications'
@@ -180,7 +180,7 @@ const formatTime = (timestamp) => {
     const now = new Date()
     const time = new Date(timestamp)
     const diffInMinutes = Math.floor((now - time) / (1000 * 60))
-
+    
     if (diffInMinutes < 1) return 'Just now'
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
@@ -198,7 +198,7 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
     document.addEventListener('click', handleClickOutside)
-
+    
     // Watch for changes in notifications
     watch(
         () => notificationsComposable.notifications.value,
@@ -207,7 +207,7 @@ onMounted(() => {
         },
         { immediate: true, deep: true }
     )
-
+    
     // Initialize realtime connection
     notificationsComposable.initialize().catch(error => {
         console.error('NotificationCenter initialization failed:', error)
@@ -224,35 +224,35 @@ const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
 const getFinancialStatusClass = (type, intensity = '600') => {
-    const baseClasses = {
-        income: `text-green-${intensity} dark:text-green-400`,
-        expense: `text-red-${intensity} dark:text-red-400`,
-        medical: `text-blue-${intensity} dark:text-blue-400`,
-        warning: `text-yellow-${intensity} dark:text-yellow-400`,
-        alert: `text-orange-${intensity} dark:text-orange-400`,
-        neutral: `text-gray-${intensity} dark:text-gray-400`
-    }
-    return baseClasses[type] || baseClasses.neutral
+  const baseClasses = {
+    income: `text-green-${intensity} dark:text-green-400`,
+    expense: `text-red-${intensity} dark:text-red-400`,
+    medical: `text-blue-${intensity} dark:text-blue-400`,
+    warning: `text-yellow-${intensity} dark:text-yellow-400`,
+    alert: `text-orange-${intensity} dark:text-orange-400`,
+    neutral: `text-gray-${intensity} dark:text-gray-400`
+  }
+  return baseClasses[type] || baseClasses.neutral
 }
 
 const getThemeSurfaceClass = (variant = 'primary') => {
-    const variants = {
-        primary: 'bg-white dark:bg-gray-800',
-        secondary: 'bg-gray-50 dark:bg-gray-900',
-        tertiary: 'bg-gray-100 dark:bg-gray-800'
-    }
-    return variants[variant] || variants.primary
+  const variants = {
+    primary: 'bg-white dark:bg-gray-800',
+    secondary: 'bg-gray-50 dark:bg-gray-900',
+    tertiary: 'bg-gray-100 dark:bg-gray-800'
+  }
+  return variants[variant] || variants.primary
 }
 
 const getThemeTextClass = (intensity = '600') => {
-    const intensityMap = {
-        '900': 'text-gray-900 dark:text-gray-100',
-        '800': 'text-gray-800 dark:text-gray-200',
-        '700': 'text-gray-700 dark:text-gray-300',
-        '600': 'text-gray-600 dark:text-gray-400',
-        '500': 'text-gray-500 dark:text-gray-400',
-        '400': 'text-gray-400 dark:text-gray-500'
-    }
-    return intensityMap[intensity] || intensityMap['600']
+  const intensityMap = {
+    '900': 'text-gray-900 dark:text-gray-100',
+    '800': 'text-gray-800 dark:text-gray-200',
+    '700': 'text-gray-700 dark:text-gray-300',
+    '600': 'text-gray-600 dark:text-gray-400',
+    '500': 'text-gray-500 dark:text-gray-400',
+    '400': 'text-gray-400 dark:text-gray-500'
+  }
+  return intensityMap[intensity] || intensityMap['600']
 }
-</script>
+</script> 

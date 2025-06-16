@@ -5,6 +5,19 @@ import { createPinia } from 'pinia'
 import router from './router'
 import App from './App.vue'
 
+// Initialize theme early
+const initializeTheme = () => {
+  const stored = localStorage.getItem('theme')
+  if (stored === 'dark') {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+  }
+}
+
+// Initialize theme before app mounts
+initializeTheme()
+
 import {
   Button,
   Card,
