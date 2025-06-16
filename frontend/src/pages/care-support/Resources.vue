@@ -359,4 +359,16 @@ onMounted(async () => {
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
+
+function getFinancialStatusClass(type, intensity = "600") {
+  const baseClasses = {
+    income: `text-green-${intensity} dark:text-green-400`,
+    expense: `text-red-${intensity} dark:text-red-400`,
+    medical: `text-blue-${intensity} dark:text-blue-400`,
+    warning: `text-yellow-${intensity} dark:text-yellow-400`,
+    alert: `text-orange-${intensity} dark:text-orange-400`,
+    neutral: `text-gray-${intensity} dark:text-gray-400`,
+  }
+  return baseClasses[type] || baseClasses.neutral
+}
 </script>

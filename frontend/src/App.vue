@@ -33,7 +33,6 @@ onMounted(() => {
 </script>
 
 <style>
-/* Import basic theme CSS only */
 @import '@/styles/themes.css';
 @import '@/styles/advanced-themes.css';
 </style>

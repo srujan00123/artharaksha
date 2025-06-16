@@ -9,7 +9,7 @@
                     <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
                         {{ isEditing ? 'Edit Expense' : 'Add New Expense' }}
                     </h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
+                    <p class="text-sm text-gray-500 dark:text-gray-200 dark:text-gray-500 mt-1">
                         {{ isEditing ? 'Update your expense details' : 'Track your healthcare and living expenses' }}
                     </p>
                 </div>
@@ -45,7 +45,7 @@
                         ]">
                             <Stethoscope class="w-6 h-6 mx-auto mb-2" />
                             <div class="text-sm font-medium">Medical</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">Healthcare related expenses</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-200 dark:text-gray-500">Healthcare related expenses</div>
                         </button>
                         <button type="button" @click="formData.type = 'other'" :disabled="submitting" :class="[
                             'p-4 border-2 rounded-lg text-center transition-all duration-200 touch-manipulation focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
@@ -56,7 +56,7 @@
                         ]">
                             <ShoppingBag class="w-6 h-6 mx-auto mb-2" />
                             <div class="text-sm font-medium">Other</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">Living & other expenses</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-200 dark:text-gray-500">Living & other expenses</div>
                         </button>
                     </div>
                 </div>
@@ -95,7 +95,7 @@
                         />
                         <span class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">This is a direct medical expense</span>
                     </label>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-200 dark:text-gray-500">
                         Direct expenses are payments made directly to healthcare providers (consultations, medicines, tests, etc.)
                     </p>
                 </div>
@@ -117,7 +117,7 @@
                     </label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 dark:text-gray-400 dark:text-gray-500 text-sm">₹</span>
+                            <span class="text-gray-500 dark:text-gray-200 dark:text-gray-500 text-sm">₹</span>
                         </div>
                         <TextInput v-model="formData.amount" id="amount" type="number" step="0.01" min="0" size="sm"
                             variant="subtle" :disabled="submitting" :class="[
@@ -433,9 +433,9 @@ watch(
 // Reset category when type changes
 watch(
 	() => formData.value.type,
-	() => {
+	(newType) => {
 		formData.value.category = ""
-		formData.value.isDirect = false
+		formData.value.isDirect = newType === "medical" ? true : false
 	},
 )
 

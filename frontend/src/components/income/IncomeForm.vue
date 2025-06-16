@@ -84,7 +84,7 @@
               />
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">This is recurring income</span>
             </label>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-200 dark:text-gray-500">
               Check this if this income repeats regularly (salary, rent, etc.)
             </p>
           </div>

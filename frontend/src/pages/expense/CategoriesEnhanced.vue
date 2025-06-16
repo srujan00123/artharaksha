@@ -204,8 +204,6 @@
         </div>
       </div>
 
-
-
       <!-- Selected Category Details -->
       <div v-if="selectedCategory" class="category-details">
         <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-6">
@@ -444,6 +442,18 @@ const formatDate = (dateString: string): string => {
 	} catch {
 		return dateString
 	}
+}
+
+function getFinancialStatusClass(type: string, intensity = "600") {
+	const baseClasses: Record<string, string> = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
 // Lifecycle
