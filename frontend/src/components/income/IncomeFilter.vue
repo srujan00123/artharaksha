@@ -54,12 +54,12 @@
               <label class="flex items-center">
                 <input type="radio" name="incomeType" value="" v-model="localFilters.incomeType"
                   @change="onFilterChange" class="mr-2" />
-                <span class="text-sm">All Types</span>
+                <span class="text-sm dark:text-gray-200">All Types</span>
               </label>
               <div v-for="type in incomeTypes" :key="type.name" class="flex items-center">
                 <input type="radio" name="incomeType" :value="type.type" v-model="localFilters.incomeType"
                   @change="onFilterChange" class="mr-2" />
-                <span class="flex items-center text-sm">
+                <span class="flex items-center text-sm dark:text-gray-200">
                   <DollarSign class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" />
                   {{ type.type }}
                 </span>
@@ -74,12 +74,12 @@
               <label class="flex items-center">
                 <input type="radio" name="frequency" :value="null" v-model="localFilters.isRecurring"
                   @change="onFilterChange" class="mr-2" />
-                <span class="text-sm">All Income</span>
+                <span class="text-sm dark:text-gray-200">All Income</span>
               </label>
               <label class="flex items-center">
                 <input type="radio" name="frequency" :value="true" v-model="localFilters.isRecurring"
                   @change="onFilterChange" class="mr-2" />
-                <span class="flex items-center text-sm">
+                <span class="flex items-center text-sm dark:text-gray-200">
                   <Repeat class="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
                   Recurring Only
                 </span>
@@ -87,7 +87,7 @@
               <label class="flex items-center">
                 <input type="radio" name="frequency" :value="false" v-model="localFilters.isRecurring"
                   @change="onFilterChange" class="mr-2" />
-                <span class="flex items-center text-sm">
+                <span class="flex items-center text-sm dark:text-gray-200">
                   <Calendar class="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />
                   One-time Only
                 </span>

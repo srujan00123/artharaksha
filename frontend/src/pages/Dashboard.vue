@@ -228,56 +228,64 @@
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Quick Actions</h3>
                     <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 hidden sm:block">Get things done faster</span>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
-                    <QuickActionButton
-                        @click="navigateToExpenseForm"
-                        icon="Plus"
-                        label="Add Expense"
-                        color="blue"
-                        :loading="false"
-                    />
-                    
-                    <QuickActionButton
-                        @click="navigateToIncomeForm"
-                        icon="TrendingUp"
-                        label="Add Income"
-                        color="green"
-                        :loading="false"
-                    />
-                    
-                    <QuickActionButton
-                        @click="navigateToNewApplication"
-                        icon="FileText"
-                        label="New Application"
-                        color="orange"
-                        :loading="false"
-                    />
-                    
-                    <QuickActionButton
-                        @click="navigateToNewClaim"
-                        icon="CreditCard"
-                        label="Submit Claim"
-                        color="purple"
-                        :loading="false"
-                    />
-                    
-                    <QuickActionButton
-                    @click="navigateToPrograms"
-                        icon="Shield"
-                        label="Browse Schemes"
-                        color="indigo"
-                        :loading="false"
-                    />
-                    
-                    <QuickActionButton
-                    @click="navigateToConditions"
-                        icon="Heart"
-                        label="Health Profile"
-                        color="pink"
-                        :loading="false"
-                    />
-            </div>
-        </Card>
+                <div class="quick-actions-row flex flex-wrap gap-3 lg:gap-4">
+                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
+                        <QuickActionButton
+                            @click="navigateToExpenseForm"
+                            icon="Plus"
+                            label="Add Expense"
+                            color="blue"
+                            :loading="false"
+                        />
+                    </div>
+                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
+                        <QuickActionButton
+                            @click="navigateToIncomeForm"
+                            icon="TrendingUp"
+                            label="Add Income"
+                            color="green"
+                            :loading="false"
+                        />
+                    </div>
+                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
+                        <QuickActionButton
+                            @click="navigateToNewApplication"
+                            icon="FileText"
+                            label="New Application"
+                            color="orange"
+                            :loading="false"
+                        />
+                    </div>
+                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
+                        <QuickActionButton
+                            @click="navigateToNewClaim"
+                            icon="CreditCard"
+                            label="Submit Claim"
+                            color="purple"
+                            :loading="false"
+                        />
+                    </div>
+                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
+                        <QuickActionButton
+                            @click="navigateToPrograms"
+                            icon="Shield"
+                            label="Browse Schemes"
+                            color="indigo"
+                            :loading="false"
+                        />
+                    </div>
+                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
+                        <QuickActionButton
+                            @click="navigateToConditions"
+                            icon="Heart"
+                            label="Health Profile"
+                            color="pink"
+                            :loading="false"
+                        />
+                    </div>
+                </div>
+            </Card>
+        </div>
 
         <!-- Main Content Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
@@ -496,10 +504,9 @@
                                         </Button>
                                     </div>
                             </div>
-                            </div>
                         </div>
-                    </Card>
-                </div>
+                    </div>
+                </Card>
             </div>
         </div>
     </div>
@@ -930,6 +937,7 @@ async function loadDashboardData() {
 		await Promise.all([
 			userStore.initialize(),
 			incomeComposable.initialize({ withAnalytics: true, forceRefresh: false }),
+			incomeComposable.fetchIncomes(true),
 			expenseComposable.initialize && expenseComposable.initialize(),
 			supportComposable.initialize && supportComposable.initialize(),
 		])

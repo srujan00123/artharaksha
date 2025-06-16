@@ -402,7 +402,7 @@ function resetForm() {
 		amount: "",
 		dateTime: getClientDateTimeString(),
 		receipt: null,
-		isDirect: false,
+		isDirect: true,
 	}
 	validationErrors.value = {}
 	submitError.value = ""
@@ -451,7 +451,12 @@ watch(
 				amount: newExpense.amount?.toString() || "",
 				dateTime: newExpense.date?.slice(0, 16) || getClientDateTimeString(),
 				receipt: null,
-				isDirect: newExpense.isDirect || false,
+				isDirect:
+					newExpense.type === "medical"
+						? newExpense.isDirect !== undefined
+							? newExpense.isDirect
+							: true
+						: false,
 			}
 		}
 	},

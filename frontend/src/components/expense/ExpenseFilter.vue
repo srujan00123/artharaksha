@@ -54,12 +54,12 @@
                             <label class="flex items-center">
                                 <input type="radio" name="expenseType" value="" v-model="localFilters.type"
                                     @change="onFilterChange" class="mr-2" />
-                                <span class="text-sm">All Types</span>
+                                <span class="text-sm dark:text-gray-200">All Types</span>
                             </label>
                             <label class="flex items-center">
                                 <input type="radio" name="expenseType" value="medical" v-model="localFilters.type"
                                     @change="onFilterChange" class="mr-2" />
-                                <span class="flex items-center text-sm">
+                                <span class="flex items-center text-sm dark:text-gray-200">
                                     <Stethoscope class="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
                                     Medical Only
                                 </span>
@@ -67,7 +67,7 @@
                             <label class="flex items-center">
                                 <input type="radio" name="expenseType" value="other" v-model="localFilters.type"
                                     @change="onFilterChange" class="mr-2" />
-                                <span class="flex items-center text-sm">
+                                <span class="flex items-center text-sm dark:text-gray-200">
                                     <ShoppingBag class="w-4 h-4 mr-2 text-orange-600 dark:text-orange-400" />
                                     Other Only
                                 </span>

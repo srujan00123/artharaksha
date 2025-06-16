@@ -492,6 +492,7 @@ import {
 import { computed, onMounted, ref, watch } from "vue"
 import VChart from "vue-echarts"
 import VueApexCharts from "vue3-apexcharts"
+import { useI18n } from 'vue-i18n'
 
 // Register ApexCharts component
 const apexchart = VueApexCharts
@@ -531,8 +532,9 @@ const {
 	totalMonthlyIncome,
 	loading: incomeLoading,
 	error: incomeError,
-	loadIncomes,
-} = useIncome({ enableAdvancedAnalysis: false })
+	fetchIncomes,
+	initialize,
+} = useIncome()
 
 // Local state
 const expenseFilters = ref<ExpenseFilters>({
@@ -1154,7 +1156,7 @@ const handleRefresh = async () => {
 	try {
 		clearCache()
 		await refreshExpenses()
-		await loadIncomes({ forceReload: true })
+		await fetchIncomes(true)
 	} catch (err) {
 		console.error("Error refreshing data:", err)
 	}
@@ -1202,7 +1204,7 @@ const handleMedicalExport = (data: any) => {
 onMounted(async () => {
 	try {
 		await loadExpenses({ useCache: true })
-		await loadIncomes({ useCache: true })
+		await initialize({ withAnalytics: false, forceRefresh: true })
 	} catch (err) {
 		console.error("Error loading initial data:", err)
 	}
@@ -1216,6 +1218,8 @@ watch(
 	},
 	{ deep: true },
 )
+
+const { t } = useI18n()
 </script>
 
 <style scoped>
