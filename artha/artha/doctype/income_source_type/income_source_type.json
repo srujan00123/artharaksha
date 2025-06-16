@@ -35,7 +35,7 @@
    "fieldname": "recur_frequency",
    "fieldtype": "Select",
    "label": "Recur Frequency",
-   "options": "every day\nevery week\nevery month\nevery year"
+   "options": "daily\nweekly\nmonthly\nyearly"
   },
   {
    "fieldname": "date_time",
@@ -47,7 +47,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-06-12 07:33:37.510646",
+ "modified": "2025-06-16 04:00:57.496912",
  "modified_by": "Administrator",
  "module": "Artha",
  "name": "Income Source Type",

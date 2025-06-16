@@ -32,65 +32,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, provide } from 'vue'
-import { 
-  RefreshCw
-} from 'lucide-vue-next'
+import { RefreshCw } from "lucide-vue-next"
+import { computed, onMounted, provide, ref } from "vue"
 
 // Data-flow integration
-import { useExpense } from '../../composables/useExpense'
-import { expenseService } from '../../services/expense-service.js'
+import { useExpense } from "../../composables/useExpense"
+import { expenseService } from "../../services/expense-service.js"
 
 // State
 const refreshing = ref(false)
 const loading = ref(false)
-const error = ref('')
+const error = ref("")
 
 // Initialize expense composable for data management
-const { 
-  loadExpenses, 
-  refreshExpenses, 
-  clearCache 
-} = useExpense({ enableAdvancedAnalysis: false })
+const { loadExpenses, refreshExpenses, clearCache } = useExpense({
+	enableAdvancedAnalysis: false,
+})
 
 // Event handlers
 const handleRefresh = async () => {
-  refreshing.value = true
-  try {
-    // Clear cache and refresh all data
-    clearCache()
-    expenseService.clearCache()
-    
-    // Refresh expenses data
-    await refreshExpenses()
-    
-    console.log('Analytics data refreshed successfully')
-  } catch (err) {
-    error.value = err.message || 'Failed to refresh analytics data'
-    console.error('Failed to refresh analytics:', err)
-  } finally {
-    refreshing.value = false
-  }
+	refreshing.value = true
+	try {
+		// Clear cache and refresh all data
+		clearCache()
+		expenseService.clearCache()
+
+		// Refresh expenses data
+		await refreshExpenses()
+
+		console.log("Analytics data refreshed successfully")
+	} catch (err) {
+		error.value = err.message || "Failed to refresh analytics data"
+		console.error("Failed to refresh analytics:", err)
+	} finally {
+		refreshing.value = false
+	}
 }
 
 // Provide shared refresh function to child components
-provide('analyticsRefresh', handleRefresh)
+provide("analyticsRefresh", handleRefresh)
 
 // Lifecycle
 onMounted(async () => {
-  // Initialize analytics section
-  console.log('Expense Analytics initialized')
-  
-  // Load initial data
-  try {
-    loading.value = true
-    await loadExpenses({ useCache: true })
-  } catch (err) {
-    error.value = err.message || 'Failed to load initial analytics data'
-    console.error('Failed to load initial analytics data:', err)
-  } finally {
-    loading.value = false
-  }
+	// Initialize analytics section
+	console.log("Expense Analytics initialized")
+
+	// Load initial data
+	try {
+		loading.value = true
+		await loadExpenses({ useCache: true })
+	} catch (err) {
+		error.value = err.message || "Failed to load initial analytics data"
+		console.error("Failed to load initial analytics data:", err)
+	} finally {
+		loading.value = false
+	}
 })
 </script>
 

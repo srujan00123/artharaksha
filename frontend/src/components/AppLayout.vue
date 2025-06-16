@@ -128,144 +128,144 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useThemeStore } from '@/stores/theme'
+import { useAuthStore } from "@/stores/auth"
+import { useThemeStore } from "@/stores/theme"
 import {
-  ChartBarIcon,
-  CreditCardIcon,
-  HeartIcon,
-  DocumentTextIcon,
-  UserIcon,
-  SunIcon,
-  MoonIcon,
-  BellIcon,
-  ChevronDownIcon,
-  CogIcon,
-  ArrowRightOnRectangleIcon
-} from '@heroicons/vue/24/outline'
+	ArrowRightOnRectangleIcon,
+	BellIcon,
+	ChartBarIcon,
+	ChevronDownIcon,
+	CogIcon,
+	CreditCardIcon,
+	DocumentTextIcon,
+	HeartIcon,
+	MoonIcon,
+	SunIcon,
+	UserIcon,
+} from "@heroicons/vue/24/outline"
+import { computed, onMounted, onUnmounted, ref } from "vue"
+import { useRoute, useRouter } from "vue-router"
 
 export default {
-  name: 'AppLayout',
-  components: {
-    ChartBarIcon,
-    CreditCardIcon,
-    HeartIcon,
-    DocumentTextIcon,
-    UserIcon,
-    SunIcon,
-    MoonIcon,
-    BellIcon,
-    ChevronDownIcon,
-    CogIcon,
-    ArrowRightOnRectangleIcon
-  },
-  setup() {
-    const router = useRouter()
-    const route = useRoute()
-    const authStore = useAuthStore()
-    const themeStore = useThemeStore()
-    
-    const showUserMenu = ref(false)
-    const userMenuRef = ref(null)
+	name: "AppLayout",
+	components: {
+		ChartBarIcon,
+		CreditCardIcon,
+		HeartIcon,
+		DocumentTextIcon,
+		UserIcon,
+		SunIcon,
+		MoonIcon,
+		BellIcon,
+		ChevronDownIcon,
+		CogIcon,
+		ArrowRightOnRectangleIcon,
+	},
+	setup() {
+		const router = useRouter()
+		const route = useRoute()
+		const authStore = useAuthStore()
+		const themeStore = useThemeStore()
 
-    const navigation = computed(() => [
-      {
-        name: 'Dashboard',
-        href: '/dashboard',
-        icon: ChartBarIcon,
-        current: route.path === '/dashboard'
-      },
-      {
-        name: 'Income',
-        href: '/income',
-        icon: CreditCardIcon,
-        current: route.path.startsWith('/income')
-      },
-      {
-        name: 'Expenses',
-        href: '/expenses',
-        icon: CreditCardIcon,
-        current: route.path.startsWith('/expenses')
-      },
-      {
-        name: 'Care & Support',
-        href: '/care-support',
-        icon: HeartIcon,
-        current: route.path.startsWith('/care-support')
-      },
-      {
-        name: 'Applications & Claims',
-        href: '/applications',
-        icon: DocumentTextIcon,
-        current: route.path.startsWith('/applications')
-      },
-      {
-        name: 'Profile',
-        href: '/profile',
-        icon: UserIcon,
-        current: route.path === '/profile'
-      }
-    ])
+		const showUserMenu = ref(false)
+		const userMenuRef = ref(null)
 
-    const currentPageTitle = computed(() => {
-      const currentNav = navigation.value.find(item => item.current)
-      return currentNav ? currentNav.name : 'Dashboard'
-    })
+		const navigation = computed(() => [
+			{
+				name: "Dashboard",
+				href: "/dashboard",
+				icon: ChartBarIcon,
+				current: route.path === "/dashboard",
+			},
+			{
+				name: "Income",
+				href: "/income",
+				icon: CreditCardIcon,
+				current: route.path.startsWith("/income"),
+			},
+			{
+				name: "Expenses",
+				href: "/expenses",
+				icon: CreditCardIcon,
+				current: route.path.startsWith("/expenses"),
+			},
+			{
+				name: "Care & Support",
+				href: "/care-support",
+				icon: HeartIcon,
+				current: route.path.startsWith("/care-support"),
+			},
+			{
+				name: "Applications & Claims",
+				href: "/applications",
+				icon: DocumentTextIcon,
+				current: route.path.startsWith("/applications"),
+			},
+			{
+				name: "Profile",
+				href: "/profile",
+				icon: UserIcon,
+				current: route.path === "/profile",
+			},
+		])
 
-    const user = computed(() => authStore.user)
-    const isDark = computed(() => themeStore.isDark)
+		const currentPageTitle = computed(() => {
+			const currentNav = navigation.value.find((item) => item.current)
+			return currentNav ? currentNav.name : "Dashboard"
+		})
 
-    const userInitials = computed(() => {
-      if (!user.value?.full_name) return 'U'
-      return user.value.full_name
-        .split(' ')
-        .map(name => name[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    })
+		const user = computed(() => authStore.user)
+		const isDark = computed(() => themeStore.isDark)
 
-    const toggleTheme = () => {
-      themeStore.toggleTheme()
-    }
+		const userInitials = computed(() => {
+			if (!user.value?.full_name) return "U"
+			return user.value.full_name
+				.split(" ")
+				.map((name) => name[0])
+				.join("")
+				.toUpperCase()
+				.slice(0, 2)
+		})
 
-    const toggleUserMenu = () => {
-      showUserMenu.value = !showUserMenu.value
-    }
+		const toggleTheme = () => {
+			themeStore.toggleTheme()
+		}
 
-    const logout = async () => {
-      await authStore.logout()
-      router.push('/login')
-    }
+		const toggleUserMenu = () => {
+			showUserMenu.value = !showUserMenu.value
+		}
 
-    const handleClickOutside = (event) => {
-      if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
-        showUserMenu.value = false
-      }
-    }
+		const logout = async () => {
+			await authStore.logout()
+			router.push("/login")
+		}
 
-    onMounted(() => {
-      document.addEventListener('click', handleClickOutside)
-    })
+		const handleClickOutside = (event) => {
+			if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
+				showUserMenu.value = false
+			}
+		}
 
-    onUnmounted(() => {
-      document.removeEventListener('click', handleClickOutside)
-    })
+		onMounted(() => {
+			document.addEventListener("click", handleClickOutside)
+		})
 
-    return {
-      navigation,
-      currentPageTitle,
-      user,
-      userInitials,
-      isDark,
-      showUserMenu,
-      userMenuRef,
-      toggleTheme,
-      toggleUserMenu,
-      logout
-    }
-  }
+		onUnmounted(() => {
+			document.removeEventListener("click", handleClickOutside)
+		})
+
+		return {
+			navigation,
+			currentPageTitle,
+			user,
+			userInitials,
+			isDark,
+			showUserMenu,
+			userMenuRef,
+			toggleTheme,
+			toggleUserMenu,
+			logout,
+		}
+	},
 }
 </script> 

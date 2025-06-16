@@ -1,5 +1,4 @@
-
-export interface TargetGroups{
+export interface TargetGroups {
 	name: string
 	creation: string
 	modified: string

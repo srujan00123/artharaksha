@@ -182,18 +182,30 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { CreditCard, Clock, CheckCircle, DollarSign, Shield, Heart, Eye, Download, Plus, AlertCircle, Edit } from 'lucide-vue-next'
-import { Button } from 'frappe-ui'
-import { useSupport } from '../../composables/useSupport'
-import ClaimModal from '../../components/support/ClaimModal.vue'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { Button } from "frappe-ui"
+import {
+	AlertCircle,
+	CheckCircle,
+	Clock,
+	CreditCard,
+	DollarSign,
+	Download,
+	Edit,
+	Eye,
+	Heart,
+	Plus,
+	Shield,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import ClaimModal from "../../components/support/ClaimModal.vue"
+import { useSupport } from "../../composables/useSupport"
 
-import { 
-  getSchemeDisplayName, 
-  formatCurrency,
-  getClaimStatusColor
-} from '../../types/support'
+import {
+	formatCurrency,
+	getClaimStatusColor,
+	getSchemeDisplayName,
+} from "../../types/support"
 
 // Support composable
 const support = useSupport({ autoInitialize: true })
@@ -206,140 +218,141 @@ const editingClaim = ref(null)
 const claims = computed(() => support.claims.value)
 const availableSchemes = computed(() => support.allSchemes.value)
 const totalClaims = computed(() => claims.value.length)
-const processingClaims = computed(() => claims.value.filter(claim => claim.status === 'processing').length)
-const approvedClaims = computed(() => claims.value.filter(claim => claim.status === 'approved').length)
-const totalBenefits = computed(() => 
-  claims.value
-    .filter(claim => claim.approved_amount)
-    .reduce((sum, claim) => sum + claim.approved_amount, 0)
+const processingClaims = computed(
+	() => claims.value.filter((claim) => claim.status === "processing").length,
+)
+const approvedClaims = computed(
+	() => claims.value.filter((claim) => claim.status === "approved").length,
+)
+const totalBenefits = computed(() =>
+	claims.value
+		.filter((claim) => claim.approved_amount)
+		.reduce((sum, claim) => sum + claim.approved_amount, 0),
 )
 
 // Methods
 function getStatusBadgeClass(status) {
-  const classes = {
-    submitted: 'bg-blue-100 text-blue-800',
-    processing: 'bg-yellow-100 text-yellow-800',
-    approved: 'bg-green-100 text-green-800',
-    rejected: 'bg-red-100 text-red-800',
-    paid: 'bg-green-100 text-green-800'
-  }
-  return classes[status] || 'bg-gray-100 text-gray-800'
+	const classes = {
+		submitted: "bg-blue-100 text-blue-800",
+		processing: "bg-yellow-100 text-yellow-800",
+		approved: "bg-green-100 text-green-800",
+		rejected: "bg-red-100 text-red-800",
+		paid: "bg-green-100 text-green-800",
+	}
+	return classes[status] || "bg-gray-100 text-gray-800"
 }
 
 function getStatusLabel(status) {
-  const labels = {
-    submitted: 'Submitted',
-    processing: 'Processing',
-    approved: 'Approved',
-    rejected: 'Rejected',
-    paid: 'Paid'
-  }
-  return labels[status] || status
+	const labels = {
+		submitted: "Submitted",
+		processing: "Processing",
+		approved: "Approved",
+		rejected: "Rejected",
+		paid: "Paid",
+	}
+	return labels[status] || status
 }
 
 function formatDate(dateString) {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+	if (!dateString) return "N/A"
+	return new Date(dateString).toLocaleDateString("en-IN", {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	})
 }
 
 function getSchemeType(claim) {
-  if (claim.is_custom) {
-    return claim.custom_scheme_type?.toLowerCase() || 'other'
-  }
-  return claim.scheme_type === 'Welfare Scheme' ? 'welfare' : 'insurance'
+	if (claim.is_custom) {
+		return claim.custom_scheme_type?.toLowerCase() || "other"
+	}
+	return claim.scheme_type === "Welfare Scheme" ? "welfare" : "insurance"
 }
 
 async function loadClaims() {
-  try {
-    await support.loadClaims(true) // Force refresh
-  } catch (err) {
-    console.error('Error loading claims:', err)
-  }
+	try {
+		await support.loadClaims(true) // Force refresh
+	} catch (err) {
+		console.error("Error loading claims:", err)
+	}
 }
 
 async function loadAvailableSchemes() {
-  try {
-    await support.loadAllSchemes()
-  } catch (err) {
-    console.error('Error loading schemes:', err)
-  }
+	try {
+		await support.loadAllSchemes()
+	} catch (err) {
+		console.error("Error loading schemes:", err)
+	}
 }
 
 function closeClaimModal() {
-  showClaimModal.value = false
-  editingClaim.value = null
+	showClaimModal.value = false
+	editingClaim.value = null
 }
 
 function editClaim(claim) {
-  editingClaim.value = claim
-  showClaimModal.value = true
+	editingClaim.value = claim
+	showClaimModal.value = true
 }
 
 async function handleClaimSave(claimData) {
-  try {
-    await loadClaims() // Refresh the claims list
-    closeClaimModal()
-  } catch (err) {
-    console.error('Error after saving claim:', err)
-  }
+	try {
+		await loadClaims() // Refresh the claims list
+		closeClaimModal()
+	} catch (err) {
+		console.error("Error after saving claim:", err)
+	}
 }
 
 // Lifecycle
 onMounted(async () => {
-  try {
-    // Initialize support system if not already done
-    if (!support.state.value.isInitialized) {
-      await support.initialize()
-    }
-    
-    // Load claims and available schemes
-    await Promise.all([
-      support.loadClaims(),
-      support.loadAllSchemes()
-    ])
-  } catch (error) {
-    console.error('Error initializing claims data:', error)
-  }
+	try {
+		// Initialize support system if not already done
+		if (!support.state.value.isInitialized) {
+			await support.initialize()
+		}
+
+		// Load claims and available schemes
+		await Promise.all([support.loadClaims(), support.loadAllSchemes()])
+	} catch (error) {
+		console.error("Error initializing claims data:", error)
+	}
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>

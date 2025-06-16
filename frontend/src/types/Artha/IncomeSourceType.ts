@@ -1,5 +1,4 @@
-
-export interface IncomeSourceType{
+export interface IncomeSourceType {
 	name: string
 	creation: string
 	modified: string
@@ -19,5 +18,5 @@ export interface IncomeSourceType{
 	/**	Date Time : Datetime	*/
 	date_time?: string
 	/**	Recur Frequency : Select	*/
-	recur_frequency?: "every day" | "every week" | "every month" | "every year"
+	recur_frequency?: "daily" | "weekly" | "monthly" | "yearly"
 }

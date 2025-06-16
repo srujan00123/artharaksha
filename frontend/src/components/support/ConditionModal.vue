@@ -136,102 +136,108 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { X } from 'lucide-vue-next'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { X } from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
 
-import { 
-  SEVERITY_LEVELS, 
-  DURATION_TYPES, 
-  getConditionTypeIcon 
-} from '../../types/support'
+import {
+	DURATION_TYPES,
+	SEVERITY_LEVELS,
+	getConditionTypeIcon,
+} from "../../types/support"
 
 // Props
 const props = defineProps({
-  condition: {
-    type: Object,
-    default: null
-  },
-  availableConditions: {
-    type: Array,
-    default: () => []
-  }
+	condition: {
+		type: Object,
+		default: null,
+	},
+	availableConditions: {
+		type: Array,
+		default: () => [],
+	},
 })
 
 // Emits
-const emit = defineEmits(['close', 'save'])
+const emit = defineEmits(["close", "save"])
 
 // Form data
 const formData = ref({
-  condition: '',
-  severity: 'Mild',
-  duration_override: 'Temporary',
-  notes: ''
+	condition: "",
+	severity: "Mild",
+	duration_override: "Temporary",
+	notes: "",
 })
 
 // Computed properties
 const selectedConditionDetails = computed(() => {
-  if (!formData.value.condition) return null
-  return props.availableConditions.find(c => c.name === formData.value.condition)
+	if (!formData.value.condition) return null
+	return props.availableConditions.find(
+		(c) => c.name === formData.value.condition,
+	)
 })
 
 const isFormValid = computed(() => {
-  return formData.value.condition && formData.value.severity && formData.value.duration_override
+	return (
+		formData.value.condition &&
+		formData.value.severity &&
+		formData.value.duration_override
+	)
 })
 
 // Methods
 const handleSubmit = () => {
-  if (isFormValid.value) {
-    emit('save', { ...formData.value })
-  }
+	if (isFormValid.value) {
+		emit("save", { ...formData.value })
+	}
 }
 
 // Initialize form data
 onMounted(() => {
-  if (props.condition) {
-    formData.value = {
-      condition: props.condition.condition || '',
-      severity: props.condition.severity || 'Mild',
-      duration_override: props.condition.duration_override || 'Temporary',
-      notes: props.condition.notes || ''
-    }
-  }
+	if (props.condition) {
+		formData.value = {
+			condition: props.condition.condition || "",
+			severity: props.condition.severity || "Mild",
+			duration_override: props.condition.duration_override || "Temporary",
+			notes: props.condition.notes || "",
+		}
+	}
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script> 

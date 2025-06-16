@@ -130,7 +130,7 @@
           </div>
 
           <!-- Monthly Equivalent (for non-monthly recurring income) -->
-          <div v-if="formData.isRecurring && formData.frequency && formData.frequency !== 'every month'" class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+          <div v-if="formData.isRecurring && formData.frequency && formData.frequency !== 'monthly'" class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
             <div class="flex items-center space-x-2">
               <Calculator class="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <span class="text-sm font-medium text-blue-900">Monthly Equivalent</span>
@@ -169,49 +169,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { X, Save, Calculator } from 'lucide-vue-next'
-import { Button } from 'frappe-ui'
-import { useIncome } from '../../composables/useIncome'
-import type { 
-  IncomeSourceFormData, 
-  IncomeValidationResult,
-  IncomeType,
-  ProcessedIncomeItem,
-  RECUR_FREQUENCY_OPTIONS
-} from '../../types/income'
+import { Button } from "frappe-ui"
+import { Calculator, Save, X } from "lucide-vue-next"
+import { computed, onMounted, ref, watch } from "vue"
+import { useIncome } from "../../composables/useIncome"
+import type {
+	IncomeFormUIData,
+	IncomeTypeRecord,
+	IncomeValidationResult,
+	ProcessedIncomeItem,
+	RECUR_FREQUENCY_OPTIONS,
+} from "../../types/income"
 
 // Props
 interface Props {
-  isOpen: boolean
-  editingSource?: ProcessedIncomeItem | null
+	isOpen: boolean
+	editingSource?: ProcessedIncomeItem | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isOpen: false,
-  editingSource: null
+	isOpen: false,
+	editingSource: null,
 })
 
 // Emits
 const emit = defineEmits<{
-  close: []
-  submit: [data: IncomeSourceFormData]
+	close: []
+	submit: [data: IncomeFormUIData]
 }>()
 
 // Composables
-const incomeComposable = useIncome()
+const { incomeTypes, fetchIncomeTypes } = useIncome()
 
 // State
 const loading = ref(false)
-const incomeTypes = ref<IncomeType[]>([])
 
 // Form data with proper typing
-const formData = ref<IncomeSourceFormData>({
-  type: '',
-  amount: 0,
-  isRecurring: false,
-  dateTime: '',
-  frequency: undefined
+const formData = ref<IncomeFormUIData>({
+	type: "",
+	amount: 0,
+	isRecurring: false,
+	dateTime: "",
+	frequency: undefined,
 })
 
 // Validation errors
@@ -219,153 +218,167 @@ const validationErrors = ref<Record<string, string>>({})
 
 // Constants from types
 const frequencyOptions = [
-  { value: 'every day', label: 'Daily' },
-  { value: 'every week', label: 'Weekly' },
-  { value: 'every month', label: 'Monthly' },
-  { value: 'every year', label: 'Yearly' }
+	{ value: "daily", label: "Daily" },
+	{ value: "weekly", label: "Weekly" },
+	{ value: "monthly", label: "Monthly" },
+	{ value: "yearly", label: "Yearly" },
 ] as const
 
 // Computed
 const isEditing = computed(() => !!props.editingSource)
 
 const today = computed(() => {
-  return new Date().toISOString().split('T')[0]
+	return new Date().toISOString().split("T")[0]
 })
 
 const monthlyEquivalent = computed(() => {
-  if (!formData.value.isRecurring || !formData.value.frequency || !formData.value.amount) {
-    return 0
-  }
+	if (
+		!formData.value.isRecurring ||
+		!formData.value.frequency ||
+		!formData.value.amount
+	) {
+		return 0
+	}
 
-  const amount = formData.value.amount
-  switch (formData.value.frequency) {
-    case 'every day':
-      return amount * 30 // Approximate monthly
-    case 'every week':
-      return amount * 4.33 // Approximate monthly
-    case 'every month':
-      return amount
-    case 'every year':
-      return amount / 12
-    default:
-      return amount
-  }
+	const amount = formData.value.amount
+	switch (formData.value.frequency) {
+		case "daily":
+			return amount * 30 // Approximate monthly
+		case "weekly":
+			return amount * 4.33 // Approximate monthly
+		case "monthly":
+			return amount
+		case "yearly":
+			return amount / 12
+		default:
+			return amount
+	}
 })
 
 const isFormValid = computed(() => {
-  return formData.value.type && 
-         formData.value.amount > 0 && 
-         formData.value.dateTime &&
-         (!formData.value.isRecurring || formData.value.frequency) &&
-         Object.keys(validationErrors.value).length === 0
+	return (
+		formData.value.type &&
+		formData.value.amount > 0 &&
+		formData.value.dateTime &&
+		(!formData.value.isRecurring || formData.value.frequency) &&
+		Object.keys(validationErrors.value).length === 0
+	)
 })
 
 // Methods
 const validateForm = (): IncomeValidationResult => {
-  const errors: Record<string, string> = {}
+	const errors: Record<string, string> = {}
 
-  if (!formData.value.type) {
-    errors.type = 'Income type is required'
-  }
+	if (!formData.value.type) {
+		errors.type = "Income type is required"
+	}
 
-  if (!formData.value.amount || formData.value.amount <= 0) {
-    errors.amount = 'Amount must be greater than 0'
-  }
+	if (!formData.value.amount || formData.value.amount <= 0) {
+		errors.amount = "Amount must be greater than 0"
+	}
 
-  if (!formData.value.dateTime) {
-    errors.dateTime = 'Date is required'
-  }
+	if (!formData.value.dateTime) {
+		errors.dateTime = "Date is required"
+	}
 
-  if (formData.value.isRecurring && !formData.value.frequency) {
-    errors.frequency = 'Frequency is required for recurring income'
-  }
+	if (formData.value.isRecurring && !formData.value.frequency) {
+		errors.frequency = "Frequency is required for recurring income"
+	}
 
-  validationErrors.value = errors
-  return {
-    isValid: Object.keys(errors).length === 0,
-    errors
-  }
+	validationErrors.value = errors
+	return {
+		isValid: Object.keys(errors).length === 0,
+		errors,
+	}
 }
 
 const resetForm = () => {
-  formData.value = {
-    type: '',
-    amount: 0,
-    isRecurring: false,
-    dateTime: '',
-    frequency: undefined
-  }
-  validationErrors.value = {}
+	formData.value = {
+		type: "",
+		amount: 0,
+		isRecurring: false,
+		dateTime: "",
+		frequency: undefined,
+	}
+	validationErrors.value = {}
 }
 
 const populateForm = (source: ProcessedIncomeItem) => {
-  if (source.sources && source.sources.length > 0) {
-    const firstSource = source.sources[0]
-    formData.value = {
-      type: firstSource.type,
-      amount: firstSource.amount,
-      isRecurring: firstSource.isRecurring,
-      dateTime: firstSource.dateTime.split('T')[0], // Extract date part
-      frequency: firstSource.frequency
-    }
-  }
+	formData.value = {
+		type: source.type,
+		amount: source.amount,
+		isRecurring: source.isRecurring,
+		dateTime: source.dateTime.split("T")[0], // Extract date part
+		frequency: source.frequency as
+			| "daily"
+			| "weekly"
+			| "monthly"
+			| "yearly"
+			| undefined,
+	}
 }
 
 const handleSubmit = async () => {
-  const validation = validateForm()
-  if (!validation.isValid) {
-    return
-  }
+	const validation = validateForm()
+	if (!validation.isValid) {
+		return
+	}
 
-  try {
-    loading.value = true
-    emit('submit', { ...formData.value })
-    closeForm()
-  } catch (error) {
-    console.error('Failed to submit income form:', error)
-  } finally {
-    loading.value = false
-  }
+	try {
+		loading.value = true
+		emit("submit", { ...formData.value })
+		closeForm()
+	} catch (error) {
+		console.error("Failed to submit income form:", error)
+	} finally {
+		loading.value = false
+	}
 }
 
 const closeForm = () => {
-  resetForm()
-  emit('close')
+	resetForm()
+	emit("close")
 }
 
 const handleOverlayClick = () => {
-  closeForm()
+	closeForm()
 }
 
 const loadIncomeTypes = async () => {
-  try {
-    incomeTypes.value = await incomeComposable.loadIncomeTypes()
-  } catch (error) {
-    console.error('Failed to load income types:', error)
-  }
+	try {
+		await fetchIncomeTypes()
+	} catch (error) {
+		console.error("Failed to load income types:", error)
+	}
 }
 
 // Watchers
-watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) {
-    if (props.editingSource) {
-      populateForm(props.editingSource)
-    } else {
-      resetForm()
-    }
-  }
-})
+watch(
+	() => props.isOpen,
+	(isOpen) => {
+		if (isOpen) {
+			if (props.editingSource) {
+				populateForm(props.editingSource)
+			} else {
+				resetForm()
+			}
+		}
+	},
+)
 
-watch(() => formData.value.isRecurring, (isRecurring) => {
-  if (!isRecurring) {
-    formData.value.frequency = undefined
-    delete validationErrors.value.frequency
-  }
-})
+watch(
+	() => formData.value.isRecurring,
+	(isRecurring) => {
+		if (!isRecurring) {
+			formData.value.frequency = undefined
+			delete validationErrors.value.frequency
+		}
+	},
+)
 
 // Initialize
 onMounted(() => {
-  loadIncomeTypes()
+	loadIncomeTypes()
 })
 </script>
 

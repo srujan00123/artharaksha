@@ -1,9 +1,9 @@
-import './index.css'
+import "./index.css"
 
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import router from './router'
-import App from './App.vue'
+import { createPinia } from "pinia"
+import { createApp } from "vue"
+import App from "./App.vue"
+import router from "./router"
 
 // Initialize theme early
 const initializeTheme = () => {
@@ -19,27 +19,27 @@ const initializeTheme = () => {
 initializeTheme()
 
 import {
-  Button,
-  Card,
-  Input,
-  setConfig,
-  frappeRequest,
-  resourcesPlugin,
-  pageMetaPlugin,
-} from 'frappe-ui'
+	Button,
+	Card,
+	Input,
+	frappeRequest,
+	pageMetaPlugin,
+	resourcesPlugin,
+	setConfig,
+} from "frappe-ui"
 
-let app = createApp(App)
+const app = createApp(App)
 const pinia = createPinia()
 
-setConfig('resourceFetcher', frappeRequest)
+setConfig("resourceFetcher", frappeRequest)
 
 app.use(pinia)
 app.use(router)
 app.use(resourcesPlugin)
 app.use(pageMetaPlugin) // Enable reactive page titles
 
-app.component('Button', Button)
-app.component('Card', Card)
-app.component('Input', Input)
+app.component("Button", Button)
+app.component("Card", Card)
+app.component("Input", Input)
 
-app.mount('#app')
+app.mount("#app")

@@ -327,40 +327,49 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useUserStore } from '@/stores/user'
-import { User, RefreshCw, AlertCircle, Camera, Clock, Save, Lock, Bell, ChevronRight } from 'lucide-vue-next'
-import { toast } from '@/utils/toast'
-import { createResource } from 'frappe-ui'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { useUserStore } from "@/stores/user"
+import { toast } from "@/utils/toast"
+import { createResource } from "frappe-ui"
+import {
+	AlertCircle,
+	Bell,
+	Camera,
+	ChevronRight,
+	Clock,
+	Lock,
+	RefreshCw,
+	Save,
+	User,
+} from "lucide-vue-next"
+import { computed, onMounted, ref, watch } from "vue"
 
 // Store
 const userStore = useUserStore()
 
 // Form states
 const profileForm = ref({
-    first_name: '',
-    last_name: '',
-    full_name: '',
-    phone: '',
-    mobile_no: '',
-    location: '',
-    bio: ''
+	first_name: "",
+	last_name: "",
+	full_name: "",
+	phone: "",
+	mobile_no: "",
+	location: "",
+	bio: "",
 })
 
 const preferencesForm = ref({
-    theme: 'Light',
-    language: 'en',
-    emailNotifications: true,
-    cheAlerts: true,
-    monthlyReports: false
+	theme: "Light",
+	language: "en",
+	emailNotifications: true,
+	cheAlerts: true,
+	monthlyReports: false,
 })
 
 const passwordForm = ref({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+	oldPassword: "",
+	newPassword: "",
+	confirmPassword: "",
 })
 
 // Loading states
@@ -372,208 +381,213 @@ const hasAdminRole = ref(false)
 
 // Resource to check admin role
 const adminRoleResource = createResource({
-    url: 'artha.api.auth.has_admin_role',
-    auto: true,
-    onSuccess(data) {
-        hasAdminRole.value = data
-    },
-    onError(error) {
-        console.error('Failed to check admin role:', error)
-        hasAdminRole.value = false
-    }
+	url: "artha.api.auth.has_admin_role",
+	auto: true,
+	onSuccess(data) {
+		hasAdminRole.value = data
+	},
+	onError(error) {
+		console.error("Failed to check admin role:", error)
+		hasAdminRole.value = false
+	},
 })
 
 // Computed properties
 const hasChanges = computed(() => {
-    if (!userStore.currentUser) return false
-    
-    return Object.keys(profileForm.value).some(key => {
-        return profileForm.value[key] !== (userStore.currentUser[key] || '')
-    })
+	if (!userStore.currentUser) return false
+
+	return Object.keys(profileForm.value).some((key) => {
+		return profileForm.value[key] !== (userStore.currentUser[key] || "")
+	})
 })
 
 const canChangePassword = computed(() => {
-    return passwordForm.value.oldPassword && 
-           passwordForm.value.newPassword && 
-           passwordForm.value.confirmPassword &&
-           passwordForm.value.newPassword === passwordForm.value.confirmPassword &&
-           passwordForm.value.newPassword.length >= 6
+	return (
+		passwordForm.value.oldPassword &&
+		passwordForm.value.newPassword &&
+		passwordForm.value.confirmPassword &&
+		passwordForm.value.newPassword === passwordForm.value.confirmPassword &&
+		passwordForm.value.newPassword.length >= 6
+	)
 })
 
 // Methods
 const loadProfile = async () => {
-    try {
-        await userStore.loadUserProfile(true)
-        await userStore.loadUserPreferences()
-        populateForm()
-    } catch (error) {
-        console.error('Failed to load profile:', error)
-    }
+	try {
+		await userStore.loadUserProfile(true)
+		await userStore.loadUserPreferences()
+		populateForm()
+	} catch (error) {
+		console.error("Failed to load profile:", error)
+	}
 }
 
 const refreshProfile = async () => {
-    await loadProfile()
-    toast.success('Profile refreshed successfully')
+	await loadProfile()
+	toast.success("Profile refreshed successfully")
 }
 
 const populateForm = () => {
-    if (userStore.currentUser) {
-        profileForm.value = {
-            first_name: userStore.currentUser.first_name || '',
-            last_name: userStore.currentUser.last_name || '',
-            full_name: userStore.currentUser.full_name || '',
-            phone: userStore.currentUser.phone || '',
-            mobile_no: userStore.currentUser.mobile_no || '',
-            location: userStore.currentUser.location || '',
-            bio: userStore.currentUser.bio || ''
-        }
-    }
-    
-    if (userStore.preferences) {
-        preferencesForm.value = { ...userStore.preferences }
-    }
+	if (userStore.currentUser) {
+		profileForm.value = {
+			first_name: userStore.currentUser.first_name || "",
+			last_name: userStore.currentUser.last_name || "",
+			full_name: userStore.currentUser.full_name || "",
+			phone: userStore.currentUser.phone || "",
+			mobile_no: userStore.currentUser.mobile_no || "",
+			location: userStore.currentUser.location || "",
+			bio: userStore.currentUser.bio || "",
+		}
+	}
+
+	if (userStore.preferences) {
+		preferencesForm.value = { ...userStore.preferences }
+	}
 }
 
 const resetForm = () => {
-    populateForm()
+	populateForm()
 }
 
 const updateProfile = async () => {
-    try {
-        updating.value = true
-        
-        // Filter out empty values
-        const updates = {}
-        Object.keys(profileForm.value).forEach(key => {
-            if (profileForm.value[key] !== (userStore.currentUser[key] || '')) {
-                updates[key] = profileForm.value[key]
-            }
-        })
-        
-        if (Object.keys(updates).length === 0) {
-            toast.info('No changes to save')
-            return
-        }
-        
-        await userStore.updateUserProfile(updates)
-        
-        // Force refresh the profile data to ensure UI is updated
-        await userStore.loadUserProfile(true)
-        populateForm()
-        
-        toast.success('Profile updated successfully')
-        
-    } catch (error) {
-        console.error('Failed to update profile:', error)
-        toast.error('Failed to update profile: ' + error.message)
-    } finally {
-        updating.value = false
-    }
+	try {
+		updating.value = true
+
+		// Filter out empty values
+		const updates = {}
+		Object.keys(profileForm.value).forEach((key) => {
+			if (profileForm.value[key] !== (userStore.currentUser[key] || "")) {
+				updates[key] = profileForm.value[key]
+			}
+		})
+
+		if (Object.keys(updates).length === 0) {
+			toast.info("No changes to save")
+			return
+		}
+
+		await userStore.updateUserProfile(updates)
+
+		// Force refresh the profile data to ensure UI is updated
+		await userStore.loadUserProfile(true)
+		populateForm()
+
+		toast.success("Profile updated successfully")
+	} catch (error) {
+		console.error("Failed to update profile:", error)
+		toast.error("Failed to update profile: " + error.message)
+	} finally {
+		updating.value = false
+	}
 }
 
 const updatePreferences = async () => {
-    try {
-        await userStore.updateUserPreferences(preferencesForm.value)
-        
-        // Force refresh preferences to ensure UI is updated
-        await userStore.loadUserPreferences(true)
-        populateForm()
-        
-        toast.success('Preferences updated successfully')
-    } catch (error) {
-        console.error('Failed to update preferences:', error)
-        toast.error('Failed to update preferences: ' + error.message)
-    }
+	try {
+		await userStore.updateUserPreferences(preferencesForm.value)
+
+		// Force refresh preferences to ensure UI is updated
+		await userStore.loadUserPreferences(true)
+		populateForm()
+
+		toast.success("Preferences updated successfully")
+	} catch (error) {
+		console.error("Failed to update preferences:", error)
+		toast.error("Failed to update preferences: " + error.message)
+	}
 }
 
 const changePassword = async () => {
-    try {
-        changingPassword.value = true
-        
-        if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-            toast.error('New passwords do not match')
-            return
-        }
-        
-        if (passwordForm.value.newPassword.length < 6) {
-            toast.error('Password must be at least 6 characters long')
-            return
-        }
-        
-        await userStore.changePassword(
-            passwordForm.value.oldPassword,
-            passwordForm.value.newPassword
-        )
-        
-        // Reset form
-        passwordForm.value = {
-            oldPassword: '',
-            newPassword: '',
-            confirmPassword: ''
-        }
-        
-        toast.success('Password changed successfully')
-        
-    } catch (error) {
-        console.error('Failed to change password:', error)
-        toast.error('Failed to change password: ' + error.message)
-    } finally {
-        changingPassword.value = false
-    }
+	try {
+		changingPassword.value = true
+
+		if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+			toast.error("New passwords do not match")
+			return
+		}
+
+		if (passwordForm.value.newPassword.length < 6) {
+			toast.error("Password must be at least 6 characters long")
+			return
+		}
+
+		await userStore.changePassword(
+			passwordForm.value.oldPassword,
+			passwordForm.value.newPassword,
+		)
+
+		// Reset form
+		passwordForm.value = {
+			oldPassword: "",
+			newPassword: "",
+			confirmPassword: "",
+		}
+
+		toast.success("Password changed successfully")
+	} catch (error) {
+		console.error("Failed to change password:", error)
+		toast.error("Failed to change password: " + error.message)
+	} finally {
+		changingPassword.value = false
+	}
 }
 
 const handleImageUpload = async (event) => {
-    const file = event.target.files[0]
-    if (!file) return
-    
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file')
-        return
-    }
-    
-    if (file.size > 5 * 1024 * 1024) { // 5MB
-        toast.error('Image size must be less than 5MB')
-        return
-    }
-    
-    try {
-        await userStore.uploadUserImage(file)
-        
-        // Force refresh the profile data to show updated image
-        await userStore.loadUserProfile(true)
-        populateForm()
-        
-        toast.success('Profile image updated successfully')
-    } catch (error) {
-        console.error('Failed to upload image:', error)
-        toast.error('Failed to upload image: ' + error.message)
-    }
+	const file = event.target.files[0]
+	if (!file) return
+
+	// Validate file
+	if (!file.type.startsWith("image/")) {
+		toast.error("Please select an image file")
+		return
+	}
+
+	if (file.size > 5 * 1024 * 1024) {
+		// 5MB
+		toast.error("Image size must be less than 5MB")
+		return
+	}
+
+	try {
+		await userStore.uploadUserImage(file)
+
+		// Force refresh the profile data to show updated image
+		await userStore.loadUserProfile(true)
+		populateForm()
+
+		toast.success("Profile image updated successfully")
+	} catch (error) {
+		console.error("Failed to upload image:", error)
+		toast.error("Failed to upload image: " + error.message)
+	}
 }
 
 const formatDate = (dateString) => {
-    if (!dateString) return ''
-    return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    })
+	if (!dateString) return ""
+	return new Date(dateString).toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	})
 }
 
 // Watch for user data changes
 watch(() => userStore.currentUser, populateForm, { deep: true })
-watch(() => userStore.preferences, () => {
-    if (userStore.preferences) {
-        preferencesForm.value = { ...userStore.preferences }
-    }
-}, { deep: true })
+watch(
+	() => userStore.preferences,
+	() => {
+		if (userStore.preferences) {
+			preferencesForm.value = { ...userStore.preferences }
+		}
+	},
+	{ deep: true },
+)
 
 // Initialize
 onMounted(async () => {
-    await userStore.initialize()
-    populateForm()
+	await userStore.initialize()
+	populateForm()
 })
 
 // Advanced theme management

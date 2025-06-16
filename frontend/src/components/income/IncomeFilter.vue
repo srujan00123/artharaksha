@@ -34,12 +34,12 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">From Date</label>
-              <TextInput type="date" v-model="localFilters.dateFrom" @input="onFilterChangeWithCacheInvalidation"
+              <TextInput type="date" v-model="localFilters.dateFrom" @input="onFilterChange"
                 class="w-full" size="sm" />
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">To Date</label>
-              <TextInput type="date" v-model="localFilters.dateTo" @input="onFilterChangeWithCacheInvalidation" class="w-full"
+              <TextInput type="date" v-model="localFilters.dateTo" @input="onFilterChange" class="w-full"
                 size="sm" />
             </div>
           </div>
@@ -169,45 +169,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { SlidersHorizontal, DollarSign, Repeat, Calendar } from 'lucide-vue-next'
-import { Button, Card, TextInput, Badge } from 'frappe-ui'
-import { getClientTime, getClientDateString } from '../../utils/date'
-import type { IncomeFilters, IncomeType } from '../../types/income'
+import { Badge, Button, Card, TextInput } from "frappe-ui"
+import {
+	Calendar,
+	DollarSign,
+	Repeat,
+	SlidersHorizontal,
+} from "lucide-vue-next"
+import { computed, onMounted, ref, watch } from "vue"
+import type { IncomeFilters, IncomeType } from "../../types/income"
+import { getClientDateString, getClientTime } from "../../utils/date"
 
 // Quick date filter interface
 interface QuickDateFilter {
-  label: string
-  value: string
-  dateFrom: string
-  dateTo: string
+	label: string
+	value: string
+	dateFrom: string
+	dateTo: string
 }
 
 // Active filter interface
 interface ActiveFilter {
-  key: string
-  label: string
-  value: string
+	key: string
+	label: string
+	value: string
 }
 
 // Props
 interface Props {
-  filters: IncomeFilters
-  totalCount: number
-  filteredCount: number
-  incomeTypes: IncomeType[]
+	filters: IncomeFilters
+	totalCount: number
+	filteredCount: number
+	incomeTypes: IncomeType[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  totalCount: 0,
-  filteredCount: 0,
-  incomeTypes: () => []
+	totalCount: 0,
+	filteredCount: 0,
+	incomeTypes: () => [],
 })
 
 // Emits
 const emit = defineEmits<{
-  'update:filters': [filters: IncomeFilters],
-  'cache-invalidated': []
+	"update:filters": [filters: IncomeFilters]
 }>()
 
 // Local state
@@ -215,194 +219,245 @@ const showFilters = ref(false)
 
 // Local filters matching IncomeFilters interface
 const localFilters = ref<IncomeFilters>({
-  searchTerm: '',
-  dateFrom: '',
-  dateTo: '',
-  amountMin: '',
-  amountMax: '',
-  incomeType: '',
-  isRecurring: null,
-  sortBy: 'date',
-  sortOrder: 'desc',
-  period: ''
+	searchTerm: "",
+	dateFrom: "",
+	dateTo: "",
+	amountMin: "",
+	amountMax: "",
+	incomeType: "",
+	isRecurring: null,
+	sortBy: "date",
+	sortOrder: "desc",
+	period: "",
 })
 
 // Quick date filter options
 const quickDateFilters: QuickDateFilter[] = [
-  { label: 'Today', value: 'today', dateFrom: getClientDateString(), dateTo: getClientDateString() },
-  { label: 'This Week', value: 'this-week', dateFrom: getWeekStart(), dateTo: getClientDateString() },
-  { label: 'This Month', value: 'this-month', dateFrom: getMonthStart(), dateTo: getClientDateString() },
-  { label: 'Last Month', value: 'last-month', dateFrom: getLastMonthStart(), dateTo: getLastMonthEnd() },
-  { label: 'Last 3 Months', value: 'last-3-months', dateFrom: getThreeMonthsAgo(), dateTo: getClientDateString() },
-  { label: 'This Year', value: 'this-year', dateFrom: getYearStart(), dateTo: getClientDateString() }
+	{
+		label: "Today",
+		value: "today",
+		dateFrom: getClientDateString(),
+		dateTo: getClientDateString(),
+	},
+	{
+		label: "This Week",
+		value: "this-week",
+		dateFrom: getWeekStart(),
+		dateTo: getClientDateString(),
+	},
+	{
+		label: "This Month",
+		value: "this-month",
+		dateFrom: getMonthStart(),
+		dateTo: getClientDateString(),
+	},
+	{
+		label: "Last Month",
+		value: "last-month",
+		dateFrom: getLastMonthStart(),
+		dateTo: getLastMonthEnd(),
+	},
+	{
+		label: "Last 3 Months",
+		value: "last-3-months",
+		dateFrom: getThreeMonthsAgo(),
+		dateTo: getClientDateString(),
+	},
+	{
+		label: "This Year",
+		value: "this-year",
+		dateFrom: getYearStart(),
+		dateTo: getClientDateString(),
+	},
 ]
 
 // Track active period for quick filters
-const activePeriod = ref('')
+const activePeriod = ref("")
 
 // Computed properties
 const activeFilterCount = computed(() => {
-  let count = 0
-  if (localFilters.value.searchTerm) count++
-  if (localFilters.value.dateFrom || localFilters.value.dateTo) count++
-  if (localFilters.value.amountMin || localFilters.value.amountMax) count++
-  if (localFilters.value.incomeType) count++
-  if (localFilters.value.isRecurring !== null) count++
-  return count
+	let count = 0
+	if (localFilters.value.searchTerm) count++
+	if (localFilters.value.dateFrom || localFilters.value.dateTo) count++
+	if (localFilters.value.amountMin || localFilters.value.amountMax) count++
+	if (localFilters.value.incomeType) count++
+	if (localFilters.value.isRecurring !== null) count++
+	return count
 })
 
 const activeFilters = computed((): ActiveFilter[] => {
-  const filters: ActiveFilter[] = []
-  
-  if (localFilters.value.searchTerm) {
-    filters.push({ key: 'search', label: `Search: "${localFilters.value.searchTerm}"`, value: localFilters.value.searchTerm })
-  }
-  
-  if (localFilters.value.incomeType) {
-    filters.push({ key: 'type', label: `Type: ${localFilters.value.incomeType}`, value: localFilters.value.incomeType })
-  }
-  
-  if (localFilters.value.isRecurring !== null) {
-    const label = localFilters.value.isRecurring ? 'Recurring' : 'One-time'
-    filters.push({ key: 'frequency', label: `Frequency: ${label}`, value: label })
-  }
-  
-  if (localFilters.value.dateFrom || localFilters.value.dateTo) {
-    const dateLabel = formatDateRange()
-    filters.push({ key: 'date', label: `Date: ${dateLabel}`, value: dateLabel })
-  }
-  
-  if (localFilters.value.amountMin || localFilters.value.amountMax) {
-    const amountLabel = formatAmountRange()
-    filters.push({ key: 'amount', label: `Amount: ${amountLabel}`, value: amountLabel })
-  }
-  
-  return filters
+	const filters: ActiveFilter[] = []
+
+	if (localFilters.value.searchTerm) {
+		filters.push({
+			key: "search",
+			label: `Search: "${localFilters.value.searchTerm}"`,
+			value: localFilters.value.searchTerm,
+		})
+	}
+
+	if (localFilters.value.incomeType) {
+		filters.push({
+			key: "type",
+			label: `Type: ${localFilters.value.incomeType}`,
+			value: localFilters.value.incomeType,
+		})
+	}
+
+	if (localFilters.value.isRecurring !== null) {
+		const label = localFilters.value.isRecurring ? "Recurring" : "One-time"
+		filters.push({
+			key: "frequency",
+			label: `Frequency: ${label}`,
+			value: label,
+		})
+	}
+
+	if (localFilters.value.dateFrom || localFilters.value.dateTo) {
+		const dateLabel = formatDateRange()
+		filters.push({ key: "date", label: `Date: ${dateLabel}`, value: dateLabel })
+	}
+
+	if (localFilters.value.amountMin || localFilters.value.amountMax) {
+		const amountLabel = formatAmountRange()
+		filters.push({
+			key: "amount",
+			label: `Amount: ${amountLabel}`,
+			value: amountLabel,
+		})
+	}
+
+	return filters
 })
 
 // Helper functions for date calculations
 function getWeekStart(): string {
-  const now = getClientTime()
-  const startOfWeek = new Date(now)
-  startOfWeek.setDate(now.getDate() - now.getDay())
-  return startOfWeek.toISOString().split('T')[0]
+	const now = getClientTime()
+	const startOfWeek = new Date(now)
+	startOfWeek.setDate(now.getDate() - now.getDay())
+	return startOfWeek.toISOString().split("T")[0]
 }
 
 function getMonthStart(): string {
-  const now = getClientTime()
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), now.getMonth(), 1)
+		.toISOString()
+		.split("T")[0]
 }
 
 function getLastMonthStart(): string {
-  const now = getClientTime()
-  return new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), now.getMonth() - 1, 1)
+		.toISOString()
+		.split("T")[0]
 }
 
 function getLastMonthEnd(): string {
-  const now = getClientTime()
-  return new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), now.getMonth(), 0)
+		.toISOString()
+		.split("T")[0]
 }
 
 function getThreeMonthsAgo(): string {
-  const now = getClientTime()
-  return new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), now.getMonth() - 3, 1)
+		.toISOString()
+		.split("T")[0]
 }
 
 function getYearStart(): string {
-  const now = getClientTime()
-  return new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
+	const now = getClientTime()
+	return new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0]
 }
 
 function formatDateRange(): string {
-  const from = localFilters.value.dateFrom
-  const to = localFilters.value.dateTo
-  
-  if (from && to) {
-    return `${from} to ${to}`
-  } else if (from) {
-    return `From ${from}`
-  } else if (to) {
-    return `Until ${to}`
-  }
-  return ''
+	const from = localFilters.value.dateFrom
+	const to = localFilters.value.dateTo
+
+	if (from && to) {
+		return `${from} to ${to}`
+	} else if (from) {
+		return `From ${from}`
+	} else if (to) {
+		return `Until ${to}`
+	}
+	return ""
 }
 
 function formatAmountRange(): string {
-  const min = localFilters.value.amountMin
-  const max = localFilters.value.amountMax
-  
-  if (min && max) {
-    return `₹${min} - ₹${max}`
-  } else if (min) {
-    return `₹${min}+`
-  } else if (max) {
-    return `Up to ₹${max}`
-  }
-  return ''
+	const min = localFilters.value.amountMin
+	const max = localFilters.value.amountMax
+
+	if (min && max) {
+		return `₹${min} - ₹${max}`
+	} else if (min) {
+		return `₹${min}+`
+	} else if (max) {
+		return `Up to ₹${max}`
+	}
+	return ""
 }
 
 // Methods
 function onFilterChange() {
-    // Only emit filter update, no cache invalidation for client-side filtering
-    emit('update:filters', { ...localFilters.value })
-}
-
-function onFilterChangeWithCacheInvalidation() {
-    // Only clear cache when date filters change significantly (different months/periods)
-    // This is needed because date changes might affect server-side data
-    emit('cache-invalidated')
-    emit('update:filters', { ...localFilters.value })
+	// Backend handles all filtering - just emit the filter update
+	emit("update:filters", { ...localFilters.value })
 }
 
 function applyQuickDateFilter(period: string) {
-  const filter = quickDateFilters.find(f => f.value === period)
-  if (filter) {
-    localFilters.value.dateFrom = filter.dateFrom
-    localFilters.value.dateTo = filter.dateTo
-    localFilters.value.period = period
-    activePeriod.value = period
-    // Only invalidate cache for date changes, not for initial load
-    if (activePeriod.value !== '') {
-      onFilterChangeWithCacheInvalidation()
-    } else {
-      onFilterChange()
-    }
-  }
+	const filter = quickDateFilters.find((f) => f.value === period)
+	if (filter) {
+		localFilters.value.dateFrom = filter.dateFrom
+		localFilters.value.dateTo = filter.dateTo
+		localFilters.value.period = period
+		activePeriod.value = period
+		// Backend handles filtering - just emit the update
+		onFilterChange()
+	}
 }
 
 function isActiveDateFilter(period: string): boolean {
-  return activePeriod.value === period
+	return activePeriod.value === period
 }
 
 function clearAllFilters() {
-  localFilters.value = {
-    searchTerm: '',
-    dateFrom: '',
-    dateTo: '',
-    amountMin: '',
-    amountMax: '',
-    incomeType: '',
-    isRecurring: null,
-    sortBy: 'date',
-    sortOrder: 'desc',
-    period: ''
-  }
-  activePeriod.value = ''
-  // Clear filters should update without cache invalidation (client-side reset)
-  onFilterChange()
+	localFilters.value = {
+		searchTerm: "",
+		dateFrom: "",
+		dateTo: "",
+		amountMin: "",
+		amountMax: "",
+		incomeType: "",
+		isRecurring: null,
+		sortBy: "date",
+		sortOrder: "desc",
+		period: "",
+	}
+	activePeriod.value = ""
+	// Backend handles filtering - just emit the reset
+	onFilterChange()
 }
 
 // Watchers
-watch(() => props.filters, (newFilters) => {
-  localFilters.value = { ...newFilters }
-}, { immediate: true, deep: true })
+watch(
+	() => props.filters,
+	(newFilters) => {
+		localFilters.value = { ...newFilters }
+	},
+	{ immediate: true, deep: true },
+)
 
 // Initialize
 onMounted(() => {
-  // Set default period to this month if no filters are set (matching expense pattern)
-  if (!props.filters.period && !props.filters.dateFrom && !props.filters.dateTo) {
-    applyQuickDateFilter('this-month')
-  }
+	// Set default period to this month if no filters are set (matching expense pattern)
+	if (
+		!props.filters.period &&
+		!props.filters.dateFrom &&
+		!props.filters.dateTo
+	) {
+		applyQuickDateFilter("this-month")
+	}
 })
 </script>
 

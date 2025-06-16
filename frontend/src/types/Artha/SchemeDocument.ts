@@ -1,5 +1,4 @@
-
-export interface SchemeDocument{
+export interface SchemeDocument {
 	name: string
 	creation: string
 	modified: string

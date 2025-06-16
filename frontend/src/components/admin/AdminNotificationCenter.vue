@@ -221,189 +221,224 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { call } from 'frappe-ui'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { call } from "frappe-ui"
+import { onMounted, reactive, ref } from "vue"
 
 const loading = ref({
-  role: false,
-  room: false,
-  user: false
+	role: false,
+	room: false,
+	user: false,
 })
 
 const roleNotification = reactive({
-  title: '',
-  message: '',
-  roles: [],
-  type: 'info'
+	title: "",
+	message: "",
+	roles: [],
+	type: "info",
 })
 
 const roomNotification = reactive({
-  title: '',
-  message: '',
-  room: '',
-  type: 'info'
+	title: "",
+	message: "",
+	room: "",
+	type: "info",
 })
 
 const userNotification = reactive({
-  title: '',
-  message: '',
-  targetUser: '',
-  type: 'info'
+	title: "",
+	message: "",
+	targetUser: "",
+	type: "info",
 })
 
 const availableRoles = ref([
-  'Artha User',
-  'Insights User',
-  'System Manager',
-  'Administrator'
+	"Artha User",
+	"Insights User",
+	"System Manager",
+	"Administrator",
 ])
 
 const recentActions = ref([])
 
 // Send role-based notification
 const sendRoleNotification = async () => {
-  loading.value.role = true
-  try {
-    const result = await call('artha.api.notifications.send_role_based_notification', {
-      roles: roleNotification.roles,
-      title: roleNotification.title,
-      message: roleNotification.message,
-      notification_type: roleNotification.type
-    })
-    
-    addRecentAction('Role-based Notification', `Sent to ${roleNotification.roles.join(', ')}`, roleNotification.roles.join(', '), true)
-    
-    // Reset form
-    roleNotification.title = ''
-    roleNotification.message = ''
-    roleNotification.roles = []
-    roleNotification.type = 'info'
-    
-  } catch (error) {
-    console.error('Error sending role notification:', error)
-    addRecentAction('Role-based Notification', 'Failed to send', roleNotification.roles.join(', '), false)
-  } finally {
-    loading.value.role = false
-  }
+	loading.value.role = true
+	try {
+		const result = await call(
+			"artha.api.notifications.send_role_based_notification",
+			{
+				roles: roleNotification.roles,
+				title: roleNotification.title,
+				message: roleNotification.message,
+				notification_type: roleNotification.type,
+			},
+		)
+
+		addRecentAction(
+			"Role-based Notification",
+			`Sent to ${roleNotification.roles.join(", ")}`,
+			roleNotification.roles.join(", "),
+			true,
+		)
+
+		// Reset form
+		roleNotification.title = ""
+		roleNotification.message = ""
+		roleNotification.roles = []
+		roleNotification.type = "info"
+	} catch (error) {
+		console.error("Error sending role notification:", error)
+		addRecentAction(
+			"Role-based Notification",
+			"Failed to send",
+			roleNotification.roles.join(", "),
+			false,
+		)
+	} finally {
+		loading.value.role = false
+	}
 }
 
 // Send room notification
 const sendRoomNotification = async () => {
-  loading.value.room = true
-  try {
-    const result = await call('artha.api.notifications.send_room_notification', {
-      room: roomNotification.room,
-      title: roomNotification.title,
-      message: roomNotification.message,
-      notification_type: roomNotification.type
-    })
-    
-    addRecentAction('Room Notification', `Sent to room: ${roomNotification.room}`, roomNotification.room, true)
-    
-    // Reset form
-    roomNotification.title = ''
-    roomNotification.message = ''
-    roomNotification.room = ''
-    roomNotification.type = 'info'
-    
-  } catch (error) {
-    console.error('Error sending room notification:', error)
-    addRecentAction('Room Notification', 'Failed to send', roomNotification.room, false)
-  } finally {
-    loading.value.room = false
-  }
+	loading.value.room = true
+	try {
+		const result = await call(
+			"artha.api.notifications.send_room_notification",
+			{
+				room: roomNotification.room,
+				title: roomNotification.title,
+				message: roomNotification.message,
+				notification_type: roomNotification.type,
+			},
+		)
+
+		addRecentAction(
+			"Room Notification",
+			`Sent to room: ${roomNotification.room}`,
+			roomNotification.room,
+			true,
+		)
+
+		// Reset form
+		roomNotification.title = ""
+		roomNotification.message = ""
+		roomNotification.room = ""
+		roomNotification.type = "info"
+	} catch (error) {
+		console.error("Error sending room notification:", error)
+		addRecentAction(
+			"Room Notification",
+			"Failed to send",
+			roomNotification.room,
+			false,
+		)
+	} finally {
+		loading.value.room = false
+	}
 }
 
 // Send user notification
 const sendUserNotification = async () => {
-  loading.value.user = true
-  try {
-    const result = await call('artha.api.notifications.send_user_notification', {
-      target_user: userNotification.targetUser,
-      title: userNotification.title,
-      message: userNotification.message,
-      notification_type: userNotification.type
-    })
-    
-    addRecentAction('User Notification', `Sent to user: ${userNotification.targetUser}`, userNotification.targetUser, true)
-    
-    // Reset form
-    userNotification.title = ''
-    userNotification.message = ''
-    userNotification.targetUser = ''
-    userNotification.type = 'info'
-    
-  } catch (error) {
-    console.error('Error sending user notification:', error)
-    addRecentAction('User Notification', 'Failed to send', userNotification.targetUser, false)
-  } finally {
-    loading.value.user = false
-  }
+	loading.value.user = true
+	try {
+		const result = await call(
+			"artha.api.notifications.send_user_notification",
+			{
+				target_user: userNotification.targetUser,
+				title: userNotification.title,
+				message: userNotification.message,
+				notification_type: userNotification.type,
+			},
+		)
+
+		addRecentAction(
+			"User Notification",
+			`Sent to user: ${userNotification.targetUser}`,
+			userNotification.targetUser,
+			true,
+		)
+
+		// Reset form
+		userNotification.title = ""
+		userNotification.message = ""
+		userNotification.targetUser = ""
+		userNotification.type = "info"
+	} catch (error) {
+		console.error("Error sending user notification:", error)
+		addRecentAction(
+			"User Notification",
+			"Failed to send",
+			userNotification.targetUser,
+			false,
+		)
+	} finally {
+		loading.value.user = false
+	}
 }
 
 // Add recent action
 const addRecentAction = (type, message, target, success) => {
-  recentActions.value.unshift({
-    id: Date.now(),
-    type,
-    message,
-    target,
-    success,
-    timestamp: new Date()
-  })
-  
-  // Keep only last 20 actions
-  if (recentActions.value.length > 20) {
-    recentActions.value = recentActions.value.slice(0, 20)
-  }
+	recentActions.value.unshift({
+		id: Date.now(),
+		type,
+		message,
+		target,
+		success,
+		timestamp: new Date(),
+	})
+
+	// Keep only last 20 actions
+	if (recentActions.value.length > 20) {
+		recentActions.value = recentActions.value.slice(0, 20)
+	}
 }
 
 // Format time
 const formatTime = (timestamp) => {
-  return new Date(timestamp).toLocaleString()
+	return new Date(timestamp).toLocaleString()
 }
 
 onMounted(() => {
-  // Load any initial data if needed
+	// Load any initial data if needed
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>
 

@@ -1,181 +1,182 @@
 /* Base Theme Variables */
 :root {
-    /* Brand Colors */
-    --brand-primary: #0289F7;
-    --brand-secondary: #59BA8B;
-    --brand-accent: #E86C13;
+	/* Brand Colors */
+	--brand-primary: #0289f7;
+	--brand-secondary: #59ba8b;
+	--brand-accent: #e86c13;
 
-    /* Application Specific Colors */
-    --app-bg: #F8F8F8;
-    --app-surface: #FFFFFF;
-    --app-border: #EDEDED;
-    --app-text-primary: #171717;
-    --app-text-secondary: #525252;
-    --app-text-muted: #999999;
+	/* Application Specific Colors */
+	--app-bg: #f8f8f8;
+	--app-surface: #ffffff;
+	--app-border: #ededed;
+	--app-text-primary: #171717;
+	--app-text-secondary: #525252;
+	--app-text-muted: #999999;
 
-    /* Status Colors */
-    --status-success: var(--green-600);
-    --status-warning: var(--yellow-600);
-    --status-danger: var(--red-600);
-    --status-info: var(--blue-600);
+	/* Status Colors */
+	--status-success: var(--green-600);
+	--status-warning: var(--yellow-600);
+	--status-danger: var(--red-600);
+	--status-info: var(--blue-600);
 
-    /* Interactive States */
-    --interactive-hover: rgba(0, 0, 0, 0.05);
-    --interactive-active: rgba(0, 0, 0, 0.1);
-    --interactive-focus: #65B9FC;
+	/* Interactive States */
+	--interactive-hover: rgba(0, 0, 0, 0.05);
+	--interactive-active: rgba(0, 0, 0, 0.1);
+	--interactive-focus: #65b9fc;
 }
 
 /* Dark Theme Overrides */
 [data-theme="dark"] {
-    /* Application Specific Colors - Dark */
-    --app-bg: #0F0F0F;
-    --app-surface: #1C1C1C;
-    --app-border: #2B2B2B;
-    --app-text-primary: #F8F8F8;
-    --app-text-secondary: #D4D4D4;
-    --app-text-muted: #808080;
+	/* Application Specific Colors - Dark */
+	--app-bg: #0f0f0f;
+	--app-surface: #1c1c1c;
+	--app-border: #2b2b2b;
+	--app-text-primary: #f8f8f8;
+	--app-text-secondary: #d4d4d4;
+	--app-text-muted: #808080;
 
-    /* Interactive States - Dark */
-    --interactive-hover: rgba(255, 255, 255, 0.05);
-    --interactive-active: rgba(255, 255, 255, 0.1);
-    --interactive-focus: #3294E3;
+	/* Interactive States - Dark */
+	--interactive-hover: rgba(255, 255, 255, 0.05);
+	--interactive-active: rgba(255, 255, 255, 0.1);
+	--interactive-focus: #3294e3;
 }
 
 /* Theme Variants */
 [data-theme-variant="light-warm"] {
-    --brand-primary: #E86C13;
-    --app-bg: #FFF9F5;
-    --app-surface: #FFFFFF;
-    --app-border: #FCE6D5;
+	--brand-primary: #e86c13;
+	--app-bg: #fff9f5;
+	--app-surface: #ffffff;
+	--app-border: #fce6d5;
 }
 
 [data-theme-variant="light-cool"] {
-    --brand-primary: #34BAE3;
-    --app-bg: #F5FBFC;
-    --app-surface: #FFFFFF;
-    --app-border: #BAE8E1;
+	--brand-primary: #34bae3;
+	--app-bg: #f5fbfc;
+	--app-surface: #ffffff;
+	--app-border: #bae8e1;
 }
 
 [data-theme-variant="dark-purple"] {
-    --brand-primary: #9C45E3;
-    --app-bg: #0A0514;
-    --app-surface: #1A0F2E;
-    --app-border: #2D1B3D;
+	--brand-primary: #9c45e3;
+	--app-bg: #0a0514;
+	--app-surface: #1a0f2e;
+	--app-border: #2d1b3d;
 }
 
 [data-theme-variant="dark-green"] {
-    --brand-primary: #36BAAD;
-    --app-bg: #0B1A18;
-    --app-surface: #0F2925;
-    --app-border: #1B3B35;
+	--brand-primary: #36baad;
+	--app-bg: #0b1a18;
+	--app-surface: #0f2925;
+	--app-border: #1b3b35;
 }
 
 /* Utility Classes */
 .theme-bg {
-    background-color: var(--app-bg);
+	background-color: var(--app-bg);
 }
 
 .theme-surface {
-    background-color: var(--app-surface);
+	background-color: var(--app-surface);
 }
 
 .theme-border {
-    border-color: var(--app-border);
+	border-color: var(--app-border);
 }
 
 .theme-text-primary {
-    color: var(--app-text-primary);
+	color: var(--app-text-primary);
 }
 
 .theme-text-secondary {
-    color: var(--app-text-secondary);
+	color: var(--app-text-secondary);
 }
 
 .theme-text-muted {
-    color: var(--app-text-muted);
+	color: var(--app-text-muted);
 }
 
 .theme-primary {
-    color: var(--brand-primary);
+	color: var(--brand-primary);
 }
 
 .theme-bg-primary {
-    background-color: var(--brand-primary);
+	background-color: var(--brand-primary);
 }
 
 .theme-border-primary {
-    border-color: var(--brand-primary);
+	border-color: var(--brand-primary);
 }
 
 /* Interactive States */
 .theme-hover {
-    background-color: var(--interactive-hover);
+	background-color: var(--interactive-hover);
 }
 
 .theme-active {
-    background-color: var(--interactive-active);
+	background-color: var(--interactive-active);
 }
 
 .theme-focus {
-    box-shadow: 0 0 0 2px var(--interactive-focus);
+	box-shadow: 0 0 0 2px var(--interactive-focus);
 }
 
 /* Smooth transitions for theme changes */
 * {
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+	transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s
+		ease;
 }
 
 /* Financial App Specific Theme Colors */
 :root {
-    /* Income/Profit Colors */
-    --finance-income: var(--green-600);
-    --finance-income-bg: var(--green-50);
-    --finance-income-border: var(--green-200);
+	/* Income/Profit Colors */
+	--finance-income: var(--green-600);
+	--finance-income-bg: var(--green-50);
+	--finance-income-border: var(--green-200);
 
-    /* Expense/Loss Colors */
-    --finance-expense: var(--red-600);
-    --finance-expense-bg: var(--red-50);
-    --finance-expense-border: var(--red-200);
+	/* Expense/Loss Colors */
+	--finance-expense: var(--red-600);
+	--finance-expense-bg: var(--red-50);
+	--finance-expense-border: var(--red-200);
 
-    /* Neutral/Balance Colors */
-    --finance-neutral: var(--gray-600);
-    --finance-neutral-bg: var(--gray-50);
-    --finance-neutral-border: var(--gray-200);
+	/* Neutral/Balance Colors */
+	--finance-neutral: var(--gray-600);
+	--finance-neutral-bg: var(--gray-50);
+	--finance-neutral-border: var(--gray-200);
 
-    /* Medical/Health Colors */
-    --health-primary: var(--blue-600);
-    --health-bg: var(--blue-50);
-    --health-border: var(--blue-200);
+	/* Medical/Health Colors */
+	--health-primary: var(--blue-600);
+	--health-bg: var(--blue-50);
+	--health-border: var(--blue-200);
 
-    /* Warning/Alert Colors for Financial Alerts */
-    --finance-alert: var(--amber-600);
-    --finance-alert-bg: var(--amber-50);
-    --finance-alert-border: var(--amber-200);
+	/* Warning/Alert Colors for Financial Alerts */
+	--finance-alert: var(--amber-600);
+	--finance-alert-bg: var(--amber-50);
+	--finance-alert-border: var(--amber-200);
 }
 
 [data-theme="dark"] {
-    /* Income/Profit Colors - Dark */
-    --finance-income: var(--green-400);
-    --finance-income-bg: rgba(52, 186, 173, 0.1);
-    --finance-income-border: var(--green-800);
+	/* Income/Profit Colors - Dark */
+	--finance-income: var(--green-400);
+	--finance-income-bg: rgba(52, 186, 173, 0.1);
+	--finance-income-border: var(--green-800);
 
-    /* Expense/Loss Colors - Dark */
-    --finance-expense: var(--red-400);
-    --finance-expense-bg: rgba(224, 54, 54, 0.1);
-    --finance-expense-border: var(--red-800);
+	/* Expense/Loss Colors - Dark */
+	--finance-expense: var(--red-400);
+	--finance-expense-bg: rgba(224, 54, 54, 0.1);
+	--finance-expense-border: var(--red-800);
 
-    /* Neutral/Balance Colors - Dark */
-    --finance-neutral: var(--gray-400);
-    --finance-neutral-bg: rgba(153, 153, 153, 0.1);
-    --finance-neutral-border: var(--gray-700);
+	/* Neutral/Balance Colors - Dark */
+	--finance-neutral: var(--gray-400);
+	--finance-neutral-bg: rgba(153, 153, 153, 0.1);
+	--finance-neutral-border: var(--gray-700);
 
-    /* Medical/Health Colors - Dark */
-    --health-primary: var(--blue-400);
-    --health-bg: rgba(50, 164, 199, 0.1);
-    --health-border: var(--blue-800);
+	/* Medical/Health Colors - Dark */
+	--health-primary: var(--blue-400);
+	--health-bg: rgba(50, 164, 199, 0.1);
+	--health-border: var(--blue-800);
 
-    /* Warning/Alert Colors - Dark */
-    --finance-alert: var(--amber-400);
-    --finance-alert-bg: rgba(231, 153, 19, 0.1);
-    --finance-alert-border: var(--amber-800);
+	/* Warning/Alert Colors - Dark */
+	--finance-alert: var(--amber-400);
+	--finance-alert-bg: rgba(231, 153, 19, 0.1);
+	--finance-alert-border: var(--amber-800);
 }

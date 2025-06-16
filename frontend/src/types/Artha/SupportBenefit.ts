@@ -1,5 +1,4 @@
-
-export interface SupportBenefit{
+export interface SupportBenefit {
 	name: string
 	creation: string
 	modified: string

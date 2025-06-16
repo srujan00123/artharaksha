@@ -1,8 +1,8 @@
-import frappeUIPreset from 'frappe-ui/src/tailwind/preset'
+import frappeUIPreset from "frappe-ui/src/tailwind/preset"
 
 export default {
 	presets: [frappeUIPreset],
-	darkMode: 'class',
+	darkMode: "class",
 	content: [
 		"./index.html",
 		"./src/**/*.{vue,js,ts,jsx,tsx}",

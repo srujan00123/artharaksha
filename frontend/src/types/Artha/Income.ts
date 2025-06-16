@@ -1,6 +1,6 @@
-import { IncomeSourceType } from './IncomeSourceType'
+import type { IncomeSourceType } from "./IncomeSourceType"
 
-export interface Income{
+export interface Income {
 	name: string
 	creation: string
 	modified: string

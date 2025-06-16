@@ -272,130 +272,133 @@
 </template>
 
 <script setup>
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { Button } from "frappe-ui"
 import {
-  X,
-  Building,
-  Shield,
-  DollarSign,
-  CheckCircle,
-  Info,
-  FileText,
-  ExternalLink,
-  Phone,
-  Mail
-} from 'lucide-vue-next'
-import { Button } from 'frappe-ui'
-import { formatCurrency } from '../../utils'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+	Building,
+	CheckCircle,
+	DollarSign,
+	ExternalLink,
+	FileText,
+	Info,
+	Mail,
+	Phone,
+	Shield,
+	X,
+} from "lucide-vue-next"
+import { formatCurrency } from "../../utils"
 
 // Props
 const props = defineProps({
-  scheme: {
-    type: Object,
-    required: true
-  }
+	scheme: {
+		type: Object,
+		required: true,
+	},
 })
 
 // Emits
-const emit = defineEmits(['close'])
+const emit = defineEmits(["close"])
 
 // Methods
 function getSchemeTypeBadgeClass(type) {
-  return type === 'Government' 
-    ? 'bg-blue-100 text-blue-800' 
-    : 'bg-purple-100 text-purple-800'
+	return type === "Government"
+		? "bg-blue-100 text-blue-800"
+		: "bg-purple-100 text-purple-800"
 }
 
 function getSchemeSourceBadgeClass(source) {
-  return source === 'welfare' 
-    ? 'bg-green-100 text-green-800' 
-    : 'bg-orange-100 text-orange-800'
+	return source === "welfare"
+		? "bg-green-100 text-green-800"
+		: "bg-orange-100 text-orange-800"
 }
 
 function getEligibilityBadgeClass(scheme) {
-  if (scheme.is_eligible) {
-    return 'bg-green-100 text-green-800'
-  } else if (scheme.eligibility_score > 0) {
-    return 'bg-yellow-100 text-yellow-800'
-  } else {
-    return 'bg-red-100 text-red-800'
-  }
+	if (scheme.is_eligible) {
+		return "bg-green-100 text-green-800"
+	} else if (scheme.eligibility_score > 0) {
+		return "bg-yellow-100 text-yellow-800"
+	} else {
+		return "bg-red-100 text-red-800"
+	}
 }
 
 function getEligibilityLabel(scheme) {
-  if (scheme.is_eligible) {
-    return 'Eligible'
-  } else if (scheme.eligibility_score > 0) {
-    return 'Partially Eligible'
-  } else {
-    return 'Not Eligible'
-  }
+	if (scheme.is_eligible) {
+		return "Eligible"
+	} else if (scheme.eligibility_score > 0) {
+		return "Partially Eligible"
+	} else {
+		return "Not Eligible"
+	}
 }
 
 function formatDate(dateString) {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+	if (!dateString) return "N/A"
+	return new Date(dateString).toLocaleDateString("en-IN", {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	})
 }
 
 function applyToScheme() {
-  const url = props.scheme.apply_url || props.scheme.apply_link
-  if (url) {
-    window.open(url, '_blank')
-  }
+	const url = props.scheme.apply_url || props.scheme.apply_link
+	if (url) {
+		window.open(url, "_blank")
+	}
 }
 
 // Helper methods to handle different field names between welfare and insurance schemes
 function getBenefits(scheme) {
-  return scheme.scheme_benefits || scheme.scheme_benefit || scheme.benefits || []
+	return (
+		scheme.scheme_benefits || scheme.scheme_benefit || scheme.benefits || []
+	)
 }
 
 function getEligibility(scheme) {
-  return scheme.scheme_eligibility || scheme.eligibility || []
+	return scheme.scheme_eligibility || scheme.eligibility || []
 }
 
 function getDocuments(scheme) {
-  return scheme.scheme_documents || scheme.scheme_document || scheme.documents || []
+	return (
+		scheme.scheme_documents || scheme.scheme_document || scheme.documents || []
+	)
 }
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script> 

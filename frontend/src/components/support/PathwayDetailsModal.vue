@@ -136,118 +136,127 @@
 
 <script>
 export default {
-  name: 'PathwayDetailsModal',
-  props: {
-    isOpen: {
-      type: Boolean,
-      default: false
-    },
-    pathway: {
-      type: Object,
-      default: null
-    }
-  },
-  emits: ['close'],
-  data() {
-    return {
-      isBookmarked: false
-    }
-  },
-  watch: {
-    pathway: {
-      handler(newPathway) {
-        if (newPathway) {
-          this.checkBookmarkStatus()
-        }
-      },
-      immediate: true
-    }
-  },
-  methods: {
-    getSupportTypeClass(type) {
-      const typeClasses = {
-        'Healthcare': 'bg-red-100 text-red-800',
-        'Financial': 'bg-green-100 text-green-800',
-        'Social': 'bg-blue-100 text-blue-800',
-        'Educational': 'bg-purple-100 text-purple-800',
-        'Legal': 'bg-yellow-100 text-yellow-800',
-        'Emergency': 'bg-red-100 text-red-800',
-        'Counseling': 'bg-indigo-100 text-indigo-800'
-      }
-      return typeClasses[type] || 'bg-gray-100 text-gray-800'
-    },
-    
-    formatBenefits(benefits) {
-      if (typeof benefits === 'string') {
-        return benefits.replace(/\n/g, '<br>')
-      }
-      if (Array.isArray(benefits)) {
-        return benefits.map(benefit => `• ${benefit}`).join('<br>')
-      }
-      return benefits
-    },
-    
-    formatCriteria(criteria) {
-      if (typeof criteria === 'string') {
-        return criteria.replace(/\n/g, '<br>')
-      }
-      if (Array.isArray(criteria)) {
-        return criteria.map(criterion => `• ${criterion}`).join('<br>')
-      }
-      return criteria
-    },
-    
-    callSupport() {
-      if (this.pathway?.contact_info?.phone) {
-        window.location.href = `tel:${this.pathway.contact_info.phone}`
-      }
-    },
-    
-    sharePathway() {
-      if (navigator.share) {
-        navigator.share({
-          title: this.pathway?.name,
-          text: `Check out this support pathway: ${this.pathway?.name}`,
-          url: window.location.href
-        }).catch(console.error)
-      } else {
-        // Fallback: copy to clipboard
-        const text = `${this.pathway?.name}\n${this.pathway?.description}\n\nContact: ${this.pathway?.contact_info?.phone || this.pathway?.contact_info?.email || 'N/A'}`
-        navigator.clipboard.writeText(text).then(() => {
-          alert('Pathway details copied to clipboard!')
-        }).catch(() => {
-          alert('Unable to share. Please copy the details manually.')
-        })
-      }
-    },
-    
-    bookmarkPathway() {
-      this.isBookmarked = !this.isBookmarked
-      
-      // Store bookmark in localStorage
-      const bookmarks = JSON.parse(localStorage.getItem('pathwayBookmarks') || '[]')
-      
-      if (this.isBookmarked) {
-        if (!bookmarks.includes(this.pathway?.name)) {
-          bookmarks.push(this.pathway?.name)
-        }
-      } else {
-        const index = bookmarks.indexOf(this.pathway?.name)
-        if (index > -1) {
-          bookmarks.splice(index, 1)
-        }
-      }
-      
-      localStorage.setItem('pathwayBookmarks', JSON.stringify(bookmarks))
-    },
-    
-    checkBookmarkStatus() {
-      if (this.pathway?.name) {
-        const bookmarks = JSON.parse(localStorage.getItem('pathwayBookmarks') || '[]')
-        this.isBookmarked = bookmarks.includes(this.pathway.name)
-      }
-    }
-  }
+	name: "PathwayDetailsModal",
+	props: {
+		isOpen: {
+			type: Boolean,
+			default: false,
+		},
+		pathway: {
+			type: Object,
+			default: null,
+		},
+	},
+	emits: ["close"],
+	data() {
+		return {
+			isBookmarked: false,
+		}
+	},
+	watch: {
+		pathway: {
+			handler(newPathway) {
+				if (newPathway) {
+					this.checkBookmarkStatus()
+				}
+			},
+			immediate: true,
+		},
+	},
+	methods: {
+		getSupportTypeClass(type) {
+			const typeClasses = {
+				Healthcare: "bg-red-100 text-red-800",
+				Financial: "bg-green-100 text-green-800",
+				Social: "bg-blue-100 text-blue-800",
+				Educational: "bg-purple-100 text-purple-800",
+				Legal: "bg-yellow-100 text-yellow-800",
+				Emergency: "bg-red-100 text-red-800",
+				Counseling: "bg-indigo-100 text-indigo-800",
+			}
+			return typeClasses[type] || "bg-gray-100 text-gray-800"
+		},
+
+		formatBenefits(benefits) {
+			if (typeof benefits === "string") {
+				return benefits.replace(/\n/g, "<br>")
+			}
+			if (Array.isArray(benefits)) {
+				return benefits.map((benefit) => `• ${benefit}`).join("<br>")
+			}
+			return benefits
+		},
+
+		formatCriteria(criteria) {
+			if (typeof criteria === "string") {
+				return criteria.replace(/\n/g, "<br>")
+			}
+			if (Array.isArray(criteria)) {
+				return criteria.map((criterion) => `• ${criterion}`).join("<br>")
+			}
+			return criteria
+		},
+
+		callSupport() {
+			if (this.pathway?.contact_info?.phone) {
+				window.location.href = `tel:${this.pathway.contact_info.phone}`
+			}
+		},
+
+		sharePathway() {
+			if (navigator.share) {
+				navigator
+					.share({
+						title: this.pathway?.name,
+						text: `Check out this support pathway: ${this.pathway?.name}`,
+						url: window.location.href,
+					})
+					.catch(console.error)
+			} else {
+				// Fallback: copy to clipboard
+				const text = `${this.pathway?.name}\n${this.pathway?.description}\n\nContact: ${this.pathway?.contact_info?.phone || this.pathway?.contact_info?.email || "N/A"}`
+				navigator.clipboard
+					.writeText(text)
+					.then(() => {
+						alert("Pathway details copied to clipboard!")
+					})
+					.catch(() => {
+						alert("Unable to share. Please copy the details manually.")
+					})
+			}
+		},
+
+		bookmarkPathway() {
+			this.isBookmarked = !this.isBookmarked
+
+			// Store bookmark in localStorage
+			const bookmarks = JSON.parse(
+				localStorage.getItem("pathwayBookmarks") || "[]",
+			)
+
+			if (this.isBookmarked) {
+				if (!bookmarks.includes(this.pathway?.name)) {
+					bookmarks.push(this.pathway?.name)
+				}
+			} else {
+				const index = bookmarks.indexOf(this.pathway?.name)
+				if (index > -1) {
+					bookmarks.splice(index, 1)
+				}
+			}
+
+			localStorage.setItem("pathwayBookmarks", JSON.stringify(bookmarks))
+		},
+
+		checkBookmarkStatus() {
+			if (this.pathway?.name) {
+				const bookmarks = JSON.parse(
+					localStorage.getItem("pathwayBookmarks") || "[]",
+				)
+				this.isBookmarked = bookmarks.includes(this.pathway.name)
+			}
+		},
+	},
 }
 </script>
 

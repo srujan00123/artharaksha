@@ -115,102 +115,107 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-import { ChevronDown, Check } from 'lucide-vue-next'
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { Check, ChevronDown } from "lucide-vue-next"
+import { computed, ref } from "vue"
 
 const { currentTheme, themes, themesByCategory, setTheme } = useAdvancedTheme()
 const isOpen = ref(false)
 const followSystem = ref(false)
 
 const getCurrentThemeLabel = () => {
-  return themes[currentTheme.value]?.label || 'Light'
+	return themes[currentTheme.value]?.label || "Light"
 }
 
 const getThemePreviewClass = () => {
-  const theme = themes[currentTheme.value]
-  if (!theme) return 'bg-blue-500'
-  
-  const colorMap = {
-    blue: 'bg-blue-500',
-    orange: 'bg-orange-500',
-    cyan: 'bg-cyan-500',
-    purple: 'bg-purple-500',
-    green: 'bg-green-500'
-  }
-  
-  return colorMap[theme.colors.primary] || 'bg-blue-500'
+	const theme = themes[currentTheme.value]
+	if (!theme) return "bg-blue-500"
+
+	const colorMap = {
+		blue: "bg-blue-500",
+		orange: "bg-orange-500",
+		cyan: "bg-cyan-500",
+		purple: "bg-purple-500",
+		green: "bg-green-500",
+	}
+
+	return colorMap[theme.colors.primary] || "bg-blue-500"
 }
 
 const getThemeBackgroundClass = (theme) => {
-  if (theme.category === 'dark') {
-    const bgMap = {
-      'dark': 'bg-gray-900',
-      'dark-purple': 'bg-purple-950',
-      'dark-green': 'bg-green-950'
-    }
-    return bgMap[theme.name] || 'bg-gray-900'
-  } else {
-    const bgMap = {
-      'light': 'bg-gray-50',
-      'light-warm': 'bg-orange-50',
-      'light-cool': 'bg-cyan-50'
-    }
-    return bgMap[theme.name] || 'bg-gray-50'
-  }
+	if (theme.category === "dark") {
+		const bgMap = {
+			dark: "bg-gray-900",
+			"dark-purple": "bg-purple-950",
+			"dark-green": "bg-green-950",
+		}
+		return bgMap[theme.name] || "bg-gray-900"
+	} else {
+		const bgMap = {
+			light: "bg-gray-50",
+			"light-warm": "bg-orange-50",
+			"light-cool": "bg-cyan-50",
+		}
+		return bgMap[theme.name] || "bg-gray-50"
+	}
 }
 
 const getThemeSurfaceClass = (theme) => {
-  if (theme.category === 'dark') {
-    const surfaceMap = {
-      'dark': 'bg-gray-800',
-      'dark-purple': 'bg-purple-900',
-      'dark-green': 'bg-green-900'
-    }
-    return surfaceMap[theme.name] || 'bg-gray-800'
-  } else {
-    return 'bg-white'
-  }
+	if (theme.category === "dark") {
+		const surfaceMap = {
+			dark: "bg-gray-800",
+			"dark-purple": "bg-purple-900",
+			"dark-green": "bg-green-900",
+		}
+		return surfaceMap[theme.name] || "bg-gray-800"
+	} else {
+		return "bg-white"
+	}
 }
 
 const getThemePrimaryClass = (theme) => {
-  const colorMap = {
-    blue: theme.category === 'dark' ? 'bg-blue-400' : 'bg-blue-500',
-    orange: theme.category === 'dark' ? 'bg-orange-400' : 'bg-orange-500',
-    cyan: theme.category === 'dark' ? 'bg-cyan-400' : 'bg-cyan-500',
-    purple: theme.category === 'dark' ? 'bg-purple-400' : 'bg-purple-500',
-    green: theme.category === 'dark' ? 'bg-green-400' : 'bg-green-500'
-  }
-  
-  return colorMap[theme.colors.primary] || (theme.category === 'dark' ? 'bg-blue-400' : 'bg-blue-500')
+	const colorMap = {
+		blue: theme.category === "dark" ? "bg-blue-400" : "bg-blue-500",
+		orange: theme.category === "dark" ? "bg-orange-400" : "bg-orange-500",
+		cyan: theme.category === "dark" ? "bg-cyan-400" : "bg-cyan-500",
+		purple: theme.category === "dark" ? "bg-purple-400" : "bg-purple-500",
+		green: theme.category === "dark" ? "bg-green-400" : "bg-green-500",
+	}
+
+	return (
+		colorMap[theme.colors.primary] ||
+		(theme.category === "dark" ? "bg-blue-400" : "bg-blue-500")
+	)
 }
 
 const selectTheme = (themeName) => {
-  setTheme(themeName)
-  followSystem.value = false
-  localStorage.removeItem('follow-system-theme')
-  isOpen.value = false
+	setTheme(themeName)
+	followSystem.value = false
+	localStorage.removeItem("follow-system-theme")
+	isOpen.value = false
 }
 
 const handleSystemToggle = () => {
-  if (followSystem.value) {
-    localStorage.setItem('follow-system-theme', 'true')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    setTheme(prefersDark ? 'dark' : 'light')
-  } else {
-    localStorage.removeItem('follow-system-theme')
-  }
+	if (followSystem.value) {
+		localStorage.setItem("follow-system-theme", "true")
+		const prefersDark = window.matchMedia(
+			"(prefers-color-scheme: dark)",
+		).matches
+		setTheme(prefersDark ? "dark" : "light")
+	} else {
+		localStorage.removeItem("follow-system-theme")
+	}
 }
 
 // Close dropdown when clicking outside
 const handleClickOutside = (event) => {
-  if (!event.target.closest('.theme-selector')) {
-    isOpen.value = false
-  }
+	if (!event.target.closest(".theme-selector")) {
+		isOpen.value = false
+	}
 }
 
-if (typeof window !== 'undefined') {
-  document.addEventListener('click', handleClickOutside)
+if (typeof window !== "undefined") {
+	document.addEventListener("click", handleClickOutside)
 }
 </script>
 

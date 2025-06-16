@@ -5,18 +5,14 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Income Reports</h1>
-          <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">Comprehensive income reports and analysis
-          </p>
+          <p class="text-gray-600 dark:text-gray-400 mt-1">Comprehensive analysis of your income patterns and trends</p>
         </div>
         <div class="flex items-center space-x-3">
-          <select v-model="selectedReport" @change="loadReportData"
-            class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
-            <option value="summary">Income Summary</option>
-            <option value="detailed">Detailed Analysis</option>
-            <option value="trends">Trend Analysis</option>
-          </select>
-          <select v-model="selectedPeriod" @change="updatePeriodFilter"
-            class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
+          <select
+            v-model="selectedPeriod"
+            @change="updatePeriodFilter"
+            class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          >
             <option value="this_month">This Month</option>
             <option value="last_month">Last Month</option>
             <option value="last_3_months">Last 3 Months</option>
@@ -24,15 +20,21 @@
             <option value="this_year">This Year</option>
             <option value="all_time">All Time</option>
           </select>
-          <button @click="exportReport" :disabled="loading"
-            class="inline-flex items-center px-4 py-2 bg-green-600 text-white dark:text-black rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors">
-            <Download class="w-4 h-4 mr-2" />
-            Export
-          </button>
-          <button @click="refreshReports" :disabled="loading"
-            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors">
+          <button 
+            @click="refreshReports"
+            :disabled="loading"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
+          >
             <RefreshCw class="w-4 h-4 mr-2" />
             Refresh
+          </button>
+          <button 
+            @click="exportReport"
+            :disabled="loading"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            <Download class="w-4 h-4 mr-2" />
+            Export
           </button>
         </div>
       </div>
@@ -42,245 +44,223 @@
     <div v-if="loading" class="loading-state">
       <div class="flex items-center justify-center py-12">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 ml-3">Loading reports...</p>
+        <p class="text-gray-600 dark:text-gray-400 ml-3">Loading reports...</p>
       </div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="error-state mb-6">
+    <div v-else-if="error" class="error-state">
       <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <AlertCircle class="h-5 w-5 text-red-400" />
-          </div>
+          <AlertCircle class="h-5 w-5 text-red-400" />
           <div class="ml-3">
             <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Reports</h3>
             <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ error }}</p>
           </div>
         </div>
+        <div class="mt-4">
+          <button 
+            @click="refreshReports"
+            class="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 text-red-800 dark:text-red-200 px-3 py-1 rounded text-sm transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div v-else class="space-y-6">
-      <!-- Income Summary Report -->
-      <div v-if="selectedReport === 'summary'" class="space-y-6">
-        <!-- Summary Cards -->
+    <!-- Reports Content -->
+    <div v-else class="reports-content space-y-6">
+      <!-- Income Summary Section -->
+      <div class="income-summary">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Income Summary</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div
-            class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-6">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
             <div class="flex items-center">
               <div class="flex-shrink-0">
-                <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                  <DollarSign class="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
                 </div>
               </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Income</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{{
-                  reportData.total_income.toLocaleString('en-IN') }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">{{
-                  formatPeriod(selectedPeriod) }}</p>
+              <div class="ml-3">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Income</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(analytics?.total_income || 0) }}</p>
               </div>
             </div>
           </div>
 
-          <div
-            class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-6">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
             <div class="flex items-center">
               <div class="flex-shrink-0">
-                <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                  <Repeat class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                  <Repeat class="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Recurring Income</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{{
-                  reportData.recurring_income.toLocaleString('en-IN') }}</p>
-                <p class="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                  {{ ((reportData.recurring_income / reportData.total_income) * 100).toFixed(1) }}% of total
-                </p>
+              <div class="ml-3">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Recurring Income</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(analytics?.recurring_income || 0) }}</p>
               </div>
             </div>
           </div>
 
-          <div
-            class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-6">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
             <div class="flex items-center">
               <div class="flex-shrink-0">
-                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Calendar class="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                  <Calendar class="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">One-time Income</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{{
-                  reportData.one_time_income.toLocaleString('en-IN') }}</p>
-                <p class="text-sm text-purple-600 dark:text-purple-400 mt-1">
-                  {{ ((reportData.one_time_income / reportData.total_income) * 100).toFixed(1) }}% of total
-                </p>
+              <div class="ml-3">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">One-time Income</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(analytics?.one_time_income || 0) }}</p>
               </div>
             </div>
           </div>
 
-          <div
-            class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-6">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
             <div class="flex items-center">
               <div class="flex-shrink-0">
-                <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <BarChart3 class="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                  <Hash class="w-4 h-4 text-orange-600 dark:text-orange-400" />
                 </div>
               </div>
-              <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Income Sources</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{
-                  Object.keys(reportData.income_by_type).length }}</p>
-                <p class="text-sm text-orange-600 dark:text-orange-400 mt-1">Active streams</p>
+              <div class="ml-3">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Income Sources</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ analytics?.summary?.total_sources || 0 }}</p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Income Breakdown Table -->
-        <div
-          class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
-          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Income Breakdown by Type</h3>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead class="bg-gray-50 dark:bg-gray-900 dark:bg-gray-100">
-                <tr>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Income Type
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Percentage
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Monthly Equivalent
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="bg-white dark:bg-gray-800 dark:bg-gray-200 divide-y divide-gray-200 dark:divide-gray-700">
-                <tr v-for="(amount, type) in reportData.income_by_type" :key="type"
-                  class="hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="w-3 h-3 rounded-full mr-3" :style="{ backgroundColor: getTypeColor(type) }"></div>
-                      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ type }}</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    ₹{{ amount.toLocaleString('en-IN') }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    {{ ((amount / reportData.total_income) * 100).toFixed(1) }}%
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                    ₹{{ amount.toLocaleString('en-IN') }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </div>
 
-      <!-- Detailed Analysis Report -->
-      <div v-if="selectedReport === 'detailed'" class="space-y-6">
-        <!-- Filter Controls -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Analysis Filters</h3>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Income Type</label>
-              <select v-model="analysisFilters.incomeType" @change="updateAnalysisFilters"
-                class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400">
-                <option value="">All Types</option>
-                <option v-for="type in availableIncomeTypes" :key="type" :value="type">{{ type }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Recurring</label>
-              <select v-model="analysisFilters.isRecurring" @change="updateAnalysisFilters"
-                class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400">
-                <option :value="null">All Income</option>
-                <option :value="true">Recurring Only</option>
-                <option :value="false">One-time Only</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Min Amount</label>
-              <input v-model="analysisFilters.amountMin" @input="updateAnalysisFilters" type="number" placeholder="0"
-                class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Max Amount</label>
-              <input v-model="analysisFilters.amountMax" @input="updateAnalysisFilters" type="number" placeholder="∞"
-                class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400">
-            </div>
-          </div>
-          <div class="mt-3 flex items-center justify-between">
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              Showing {{ incomes.length }} income sources • Total: ₹{{ totalMonthlyIncome.toLocaleString('en-IN') }}
-            </div>
-            <button @click="resetAnalysisFilters"
-              class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200">
-              Reset Filters
-            </button>
-          </div>
-        </div>
-
-        <!-- Insights Section -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Income Insights</h3>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              Based on {{ incomes.length }} income sources ({{ formatPeriod(selectedPeriod) }})
-            </div>
-          </div>
-
-          <div v-if="insights.length === 0" class="text-center py-8">
-            <Target class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No insights available</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Add more income data to generate
-              insights</p>
-          </div>
-
-          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div v-for="insight in insights" :key="insight.title" class="p-4 rounded-lg border" :class="{
-              'bg-green-50 border-green-200': insight.type === 'positive',
-              'bg-yellow-50 border-yellow-200': insight.type === 'neutral',
-              'bg-red-50 border-red-200': insight.type === 'warning'
-            }">
-              <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" :class="{
-                  'bg-green-100 text-green-600': insight.type === 'positive',
-                  'bg-yellow-100 text-yellow-600': insight.type === 'neutral',
-                  'bg-red-100 text-red-600': insight.type === 'warning'
-                }">
-                  <CheckCircle v-if="insight.type === 'positive'" class="w-4 h-4" />
-                  <AlertTriangle v-else-if="insight.type === 'warning'" class="w-4 h-4" />
-                  <Info v-else class="w-4 h-4" />
+      <!-- Detailed Analysis Section -->
+      <div class="detailed-analysis">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Income by Type</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Income Type Chart -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
+            <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">Distribution by Type</h3>
+            <div v-if="incomeByTypeData.length > 0" class="space-y-3">
+              <div 
+                v-for="item in incomeByTypeData" 
+                :key="item.type"
+                class="flex items-center justify-between"
+              >
+                <div class="flex items-center">
+                  <div 
+                    class="w-3 h-3 rounded-full mr-3"
+                    :style="{ backgroundColor: item.color }"
+                  ></div>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">{{ item.type }}</span>
                 </div>
-                <div>
-                  <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ insight.title }}</h4>
-                  <p class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">{{ insight.description }}
-                  </p>
+                <div class="text-right">
+                  <div class="text-sm font-medium text-gray-900 dark:text-gray-100">₹{{ formatCurrency(item.amount) }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.percentage }}%</div>
                 </div>
+              </div>
+            </div>
+            <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+              No income data available for the selected period
+            </div>
+          </div>
+
+          <!-- Summary Statistics -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
+            <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">Summary Statistics</h3>
+            <div class="space-y-4">
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Average per Source</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">₹{{ formatCurrency(analytics?.summary?.average_source_amount || 0) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Top Income Type</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ analytics?.summary?.top_income_type || 'N/A' }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Recurring Percentage</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ recurringPercentage }}%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Period</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ formatPeriod(selectedPeriod) }}</span>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
+      <!-- Trend Analysis Section -->
+      <div class="trend-analysis">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Monthly Trends</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
+          <div v-if="monthlyTrends.length > 0" class="space-y-4">
+            <!-- Trend Chart Area -->
+            <div class="h-64 flex items-end space-x-2">
+              <div 
+                v-for="trend in monthlyTrends" 
+                :key="trend.month"
+                class="flex-1 flex flex-col items-center"
+              >
+                <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-t relative" :style="{ height: '200px' }">
+                  <!-- Total bar -->
+                  <div 
+                    class="absolute bottom-0 w-full bg-blue-500 rounded-t transition-all duration-300"
+                    :style="{ height: `${(trend.total / maxTrendValue) * 100}%` }"
+                  ></div>
+                  <!-- Recurring overlay -->
+                  <div 
+                    class="absolute bottom-0 w-full bg-green-500 rounded-t transition-all duration-300"
+                    :style="{ height: `${(trend.recurring / maxTrendValue) * 100}%` }"
+                  ></div>
+                </div>
+                <div class="mt-2 text-center">
+                  <div class="text-xs font-medium text-gray-900 dark:text-gray-100">{{ trend.month }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">₹{{ formatCurrency(trend.total) }}</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Legend -->
+            <div class="flex justify-center space-x-6">
+              <div class="flex items-center">
+                <div class="w-3 h-3 bg-blue-500 rounded mr-2"></div>
+                <span class="text-sm text-gray-600 dark:text-gray-400">Total Income</span>
+              </div>
+              <div class="flex items-center">
+                <div class="w-3 h-3 bg-green-500 rounded mr-2"></div>
+                <span class="text-sm text-gray-600 dark:text-gray-400">Recurring Income</span>
+              </div>
+            </div>
+
+            <!-- Trend Table -->
+            <div class="mt-6 overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Month</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Recurring</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">One-time</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr v-for="trend in monthlyTrends" :key="trend.month">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ trend.month }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">₹{{ formatCurrency(trend.total) }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">₹{{ formatCurrency(trend.recurring) }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">₹{{ formatCurrency(trend.one_time) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+            No trend data available for the selected period
+          </div>
+        </div>
+      </div>
+
+<<<<<<< HEAD
         <!-- Performance Scores -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Performance Scores</h3>
@@ -548,90 +528,62 @@
                 </div>
               </div>
             </div>
+=======
+      <!-- Detailed Income Sources -->
+      <div class="detailed-sources">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Detailed Income Sources</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border">
+          <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              Showing {{ totalSources }} income sources for {{ formatPeriod(selectedPeriod) }}
+            </p>
+>>>>>>> cache
           </div>
-        </div>
-
-        <!-- Recommendations -->
-        <div
-          class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recommendations</h3>
-
-          <div v-if="recommendations.length === 0" class="text-center py-8">
-            <CheckCircle class="mx-auto h-12 w-12 text-green-400" />
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">All good!</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Your income management is on
-              track</p>
-          </div>
-
-          <div v-else class="space-y-4">
-            <div v-for="rec in recommendations" :key="rec.title"
-              class="p-4 bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 rounded-lg">
-              <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" :class="{
-                  'bg-red-100 text-red-600': rec.priority === 'high',
-                  'bg-yellow-100 text-yellow-600': rec.priority === 'medium',
-                  'bg-blue-100 text-blue-600': rec.priority === 'low'
-                }">
-                  <AlertTriangle v-if="rec.priority === 'high'" class="w-4 h-4" />
-                  <Info v-else class="w-4 h-4" />
+          
+          <div v-if="incomeSourcesList.length > 0" class="divide-y divide-gray-100 dark:divide-gray-700">
+            <div 
+              v-for="source in incomeSourcesList" 
+              :key="`${source.incomeId}-${source.sourceId}`"
+              class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0 w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-3">
+                    <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ source.type }}</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatDate(source.date_time) }}</p>
+                  </div>
                 </div>
-                <div class="flex-1">
-                  <div class="flex items-center justify-between">
-                    <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ rec.title }}</h4>
-                    <span class="text-xs px-2 py-1 rounded-full" :class="{
-                      'bg-red-100 text-red-800': rec.priority === 'high',
-                      'bg-yellow-100 text-yellow-800': rec.priority === 'medium',
-                      'bg-blue-100 text-blue-800': rec.priority === 'low'
-                    }">
-                      {{ rec.priority.toUpperCase() }}
+                <div class="text-right">
+                  <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(source.income) }}</div>
+                  <div class="flex items-center space-x-2">
+                    <span 
+                      v-if="source.recur"
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+                    >
+                      {{ formatFrequency(source.recur_frequency) }}
+                    </span>
+                    <span 
+                      v-else
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                    >
+                      One-time
                     </span>
                   </div>
+<<<<<<< HEAD
                   <p class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-1">{{ rec.description }}</p>
                   <p class="text-sm text-gray-700 dark:text-gray-300 dark:text-gray-600 mt-2 font-medium">{{ rec.action
                     }}</p>
+=======
+>>>>>>> cache
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Trend Analysis Report -->
-      <div v-if="selectedReport === 'trends'" class="space-y-6">
-        <div
-          class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border p-6">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Trend Analysis</h3>
-
-          <div v-if="reportData.monthly_trends && reportData.monthly_trends.length > 0" class="space-y-4">
-            <div v-for="trend in reportData.monthly_trends" :key="trend.month"
-              class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 rounded-lg">
-              <div class="flex-1">
-                <div class="flex items-center justify-between">
-                  <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ trend.month }}</span>
-                  <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{
-                    trend.total.toLocaleString('en-IN') }}</span>
-                </div>
-                <div class="mt-2 flex space-x-4">
-                  <div class="flex items-center space-x-1">
-                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span class="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500">Recurring: ₹{{
-                      trend.recurring.toLocaleString('en-IN') }}</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span class="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500">One-time: ₹{{
-                      trend.one_time.toLocaleString('en-IN') }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="text-center py-12">
-            <TrendingUp class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No trend data</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Add more income data to see
-              trends</p>
+          <div v-else class="p-8 text-center text-gray-500 dark:text-gray-400">
+            No income sources found for the selected period
           </div>
         </div>
       </div>
@@ -640,172 +592,119 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import {
-  RefreshCw,
-  AlertCircle,
-  Download,
+import { computed, onMounted, ref } from 'vue'
+import { 
+  RefreshCw, 
+  Download, 
+  AlertCircle, 
   DollarSign,
   Repeat,
   Calendar,
-  BarChart3,
-  Target,
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  TrendingUp,
-  ChevronDown
+  Hash
 } from 'lucide-vue-next'
-import { useIncome } from '../../composables/useIncome'
-import { getClientTime, getClientDateString } from '../../utils/date'
 
-// Initialize the income composable with advanced analysis enabled
+// Composables
+import { useIncome } from '../../composables/useIncome'
+
+// Initialize income composable
 const {
-  state,
-  filters,
-  actions,
-  groupedIncome,
+  incomes,
+  analytics,
   loading,
   error,
-  incomes,
-  totalMonthlyIncome,
-  totalRecurringIncome,
-  totalOneTimeIncome,
-  incomeCount,
-  incomeTypes
-} = useIncome({ enableAdvancedAnalysis: true })
+  updateFilters,
+  fetchIncomesWithAnalytics,
+  initialize
+} = useIncome()
 
-// Local state for report selection
-const selectedReport = ref('summary')
+// Local state
 const selectedPeriod = ref('last_3_months')
 
-// Expanded score state
-const expandedScore = ref(null)
-
-// Analysis filters for detailed view
-const analysisFilters = ref({
-  incomeType: '',
-  isRecurring: null,
-  amountMin: '',
-  amountMax: ''
+// Computed properties for analytics data
+const incomeByTypeData = computed(() => {
+  if (!analytics.value?.income_by_type) return []
+  
+  const total = analytics.value.total_income || 1
+  const colors = [
+    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', 
+    '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
+  ]
+  
+  return Object.entries(analytics.value.income_by_type).map(([type, amount], index) => ({
+    type,
+    amount: Number(amount),
+    percentage: ((Number(amount) / total) * 100).toFixed(1),
+    color: colors[index % colors.length]
+  })).sort((a, b) => b.amount - a.amount)
 })
 
-// Available income types for filter dropdown
-const availableIncomeTypes = computed(() => {
-  const types = new Set()
+const monthlyTrends = computed(() => {
+  return analytics.value?.monthly_trends || []
+})
+
+const maxTrendValue = computed(() => {
+  if (monthlyTrends.value.length === 0) return 1
+  return Math.max(...monthlyTrends.value.map(t => t.total))
+})
+
+const recurringPercentage = computed(() => {
+  if (!analytics.value?.total_income || analytics.value.total_income === 0) return 0
+  return ((analytics.value.recurring_income / analytics.value.total_income) * 100).toFixed(1)
+})
+
+const totalSources = computed(() => {
+  return analytics.value?.summary?.total_sources || 0
+})
+
+const incomeSourcesList = computed(() => {
+  const sources: any[] = []
   incomes.value.forEach(income => {
-    income.sources.forEach(source => {
-      types.add(source.type)
-    })
-  })
-  return Array.from(types).sort()
-})
-
-// Computed insights based on real data and filters
-const insights = computed(() => {
-  if (!state || !incomes.value || incomes.value.length === 0) return []
-
-  const insights = []
-  const summary = groupedIncome.value.summary
-
-  // Income stability insight
-  if (summary.recurringIncome > summary.oneTimeIncome) {
-    insights.push({
-      type: 'positive',
-      title: 'Strong Income Stability',
-      description: `${Math.round((summary.recurringIncome / summary.totalMonthlyIncome) * 100)}% of your income is recurring, providing excellent financial stability.`
-    })
-  } else if (summary.recurringIncome < summary.oneTimeIncome * 0.3) {
-    insights.push({
-      type: 'warning',
-      title: 'Low Recurring Income',
-      description: 'Consider building more recurring income streams to improve financial stability.'
-    })
-  }
-
-  // Diversification insight
-  const uniqueTypes = new Set(incomes.value.flatMap(income =>
-    income.sources.map(source => source.type)
-  )).size
-
-  if (uniqueTypes >= 4) {
-    insights.push({
-      type: 'positive',
-      title: 'Well Diversified Income',
-      description: `You have ${uniqueTypes} different income sources, which reduces financial risk.`
-    })
-  } else if (uniqueTypes <= 2) {
-    insights.push({
-      type: 'warning',
-      title: 'Limited Income Diversity',
-      description: 'Consider diversifying your income sources to reduce dependency risk.'
-    })
-  }
-
-  // Growth insight based on recent vs older entries
-  const now = new Date()
-  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
-
-  const recentIncomes = incomes.value.filter(income =>
-    new Date(income.createdAt) >= threeMonthsAgo
-  )
-  const olderIncomes = incomes.value.filter(income =>
-    new Date(income.createdAt) < threeMonthsAgo
-  )
-
-  if (recentIncomes.length > 0 && olderIncomes.length > 0) {
-    const recentAvg = recentIncomes.reduce((sum, income) => sum + income.monthlyIncome, 0) / recentIncomes.length
-    const olderAvg = olderIncomes.reduce((sum, income) => sum + income.monthlyIncome, 0) / olderIncomes.length
-    const growthRate = ((recentAvg - olderAvg) / olderAvg) * 100
-
-    if (growthRate > 10) {
-      insights.push({
-        type: 'positive',
-        title: 'Income Growth Trend',
-        description: `Your income has grown by ${Math.round(growthRate)}% over the last 3 months.`
-      })
-    } else if (growthRate < -10) {
-      insights.push({
-        type: 'warning',
-        title: 'Declining Income Trend',
-        description: `Your income has decreased by ${Math.round(Math.abs(growthRate))}% over the last 3 months.`
+    if (income.income_source && Array.isArray(income.income_source)) {
+      income.income_source.forEach(source => {
+        sources.push({
+          ...source,
+          incomeId: income.name,
+          sourceId: source.name || source.idx || Math.random().toString(36).substr(2, 9)
+        })
       })
     }
-  }
-
-  return insights
+  })
+  return sources.sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
 })
 
-// Computed recommendations based on current data
-const recommendations = computed(() => {
-  if (!state || !incomes.value || incomes.value.length === 0) return []
+// Utility functions
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-IN').format(amount)
+}
 
-  const recommendations = []
-  const summary = groupedIncome.value.summary
-
-  // Recurring income recommendation
-  if (summary.recurringIncome < summary.totalMonthlyIncome * 0.6) {
-    recommendations.push({
-      title: 'Increase Recurring Income',
-      description: 'Focus on building subscription-based or salary income streams.',
-      action: 'Aim for 60-80% of income to be recurring for better financial security.',
-      priority: 'high'
+const formatDate = (dateString: string) => {
+  if (!dateString) return 'N/A'
+  try {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     })
+  } catch {
+    return 'N/A'
   }
+}
 
-  // Income source diversity
-  const uniqueTypes = new Set(incomes.value.flatMap(income =>
-    income.sources.map(source => source.type)
-  )).size
+const formatFrequency = (frequency: string) => {
+  if (!frequency) return 'Monthly'
+  return frequency.charAt(0).toUpperCase() + frequency.slice(1)
+}
 
-  if (uniqueTypes < 3) {
-    recommendations.push({
-      title: 'Diversify Income Sources',
-      description: 'Having multiple income streams reduces financial risk.',
-      action: 'Consider adding freelance work, investments, or side businesses.',
-      priority: 'medium'
-    })
+const formatPeriod = (period: string) => {
+  const map = {
+    this_month: 'This Month',
+    last_month: 'Last Month',
+    last_3_months: 'Last 3 Months',
+    last_6_months: 'Last 6 Months',
+    this_year: 'This Year',
+    all_time: 'All Time'
   }
+<<<<<<< HEAD
 
   // Low income frequency
   if (incomes.value.length < 2) {
@@ -924,187 +823,27 @@ const getScoreColorClass = (scoreType, score) => {
   if (score >= 60) return 'bg-blue-100 dark:bg-blue-900/30'
   if (score >= 40) return 'bg-yellow-100 dark:bg-yellow-900/30'
   return 'bg-red-100 dark:bg-red-900/30'
+=======
+  return map[period] || period
+>>>>>>> cache
 }
 
-const getScoreTextColor = (scoreType, score) => {
-  if (score >= 80) return 'text-green-600 dark:text-green-400'
-  if (score >= 60) return 'text-blue-600 dark:text-blue-400'
-  if (score >= 40) return 'text-yellow-600 dark:text-yellow-400'
-  return 'text-red-600 dark:text-red-400'
-}
-
-const getScoreBarColor = (scoreType, score) => {
-  if (score >= 80) return 'bg-green-500'
-  if (score >= 60) return 'bg-blue-500'
-  if (score >= 40) return 'bg-yellow-500'
-  return 'bg-red-500'
-}
-
-const getScoreLabel = (scoreType, score) => {
-  if (score >= 80) return 'Excellent'
-  if (score >= 60) return 'Good'
-  if (score >= 40) return 'Fair'
-  return 'Poor'
-}
-
-const getStabilityExplanation = (score) => {
-  if (score >= 80) return 'Your income is highly stable with a strong foundation of recurring sources. This provides excellent financial predictability and security.'
-  if (score >= 60) return 'You have a stable income foundation with good recurring sources. Consider building more recurring streams for even better stability.'
-  if (score >= 40) return 'Your income has moderate stability. Focus on converting one-time sources to recurring streams where possible.'
-  return 'Your income is primarily from one-time sources, which creates financial uncertainty. Prioritize building recurring income streams.'
-}
-
-const getDiversificationExplanation = (score) => {
-  if (score >= 80) return 'Your income is highly diversified across multiple sources, which reduces dependency risk and provides financial resilience.'
-  if (score >= 60) return 'You have good income diversification. Consider exploring additional income streams to further reduce risk.'
-  if (score >= 40) return 'Your income has moderate diversification. Adding 1-2 more income sources would improve your financial security.'
-  return 'Your income has limited diversification. You are vulnerable to disruptions in your primary income source. Focus on building additional streams.'
-}
-
-const getGrowthExplanation = (score) => {
-  if (score >= 80) return 'Your income shows strong growth momentum with frequent updates and positive trends. Keep up the excellent progress!'
-  if (score >= 60) return 'Your income shows positive growth signals. Continue monitoring and optimizing your income sources for sustained growth.'
-  if (score >= 40) return 'Your income shows moderate growth activity. Consider actively managing and expanding your income sources.'
-  return 'Your income shows limited growth activity. Focus on actively developing and optimizing your income streams for better financial progress.'
-}
-
-const getIncomeByType = (type) => {
-  let total = 0
-  incomes.value.forEach(income => {
-    income.sources.forEach(source => {
-      if (source.type === type) {
-        total += source.amount
-      }
-    })
-  })
-  return total
-}
-
-const getRecentActivityCount = () => {
-  const now = new Date()
-  const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-  return incomes.value.filter(income =>
-    new Date(income.updatedAt || income.createdAt) >= monthAgo
-  ).length
-}
-
-const getGrowthTrendText = () => {
-  const now = new Date()
-  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
-
-  const recentIncomes = incomes.value.filter(income =>
-    new Date(income.createdAt) >= threeMonthsAgo
-  )
-  const olderIncomes = incomes.value.filter(income =>
-    new Date(income.createdAt) < threeMonthsAgo
-  )
-
-  if (recentIncomes.length === 0 || olderIncomes.length === 0) return 'Insufficient data'
-
-  const recentAvg = recentIncomes.reduce((sum, income) => sum + income.monthlyIncome, 0) / recentIncomes.length
-  const olderAvg = olderIncomes.reduce((sum, income) => sum + income.monthlyIncome, 0) / olderIncomes.length
-  const growthRate = ((recentAvg - olderAvg) / olderAvg) * 100
-
-  if (growthRate > 10) return `+${Math.round(growthRate)}% (Growing)`
-  if (growthRate > 0) return `+${Math.round(growthRate)}% (Stable)`
-  if (growthRate > -10) return `${Math.round(growthRate)}% (Declining)`
-  return `${Math.round(growthRate)}% (Steep decline)`
-}
-
-const getGrowthTrendColor = () => {
-  const trendText = getGrowthTrendText()
-  if (trendText.includes('Growing')) return 'text-green-600 dark:text-green-400'
-  if (trendText.includes('Stable')) return 'text-blue-600 dark:text-blue-400'
-  if (trendText.includes('Declining')) return 'text-yellow-600 dark:text-yellow-400'
-  if (trendText.includes('Steep decline')) return 'text-red-600 dark:text-red-400'
-  return 'text-gray-600 dark:text-gray-400'
-}
-
-const getRecentAverage = () => {
-  const now = new Date()
-  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
-
-  const recentIncomes = incomes.value.filter(income =>
-    new Date(income.createdAt) >= threeMonthsAgo
-  )
-
-  if (recentIncomes.length === 0) return 0
-  return recentIncomes.reduce((sum, income) => sum + income.monthlyIncome, 0) / recentIncomes.length
-}
-
-const getHistoricalAverage = () => {
-  const now = new Date()
-  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
-
-  const olderIncomes = incomes.value.filter(income =>
-    new Date(income.createdAt) < threeMonthsAgo
-  )
-
-  if (olderIncomes.length === 0) return 0
-  return olderIncomes.reduce((sum, income) => sum + income.monthlyIncome, 0) / olderIncomes.length
-}
-
-// Methods
+// Event handlers
 const updatePeriodFilter = async () => {
-  const now = getClientTime()
-  let dateFrom = ''
-  let dateTo = getClientDateString()
-
-  switch (selectedPeriod.value) {
-    case 'this_month':
-      dateFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-      break
-    case 'last_month':
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      dateFrom = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`
-      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
-      dateTo = `${lastMonthEnd.getFullYear()}-${String(lastMonthEnd.getMonth() + 1).padStart(2, '0')}-${String(lastMonthEnd.getDate()).padStart(2, '0')}`
-      break
-    case 'last_3_months':
-      const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-      dateFrom = `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`
-      break
-    case 'last_6_months':
-      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1)
-      dateFrom = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`
-      break
-    case 'this_year':
-      dateFrom = `${now.getFullYear()}-01-01`
-      break
-    case 'all_time':
-      dateFrom = ''
-      dateTo = ''
-      break
+  try {
+    await updateFilters({ period: selectedPeriod.value })
+    await fetchIncomesWithAnalytics(true)
+  } catch (error) {
+    console.error('Failed to update period filter:', error)
   }
-
-  await actions.updateFilters({
-    dateFrom,
-    dateTo,
-    period: selectedPeriod.value
-  })
 }
 
 const refreshReports = async () => {
-  await actions.refreshIncomes()
-}
-
-const updateAnalysisFilters = async () => {
-  await actions.updateFilters({
-    incomeType: analysisFilters.value.incomeType,
-    isRecurring: analysisFilters.value.isRecurring,
-    amountMin: analysisFilters.value.amountMin,
-    amountMax: analysisFilters.value.amountMax
-  })
-}
-
-const resetAnalysisFilters = async () => {
-  analysisFilters.value = {
-    incomeType: '',
-    isRecurring: null,
-    amountMin: '',
-    amountMax: ''
+  try {
+    await fetchIncomesWithAnalytics(true)
+  } catch (error) {
+    console.error('Failed to refresh reports:', error)
   }
-  await updateAnalysisFilters()
 }
 
 const exportReport = () => {
@@ -1113,7 +852,7 @@ const exportReport = () => {
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `income-report-${selectedReport.value}-${selectedPeriod.value}-${new Date().toISOString().split('T')[0]}.csv`
+  link.download = `income-report-${selectedPeriod.value}-${new Date().toISOString().split('T')[0]}.csv`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -1121,67 +860,24 @@ const exportReport = () => {
 }
 
 const generateCSVData = () => {
-  let csv = ''
-
-  if (selectedReport.value === 'summary') {
-    csv = 'Income Type,Amount,Percentage\n'
-    Object.entries(reportData.value.income_by_type).forEach(([type, amount]) => {
-      const numAmount = Number(amount)
-      const percentage = ((numAmount / reportData.value.total_income) * 100).toFixed(1)
-      csv += `"${type}",${numAmount},${percentage}%\n`
-    })
-  } else if (selectedReport.value === 'trends') {
-    csv = 'Month,Total,Recurring,One-time\n'
-    reportData.value.monthly_trends.forEach((trend) => {
-      csv += `"${trend.month}",${trend.total},${trend.recurring},${trend.one_time}\n`
-    })
-  } else if (selectedReport.value === 'detailed') {
-    csv = 'Income Source,Type,Amount,Is Recurring,Date\n'
-    incomes.value.forEach(income => {
-      income.sources.forEach(source => {
-        csv += `"${source.type}","${source.type}",${source.amount},"${source.isRecurring ? 'Yes' : 'No'}","${source.dateTime}"\n`
-      })
-    })
-  }
-
+  let csv = 'Income Type,Amount,Percentage,Is Recurring,Date\n'
+  
+  incomeSourcesList.value.forEach(source => {
+    const percentage = analytics.value?.total_income 
+      ? ((source.income / analytics.value.total_income) * 100).toFixed(1)
+      : '0'
+    
+    csv += `"${source.type}",${source.income},${percentage}%,"${source.recur ? 'Yes' : 'No'}","${formatDate(source.date_time)}"\n`
+  })
+  
   return csv
 }
-
-const formatPeriod = (period: string) => {
-  const map = {
-    'this_month': 'This Month',
-    'last_month': 'Last Month',
-    'last_3_months': 'Last 3 Months',
-    'last_6_months': 'Last 6 Months',
-    'this_year': 'This Year',
-    'all_time': 'All Time'
-  }
-  return map[period] || period
-}
-
-const getTypeColor = (type: string) => {
-  const colors = [
-    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-    '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
-  ]
-  const index = type.length % colors.length
-  return colors[index]
-}
-
-// Watch for changes in report type
-watch(selectedReport, async () => {
-  if (selectedReport.value === 'detailed') {
-    // Ensure we have the latest data for detailed analysis
-    await actions.ensureDataLoaded()
-  }
-})
 
 // Lifecycle
 onMounted(async () => {
   try {
-    // Initialize the composable and load data
-    await actions.initialize({ loadData: true })
-    // Set initial period filter
+    // Initialize with analytics and set default period
+    await initialize({ withAnalytics: true, forceRefresh: false })
     await updatePeriodFilter()
   } catch (error) {
     console.error('Reports: Failed to initialize:', error)
@@ -1193,4 +889,4 @@ onMounted(async () => {
 .reports-dashboard {
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
 }
-</style>
+</style> 

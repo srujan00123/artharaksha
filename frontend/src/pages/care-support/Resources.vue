@@ -270,22 +270,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { 
-  Heart, 
-  DollarSign, 
-  Users, 
-  Lightbulb, 
-  CheckCircle,
-  Phone,
-  MapPin,
-  AlertCircle
-} from 'lucide-vue-next'
-import { useSupport } from '../../composables/useSupport'
-import PathwayDetailsModal from '../../components/support/PathwayDetailsModal.vue'
-import SchemeDetailsModal from '../../components/support/SchemeDetailsModal.vue'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import {
+	AlertCircle,
+	CheckCircle,
+	DollarSign,
+	Heart,
+	Lightbulb,
+	MapPin,
+	Phone,
+	Users,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import PathwayDetailsModal from "../../components/support/PathwayDetailsModal.vue"
+import SchemeDetailsModal from "../../components/support/SchemeDetailsModal.vue"
+import { useSupport } from "../../composables/useSupport"
 
 // Support composable
 const support = useSupport({ autoInitialize: true })
@@ -295,65 +294,67 @@ const selectedPathway = ref(null)
 const selectedScheme = ref(null)
 
 // Computed properties
-const healthBasedSupportCount = computed(() => 
-  support.supportRecommendations.value.health_based_support.length
+const healthBasedSupportCount = computed(
+	() => support.supportRecommendations.value.health_based_support.length,
 )
 
-const incomeBasedSupportCount = computed(() => 
-  support.supportRecommendations.value.income_based_support.length
+const incomeBasedSupportCount = computed(
+	() => support.supportRecommendations.value.income_based_support.length,
 )
 
-const generalSupportCount = computed(() => 
-  support.supportRecommendations.value.general_support.length
+const generalSupportCount = computed(
+	() => support.supportRecommendations.value.general_support.length,
 )
 
-const hasRecommendations = computed(() => 
-  support.totalRecommendations.value > 0
+const hasRecommendations = computed(
+	() => support.totalRecommendations.value > 0,
 )
 
 // Methods
 const viewPathwayDetails = (pathway) => {
-  selectedPathway.value = pathway
+	selectedPathway.value = pathway
 }
 
 const viewSchemeDetails = (scheme) => {
-  selectedScheme.value = scheme
+	selectedScheme.value = scheme
 }
 
 const contactSupport = (pathway) => {
-  // Find contact information from benefits
-  const contactBenefit = pathway.benefits?.find(benefit => benefit.contact_info)
-  if (contactBenefit) {
-    // Try to open phone dialer or email client
-    const contact = contactBenefit.contact_info
-    if (contact.includes('@')) {
-      window.location.href = `mailto:${contact}`
-    } else if (contact.match(/[\d\-\+\(\)\s]/)) {
-      window.location.href = `tel:${contact.replace(/\D/g, '')}`
-    } else {
-      alert(`Contact Information: ${contact}`)
-    }
-  } else {
-    alert('Contact information not available for this pathway.')
-  }
+	// Find contact information from benefits
+	const contactBenefit = pathway.benefits?.find(
+		(benefit) => benefit.contact_info,
+	)
+	if (contactBenefit) {
+		// Try to open phone dialer or email client
+		const contact = contactBenefit.contact_info
+		if (contact.includes("@")) {
+			window.location.href = `mailto:${contact}`
+		} else if (contact.match(/[\d\-\+\(\)\s]/)) {
+			window.location.href = `tel:${contact.replace(/\D/g, "")}`
+		} else {
+			alert(`Contact Information: ${contact}`)
+		}
+	} else {
+		alert("Contact information not available for this pathway.")
+	}
 }
 
 // Lifecycle
 onMounted(async () => {
-  try {
-    // Initialize support system if not already done
-    if (!support.state.value.isInitialized) {
-      await support.initialize()
-    }
-    
-    // Load support pathways and recommendations
-    await Promise.all([
-      support.loadSupportPathways(),
-      support.loadSupportRecommendations()
-    ])
-  } catch (error) {
-    console.error('Error loading support resources:', error)
-  }
+	try {
+		// Initialize support system if not already done
+		if (!support.state.value.isInitialized) {
+			await support.initialize()
+		}
+
+		// Load support pathways and recommendations
+		await Promise.all([
+			support.loadSupportPathways(),
+			support.loadSupportRecommendations(),
+		])
+	} catch (error) {
+		console.error("Error loading support resources:", error)
+	}
 })
 
 // Advanced theme management
