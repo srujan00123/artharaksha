@@ -560,6 +560,7 @@ const supportStore = useSupportStore()
 
 // Use composables
 const income = useIncome()
+const { canonicalTotalMonthlyIncome, canonicalTotalRecurringIncome, canonicalTotalOneTimeIncome, fetchMonthlyAnalytics } = income
 const expenseComposable = useExpense()
 const supportComposable = useSupport()
 
@@ -591,24 +592,9 @@ const currentDate = computed(() =>
 const userDisplayName = computed(() => userStore.userDisplayName || "User")
 
 // Income data from composable
-const totalMonthlyIncome = computed(() => {
-	const value = income.totalMonthlyIncome
-	return typeof value === "object" && value?.value !== undefined
-		? value.value
-		: value || 0
-})
-const totalRecurringIncome = computed(() => {
-	const value = income.totalRecurringIncome
-	return typeof value === "object" && value?.value !== undefined
-		? value.value
-		: value || 0
-})
-const totalOneTimeIncome = computed(() => {
-	const value = income.totalOneTimeIncome
-	return typeof value === "object" && value?.value !== undefined
-		? value.value
-		: value || 0
-})
+const totalMonthlyIncome = computed(() => canonicalTotalMonthlyIncome.value)
+const totalRecurringIncome = computed(() => canonicalTotalRecurringIncome.value)
+const totalOneTimeIncome = computed(() => canonicalTotalOneTimeIncome.value)
 const recurringIncomeCount = computed(() => {
 	const incomes = income.incomes
 	const incomeArray =
@@ -917,11 +903,21 @@ function handleDashboardFiltersUpdate(newFilters) {
   handleDateFilterChange()
 }
 
+// Function to load all dashboard data in parallel
+async function loadDashboardData() {
+  await Promise.all([
+    income.initialize({ withAnalytics: false, forceRefresh: true }),
+    expenseComposable.initialize ? expenseComposable.initialize({ forceRefresh: true }) : expenseComposable.fetchExpenses ? expenseComposable.fetchExpenses(true) : Promise.resolve(),
+    supportComposable.initialize ? supportComposable.initialize({ forceRefresh: true }) : Promise.resolve(),
+  ])
+}
+
 // Lifecycle
 onMounted(async () => {
 	try {
 		await loadDashboardData()
 		lastUpdated.value = new Date().toLocaleTimeString()
+		await fetchMonthlyAnalytics(false)
 	} catch (error) {
 		hasError.value = true
 		errorMessage.value = error.message || "Failed to load dashboard"

@@ -258,7 +258,7 @@ const formData = ref<ExpenseFormData>({
 	amount: "",
 	dateTime: getClientDateTimeString(),
 	receipt: null,
-	isDirect: false,
+	isDirect: true,
 })
 
 // Computed properties
@@ -435,7 +435,7 @@ watch(
 	() => formData.value.type,
 	(newType) => {
 		formData.value.category = ""
-		formData.value.isDirect = newType === "medical" ? true : false
+		formData.value.isDirect = newType === "medical"
 	},
 )
 

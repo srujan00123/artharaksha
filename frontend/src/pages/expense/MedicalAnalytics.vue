@@ -528,6 +528,7 @@ const {
 } = useExpense({ enableAdvancedAnalysis: false })
 
 const income = useIncome()
+const { canonicalTotalMonthlyIncome, fetchMonthlyAnalytics } = income
 
 // Local state
 const expenseFilters = ref<ExpenseFilters>({
@@ -1174,7 +1175,7 @@ const handleMedicalExport = (data: any) => {
 			cheRatio: cheRatio.value,
 			riskLevel: riskLevel.value,
 			financialProtectionStatus: financialProtectionStatus.value,
-			totalMonthlyIncome: income.totalMonthlyIncome.value,
+			totalMonthlyIncome: canonicalTotalMonthlyIncome.value,
 			medicalExpenseAmount: medicalExpenseAmount.value,
 		},
 		timestamp: new Date().toISOString(),
@@ -1197,7 +1198,8 @@ const handleMedicalExport = (data: any) => {
 onMounted(async () => {
 	try {
 		await loadExpenses({ useCache: true })
-		await income.initialize({ withAnalytics: false, forceRefresh: true })
+		await income.initialize({ withAnalytics: true, forceRefresh: true })
+		await fetchMonthlyAnalytics(false)
 	} catch (err) {
 		console.error("Error loading initial data:", err)
 	}
@@ -1212,7 +1214,6 @@ watch(
 	{ deep: true },
 )
 
-const { t } = useI18n()
 </script>
 
 <style scoped>

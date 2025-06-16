@@ -31,6 +31,16 @@ export function useIncome() {
 	const totalSources = computed(() => store.totalSources)
 	const filteredIncomes = computed(() => store.filteredIncomes)
 
+	// Canonical values (prefer backend analytics)
+	const canonicalTotalMonthlyIncome = computed(() => store.canonicalTotalMonthlyIncome)
+	const canonicalTotalRecurringIncome = computed(() => store.canonicalTotalRecurringIncome)
+	const canonicalTotalOneTimeIncome = computed(() => store.canonicalTotalOneTimeIncome)
+
+	// Helper to fetch analytics for this month
+	const fetchMonthlyAnalytics = async (forceRefresh = false) => {
+		await store.fetchMonthlyAnalytics(forceRefresh)
+	}
+
 	// Actions (exact backend API calls)
 	const fetchIncomes = async (forceRefresh = false) => {
 		await store.fetchIncomes(forceRefresh)
@@ -105,6 +115,9 @@ export function useIncome() {
 		totalOneTimeIncome,
 		totalSources,
 		filteredIncomes,
+		canonicalTotalMonthlyIncome,
+		canonicalTotalRecurringIncome,
+		canonicalTotalOneTimeIncome,
 
 		// Actions (exact backend API)
 		fetchIncomes,
@@ -117,5 +130,6 @@ export function useIncome() {
 		resetFilters,
 		clearCache,
 		initialize,
+		fetchMonthlyAnalytics,
 	}
 }

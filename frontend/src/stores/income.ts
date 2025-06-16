@@ -74,6 +74,28 @@ export const useIncomeStore = defineStore("income", () => {
 		return total
 	})
 
+	// Canonical computed properties: prefer backend analytics if available
+	const canonicalTotalMonthlyIncome = computed(() => {
+		if (analytics.value && typeof analytics.value.total_income === 'number') {
+			return analytics.value.total_income
+		}
+		return totalMonthlyIncome.value
+	})
+
+	const canonicalTotalRecurringIncome = computed(() => {
+		if (analytics.value && typeof analytics.value.recurring_income === 'number') {
+			return analytics.value.recurring_income
+		}
+		return totalRecurringIncome.value
+	})
+
+	const canonicalTotalOneTimeIncome = computed(() => {
+		if (analytics.value && typeof analytics.value.one_time_income === 'number') {
+			return analytics.value.one_time_income
+		}
+		return totalOneTimeIncome.value
+	})
+
 	const totalSources = computed(() => {
 		const total = incomes.value.reduce((total, income) => {
 			const sourceCount = income.income_source?.length || 0
@@ -338,6 +360,13 @@ export const useIncomeStore = defineStore("income", () => {
 		lastFetch.value = null
 	}
 
+	// Helper to always fetch analytics for this month
+	async function fetchMonthlyAnalytics(forceRefresh = false) {
+		await fetchIncomesWithAnalytics(forceRefresh, {
+			period: 'this_month'
+		})
+	}
+
 	return {
 		// State
 		incomes,
@@ -354,6 +383,9 @@ export const useIncomeStore = defineStore("income", () => {
 		totalOneTimeIncome,
 		totalSources,
 		filteredIncomes,
+		canonicalTotalMonthlyIncome,
+		canonicalTotalRecurringIncome,
+		canonicalTotalOneTimeIncome,
 
 		// Actions
 		fetchIncomes,
@@ -365,5 +397,6 @@ export const useIncomeStore = defineStore("income", () => {
 		updateFilters,
 		resetFilters,
 		clearCache,
+		fetchMonthlyAnalytics,
 	}
 })
