@@ -559,7 +559,7 @@ const expenseStore = useExpenseStore()
 const supportStore = useSupportStore()
 
 // Use composables
-const incomeComposable = useIncome()
+const income = useIncome()
 const expenseComposable = useExpense()
 const supportComposable = useSupport()
 
@@ -599,25 +599,25 @@ const userDisplayName = computed(() => userStore.userDisplayName || "User")
 
 // Income data from composable
 const totalMonthlyIncome = computed(() => {
-	const value = incomeComposable.totalMonthlyIncome
+	const value = income.totalMonthlyIncome
 	return typeof value === "object" && value?.value !== undefined
 		? value.value
 		: value || 0
 })
 const totalRecurringIncome = computed(() => {
-	const value = incomeComposable.totalRecurringIncome
+	const value = income.totalRecurringIncome
 	return typeof value === "object" && value?.value !== undefined
 		? value.value
 		: value || 0
 })
 const totalOneTimeIncome = computed(() => {
-	const value = incomeComposable.totalOneTimeIncome
+	const value = income.totalOneTimeIncome
 	return typeof value === "object" && value?.value !== undefined
 		? value.value
 		: value || 0
 })
 const recurringIncomeCount = computed(() => {
-	const incomes = incomeComposable.incomes
+	const incomes = income.incomes
 	const incomeArray =
 		typeof incomes === "object" && incomes?.value !== undefined
 			? incomes.value
@@ -633,7 +633,7 @@ const recurringIncomeCount = computed(() => {
 	return recurringCount
 })
 const recentIncomeEntries = computed(() => {
-	const incomes = incomeComposable.incomes
+	const incomes = income.incomes
 	const incomeArray =
 		typeof incomes === "object" && incomes?.value !== undefined
 			? incomes.value
@@ -891,7 +891,7 @@ const handleDateFilterChange = async () => {
 		}
 
 		await Promise.all([
-			incomeComposable.updateFilters(filters),
+			income.updateFilters(filters),
 			expenseComposable.updateFilters(filters),
 			supportComposable.updateFilters &&
 				supportComposable.updateFilters(filters),
@@ -936,8 +936,8 @@ async function loadDashboardData() {
 		// Load all dashboard data in parallel
 		await Promise.all([
 			userStore.initialize(),
-			incomeComposable.initialize({ withAnalytics: true, forceRefresh: false }),
-			incomeComposable.fetchIncomes(true),
+			income.initialize({ withAnalytics: true, forceRefresh: false }),
+			income.fetchIncomes(true),
 			expenseComposable.initialize && expenseComposable.initialize(),
 			supportComposable.initialize && supportComposable.initialize(),
 		])

@@ -91,8 +91,8 @@
               </div>
               <div class="ml-3">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Monthly Income</p>
-                <p v-if="totalMonthlyIncome > 0" class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  ₹{{ totalMonthlyIncome.toLocaleString() }}
+                <p v-if="income.totalMonthlyIncome.value > 0" class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  ₹{{ income.totalMonthlyIncome.value.toLocaleString() }}
                 </p>
                 <p v-else class="text-lg font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500">N/A</p>
               </div>
@@ -416,7 +416,7 @@
                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 hover:bg-blue-100 dark:bg-blue-900/30 transition-colors">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Monthly Income</span>
-                    <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ totalMonthlyIncome.toLocaleString() }}</span>
+                    <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ income.totalMonthlyIncome.value.toLocaleString() }}</span>
         </div>
       </div>
                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 hover:bg-red-100 dark:bg-red-900/30 transition-colors">
@@ -428,7 +428,7 @@
                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 hover:bg-green-100 dark:bg-green-900/30 transition-colors">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Remaining Income</span>
-                    <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ (totalMonthlyIncome - medicalExpenseAmount).toLocaleString() }}</span>
+                    <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ (income.totalMonthlyIncome.value - medicalExpenseAmount).toLocaleString() }}</span>
             </div>
           </div>
                 <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 transition-colors">
@@ -492,7 +492,6 @@ import {
 import { computed, onMounted, ref, watch } from "vue"
 import VChart from "vue-echarts"
 import VueApexCharts from "vue3-apexcharts"
-import { useI18n } from 'vue-i18n'
 
 // Register ApexCharts component
 const apexchart = VueApexCharts
@@ -528,13 +527,7 @@ const {
 	clearCache,
 } = useExpense({ enableAdvancedAnalysis: false })
 
-const {
-	totalMonthlyIncome,
-	loading: incomeLoading,
-	error: incomeError,
-	fetchIncomes,
-	initialize,
-} = useIncome()
+const income = useIncome()
 
 // Local state
 const expenseFilters = ref<ExpenseFilters>({
@@ -551,15 +544,15 @@ const expenseFilters = ref<ExpenseFilters>({
 })
 
 // Computed properties
-const loading = computed(() => expenseLoading.value || incomeLoading.value)
-const error = computed(() => expenseError.value || incomeError.value)
+const loading = computed(() => expenseLoading.value || income.loading)
+const error = computed(() => expenseError.value || income.error)
 const filteredExpenseCount = computed(() => expenses.value.length)
-const hasIncomeData = computed(() => totalMonthlyIncome.value > 0)
+const hasIncomeData = computed(() => income.totalMonthlyIncome.value > 0)
 
 // CHE Calculations according to WHO standards
 const cheRatio = computed(() => {
 	if (!hasIncomeData.value || medicalExpenseAmount.value === 0) return 0
-	return (medicalExpenseAmount.value / totalMonthlyIncome.value) * 100
+	return (medicalExpenseAmount.value / income.totalMonthlyIncome.value) * 100
 })
 
 const riskLevel = computed(() => {
@@ -780,7 +773,7 @@ const gaugeOption = computed(() => ({
 const donutOption = computed(() => {
 	const remainingIncome = Math.max(
 		0,
-		totalMonthlyIncome.value - medicalExpenseAmount.value,
+		income.totalMonthlyIncome.value - medicalExpenseAmount.value,
 	)
 
 	return {
@@ -996,7 +989,7 @@ const barChartOptions = computed(() => ({
 const barChartSeries = computed(() => [
 	{
 		name: "Monthly Income",
-		data: [totalMonthlyIncome.value],
+		data: [income.totalMonthlyIncome.value],
 	},
 	{
 		name: "Medical Expenses",
@@ -1156,7 +1149,7 @@ const handleRefresh = async () => {
 	try {
 		clearCache()
 		await refreshExpenses()
-		await fetchIncomes(true)
+		await income.fetchIncomes(true)
 	} catch (err) {
 		console.error("Error refreshing data:", err)
 	}
@@ -1181,7 +1174,7 @@ const handleMedicalExport = (data: any) => {
 			cheRatio: cheRatio.value,
 			riskLevel: riskLevel.value,
 			financialProtectionStatus: financialProtectionStatus.value,
-			totalMonthlyIncome: totalMonthlyIncome.value,
+			totalMonthlyIncome: income.totalMonthlyIncome.value,
 			medicalExpenseAmount: medicalExpenseAmount.value,
 		},
 		timestamp: new Date().toISOString(),
@@ -1204,7 +1197,7 @@ const handleMedicalExport = (data: any) => {
 onMounted(async () => {
 	try {
 		await loadExpenses({ useCache: true })
-		await initialize({ withAnalytics: false, forceRefresh: true })
+		await income.initialize({ withAnalytics: false, forceRefresh: true })
 	} catch (err) {
 		console.error("Error loading initial data:", err)
 	}
