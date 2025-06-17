@@ -9,6 +9,9 @@ import type {
   CreateIncomeResponse,
   DeleteIncomeSourcePayload,
   FlattenedLedgerEntry,
+  GetIncomeInsightsResponse,
+  GetIncomeTypesResponse,
+  GetMonthlyIncomeSummaryResponse,
   GetUserIncomeResponse,
   Income,
   IncomeAnalytics,
@@ -18,20 +21,21 @@ import type {
   IncomeSourceType,
   IncomeTypeRecord,
   LedgerFilters,
-  UpdateIncomeSourcePayload,
-  ValidationResponse,
-  ValidateIncomeDataPayload,
-  GetIncomeTypesResponse,
-  GetMonthlyIncomeSummaryResponse,
-  GetIncomeInsightsResponse,
-  UpdateRecurringLedgerEntriesResponse,
   UpdateAllRecurringLedgersResponse,
+  UpdateIncomeSourcePayload,
+  UpdateRecurringLedgerEntriesResponse,
+  ValidateIncomeDataPayload,
+  ValidationResponse,
 } from "../types/income";
 import { safeArray } from "../types/income";
 import { CACHE_KEYS, cacheService } from "./cache-service.js";
 
 // Normalize income record to ensure all fields are present and properly typed
 function normalizeIncomeRecord(record: any): Income {
+  if (!record) {
+    throw new Error("Invalid income record: record is null or undefined");
+  }
+
   return {
     name: record.name || "",
     household_profile: record.household_profile || "",
@@ -39,15 +43,15 @@ function normalizeIncomeRecord(record: any): Income {
     creation: record.creation || "",
     modified: record.modified || "",
     income_source: safeArray(record.income_source).map((src: any) => ({
-      name: src.name,
+      name: src.name || "",
       type: src.type || "",
       income: Number(src.income || 0),
-      recur: src.recur,
-      recur_frequency: src.recur_frequency,
+      recur: Boolean(src.recur),
+      recur_frequency: src.recur_frequency || undefined,
       date_time: src.date_time || "",
-      stop_date: src.stop_date,
+      stop_date: src.stop_date || undefined,
       ledger_entries: safeArray(src.ledger_entries).map((entry: any) => ({
-        name: entry.name,
+        name: entry.name || "",
         income_type: entry.income_type || "one-time",
         date_time: entry.date_time || "",
         amount: Number(entry.amount || 0),
@@ -55,7 +59,7 @@ function normalizeIncomeRecord(record: any): Income {
       })),
     })),
     income_ledger: safeArray(record.income_ledger).map((ledger: any) => ({
-      name: ledger.name,
+      name: ledger.name || "",
       income_type: ledger.income_type || "one-time",
       date_time: ledger.date_time || "",
       amount: Number(ledger.amount || 0),
@@ -128,6 +132,9 @@ class IncomeService {
         );
       } else if (Array.isArray(response)) {
         incomeRecords = safeArray(response).map(normalizeIncomeRecord);
+      } else if (response && !Array.isArray(response)) {
+        // Handle case where a single record is returned
+        incomeRecords = [normalizeIncomeRecord(response)];
       } else {
         return [];
       }
@@ -141,7 +148,9 @@ class IncomeService {
       }
       return incomeRecords;
     } catch (error) {
-      throw new Error(`Failed to fetch income data: ${error.message}`);
+      const errorMessage = error?.message || "Unknown error occurred";
+      console.error("Failed to fetch income data:", error);
+      throw new Error(`Failed to fetch income data: ${errorMessage}`);
     }
   }
 
@@ -300,13 +309,25 @@ class IncomeService {
           return cached;
         }
       }
-      const response: GetIncomeTypesResponse = await call(
-        "artha.api.income.get_income_types",
-      );
-      const incomeTypes: IncomeTypeRecord[] = safeArray(response.income_types);
+      const response = await call("artha.api.income.get_income_types");
+
+      // Extract income_types from response or use response directly if it's an array
+      let incomeTypes: IncomeTypeRecord[] = [];
+      if (
+        response &&
+        typeof response === "object" &&
+        "income_types" in response
+      ) {
+        incomeTypes = safeArray(response.income_types);
+      } else if (Array.isArray(response)) {
+        incomeTypes = safeArray(response);
+      } else {
+        incomeTypes = [];
+      }
+
       if (useCache) {
         cacheService.set(CACHE_KEYS.INCOME_TYPES, incomeTypes, {
-          maxAge: 24 * 60 * 60 * 1000,
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
         });
       }
       return incomeTypes;

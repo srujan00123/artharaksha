@@ -62,12 +62,12 @@
             <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Income Type</h4>
             <div class="space-y-2">
               <label class="flex items-center">
-                <input type="radio" name="incomeType" value="" v-model="localFilters.incomeType"
+                <input type="radio" name="incomeType" value="" v-model="localFilters.type"
                   @change="onFilterChange" class="mr-2" />
                 <span class="text-sm dark:text-gray-200">All Types</span>
               </label>
               <div v-for="type in incomeTypes" :key="type.name" class="flex items-center">
-                <input type="radio" name="incomeType" :value="type.type" v-model="localFilters.incomeType"
+                <input type="radio" name="incomeType" :value="type.type" v-model="localFilters.type"
                   @change="onFilterChange" class="mr-2" />
                 <span class="flex items-center text-sm dark:text-gray-200">
                   <DollarSign class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" />
@@ -211,12 +211,14 @@ interface Props {
 	totalCount: number
 	filteredCount: number
 	incomeTypes: IncomeTypeRecord[]
+	currentView?: 'sources' | 'ledger' | 'insights'
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	totalCount: 0,
 	filteredCount: 0,
 	incomeTypes: () => [],
+	currentView: 'sources'
 })
 
 // Use income composable for complete self-contained filtering
@@ -238,7 +240,7 @@ const localFilters = ref<IncomeFilters>({
 	dateTo: "",
 	amountMin: undefined,
 	amountMax: undefined,
-	incomeType: "",
+	type: "",
 	isRecurring: undefined,
 	sortBy: "date",
 	sortOrder: "desc",
@@ -294,7 +296,7 @@ const activeFilterCount = computed(() => {
 	if (localFilters.value.searchTerm) count++
 	if (localFilters.value.dateFrom || localFilters.value.dateTo) count++
 	if (localFilters.value.amountMin || localFilters.value.amountMax) count++
-	if (localFilters.value.incomeType) count++
+	if (localFilters.value.type) count++
 	if (localFilters.value.isRecurring !== null) count++
 	return count
 })
@@ -310,11 +312,11 @@ const activeFilters = computed((): ActiveFilter[] => {
 		})
 	}
 
-	if (localFilters.value.incomeType) {
+	if (localFilters.value.type) {
 		filters.push({
 			key: "type",
-			label: `Type: ${localFilters.value.incomeType}`,
-			value: localFilters.value.incomeType,
+			label: `Type: ${localFilters.value.type}`,
+			value: localFilters.value.type,
 		})
 	}
 
@@ -456,7 +458,7 @@ async function clearAllFilters() {
 		dateTo: "",
 		amountMin: undefined,
 		amountMax: undefined,
-		incomeType: "",
+		type: "",
 		isRecurring: undefined,
 		sortBy: "date",
 		sortOrder: "desc",

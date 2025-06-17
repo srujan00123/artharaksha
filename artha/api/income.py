@@ -14,6 +14,7 @@ import json
 def get_income_types():
     """
     Get all available income types
+    [{'name': 'Agriculture', 'type': 'Agriculture'}, {'name': 'Business', 'type': 'Business'}, {'name': 'Freelance', 'type': 'Freelance'}, {'name': 'Salary', 'type': 'Salary'}, {'name': 'Wage', 'type': 'Wage'}]
     """
     try:
         income_types = frappe.get_all(

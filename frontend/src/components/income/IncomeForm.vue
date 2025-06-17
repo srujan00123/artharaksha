@@ -313,7 +313,7 @@ const validateForm = (): IncomeValidationResult => {
 
 	// Validate frequency is from supported list
 	if (formData.value.frequency) {
-		const supportedFrequencies = frequencyOptions.map(f => f.value)
+		const supportedFrequencies = frequencyOptions.map((f) => f.value)
 		if (!supportedFrequencies.includes(formData.value.frequency as any)) {
 			errors.frequency = "Invalid frequency selected"
 		}
