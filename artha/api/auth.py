@@ -39,6 +39,7 @@ def register_account(email, password):
         # Create Household Profile (only set user field)
         household_profile = frappe.new_doc("Household Profile")
         household_profile.user = user.email
+
         household_profile.save(ignore_permissions=True)
         frappe.log_error(f"Household Profile created: {household_profile.name}")
 

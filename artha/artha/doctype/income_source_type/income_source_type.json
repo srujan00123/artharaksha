@@ -9,6 +9,7 @@
   "income",
   "recur",
   "date_time",
+  "stop_date",
   "recur_frequency"
  ],
  "fields": [
@@ -41,13 +42,18 @@
    "fieldname": "date_time",
    "fieldtype": "Datetime",
    "label": "Date Time"
+  },
+  {
+   "fieldname": "stop_date",
+   "fieldtype": "Date",
+   "label": "Stop Date"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-06-16 04:00:57.496912",
+ "modified": "2025-06-17 05:10:52.324650",
  "modified_by": "Administrator",
  "module": "Artha",
  "name": "Income Source Type",

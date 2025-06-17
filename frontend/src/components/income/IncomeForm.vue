@@ -110,6 +110,20 @@
             <p v-if="validationErrors.frequency" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ validationErrors.frequency }}</p>
           </div>
 
+          <!-- End Date (only if recurring) -->
+          <div v-if="formData.isRecurring" class="transition-all duration-200">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
+              End Date (optional)
+            </label>
+            <input
+              v-model="formData.stop_date"
+              type="date"
+              :min="formData.dateTime"
+              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 border-gray-300"
+            />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave blank if the income is ongoing.</p>
+          </div>
+
           <!-- Date -->
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
@@ -199,7 +213,7 @@ const emit = defineEmits<{
 }>()
 
 // Composables
-const { incomeTypes, fetchIncomeTypes } = useIncome()
+const { incomeTypes, fetchIncomeTypes, incomes } = useIncome()
 
 // State
 const loading = ref(false)
@@ -211,6 +225,7 @@ const formData = ref<IncomeFormUIData>({
 	isRecurring: false,
 	dateTime: "",
 	frequency: undefined,
+	stop_date: undefined,
 })
 
 // Validation errors
@@ -299,6 +314,7 @@ const resetForm = () => {
 		isRecurring: false,
 		dateTime: "",
 		frequency: undefined,
+		stop_date: undefined,
 	}
 	validationErrors.value = {}
 }
@@ -315,6 +331,7 @@ const populateForm = (source: ProcessedIncomeItem) => {
 			| "monthly"
 			| "yearly"
 			| undefined,
+		stop_date: source.stop_date ? source.stop_date.split("T")[0] : undefined,
 	}
 }
 

@@ -186,6 +186,7 @@ def get_user_income(filters=None, include_analytics=False):
         
         # Process each income record
         filtered_records = []
+        recurring_sources_virtual = []
         for record in income_records:
             source_conditions = {"parent": record.name}
             
@@ -209,7 +210,7 @@ def get_user_income(filters=None, include_analytics=False):
                 filters=source_conditions,
                 fields=[
                     "name", "type", "income", "recur", 
-                    "date_time", "recur_frequency"
+                    "date_time", "recur_frequency", "stop_date"
                 ],
                 order_by="creation"
             )
@@ -308,6 +309,24 @@ def get_user_income(filters=None, include_analytics=False):
                         if source.type not in type_amounts:
                             type_amounts[source.type] = 0
                         type_amounts[source.type] += monthly_amount
+            
+            # Collect recurring sources for virtual list
+            today = getdate()
+            for source in income_sources:
+                is_recurring = source.get('recur')
+                freq = source.get('recur_frequency')
+                date_time = getdate(source.get('date_time')) if source.get('date_time') else today
+                stop_date = getdate(source.get('stop_date')) if source.get('stop_date') else None
+                if is_recurring:
+                    if (date_time <= today) and (not stop_date or today <= stop_date):
+                        recurring_sources_virtual.append({
+                            'type': source.get('type'),
+                            'amount': source.get('income'),
+                            'frequency': freq,
+                            'start_date': date_time.isoformat() if date_time else '',
+                            'stop_date': stop_date.isoformat() if stop_date else '',
+                            'name': source.get('name'),
+                        })
         
         # Generate monthly trends and summary for analytics
         if include_analytics:
@@ -333,7 +352,8 @@ def get_user_income(filters=None, include_analytics=False):
         if include_analytics:
             return {
                 "income_records": filtered_records,
-                "analytics": analytics_data
+                "analytics": analytics_data,
+                "recurring_sources": recurring_sources_virtual
             }
         
         return filtered_records
@@ -435,9 +455,15 @@ def get_monthly_income_summary():
 
 
 @frappe.whitelist()
-def create_or_update_income(monthly_income, income_source, income_name=None):
+def create_or_update_income(income_source, income_name=None, source_name=None, action=None):
     """
     Create or update income record with sources
+    - Only one Income doctype per household profile
+    - All sources are children (Income Source Type)
+    - If action == 'delete', remove the specified source
+    - If source_name is provided, update that source
+    - Otherwise, add a new source
+    - monthly_income is always recalculated from sources
     """
     try:
         # Get user's household profile
@@ -446,47 +472,95 @@ def create_or_update_income(monthly_income, income_source, income_name=None):
             {"user": frappe.session.user}, 
             "name"
         )
-        
         if not household_profile:
             frappe.throw(_("No household profile found for current user"))
-        
+
         # Parse income_source if it's a string
         if isinstance(income_source, str):
             income_source = json.loads(income_source)
-        
-        # Create or update income record
-        if income_name:
-            # Update existing record
-            income_doc = frappe.get_doc("Income", income_name)
-            income_doc.monthly_income = flt(monthly_income)
-            
-            # Clear existing income sources
-            income_doc.income_source = []
+
+        # Find or create the single Income record for this household
+        income_name_db = frappe.db.get_value(
+            "Income",
+            {"household_profile": household_profile},
+            "name"
+        )
+        if income_name_db:
+            income_doc = frappe.get_doc("Income", income_name_db)
         else:
-            # Create new record
             income_doc = frappe.new_doc("Income")
             income_doc.household_profile = household_profile
-            income_doc.monthly_income = flt(monthly_income)
-        
-        # Add income sources
-        for source in income_source:
-            income_doc.append("income_source", {
-                "type": source.get("type"),
-                "income": flt(source.get("income")),
-                "recur": source.get("recur", False),
-                "date_time": source.get("date_time") or now_datetime(),
-                "recur_frequency": source.get("recur_frequency")
-            })
-        
+
+        # Remove, update, or add child sources
+        if action == 'delete' and source_name:
+            # Remove the specified child
+            income_doc.income_source = [row for row in income_doc.income_source if row.name != source_name]
+        elif source_name:
+            # Update the specified child
+            # Ensure income_source is a dict (single source), not a list
+            source_data = income_source
+            if isinstance(source_data, list):
+                source_data = source_data[0] if source_data else {}
+            for row in income_doc.income_source:
+                if row.name == source_name:
+                    row.type = source_data.get("type", row.type)
+                    row.income = flt(source_data.get("income", row.income))
+                    row.recur = source_data.get("recur", row.recur)
+                    row.date_time = source_data.get("date_time", row.date_time)
+                    row.recur_frequency = source_data.get("recur_frequency", row.recur_frequency)
+                    break
+        else:
+            # Add a new child
+            for source in income_source:
+                income_doc.append("income_source", {
+                    "type": source.get("type"),
+                    "income": flt(source.get("income")),
+                    "recur": source.get("recur", False),
+                    "date_time": source.get("date_time") or now_datetime(),
+                    "recur_frequency": source.get("recur_frequency")
+                })
+
+        # Recalculate monthly_income from all sources (recurring and one-time for current month)
+        total_monthly_income = 0
+        today = getdate()
+        current_month = today.month
+        current_year = today.year
+        for row in income_doc.income_source:
+            amount = flt(row.income)
+            is_recurring = row.recur
+            freq = getattr(row, 'recur_frequency', None)
+            date_time = getdate(row.date_time) if getattr(row, 'date_time', None) else today
+            stop_date = getdate(row.stop_date) if getattr(row, 'stop_date', None) else None
+            if is_recurring:
+                # Only include if today is within start and stop date
+                if (date_time <= today) and (not stop_date or today <= stop_date):
+                    # Convert recurring to monthly equivalent
+                    freq_map = {
+                        'daily': 30,
+                        'weekly': 4.33,
+                        'bi-weekly': 2.17,
+                        'monthly': 1,
+                        'quarterly': 1/3,
+                        'semi-annually': 1/6,
+                        'annually': 1/12,
+                        'yearly': 1/12
+                    }
+                    factor = freq_map.get(str(freq).lower(), 1)
+                    monthly_amount = amount * factor
+                    total_monthly_income += monthly_amount
+            else:
+                # Only count one-time income if it falls in the current month
+                if date_time.month == current_month and date_time.year == current_year:
+                    total_monthly_income += amount
+        income_doc.monthly_income = total_monthly_income
+
         # Save the document
         income_doc.save()
-        
         return {
             "name": income_doc.name,
             "household_profile": income_doc.household_profile,
             "monthly_income": income_doc.monthly_income
         }
-        
     except Exception as e:
         frappe.log_error(f"Error creating/updating income: {str(e)}")
         frappe.throw(_("Failed to save income record: {0}").format(str(e)))

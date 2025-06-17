@@ -311,6 +311,20 @@
           </div>
         </div>
       </div>
+
+      <!-- Recurring Income Sources -->
+      <div v-if="recurringSources.length > 0" class="mb-6">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Recurring Income Sources</h3>
+        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+          <li v-for="source in recurringSources" :key="source.name" class="py-2 flex flex-col md:flex-row md:items-center md:space-x-4">
+            <span class="font-medium text-gray-800 dark:text-gray-200">{{ source.type }}</span>
+            <span class="text-gray-600 dark:text-gray-400">₹{{ source.amount?.toLocaleString('en-IN') }}</span>
+            <span class="text-gray-600 dark:text-gray-400">{{ source.frequency ? formatFrequency(source.frequency) : '' }}</span>
+            <span class="text-gray-500 dark:text-gray-400">Start: {{ source.start_date ? formatDate(source.start_date) : 'N/A' }}</span>
+            <span v-if="source.stop_date" class="text-gray-500 dark:text-gray-400">End: {{ formatDate(source.stop_date) }}</span>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
@@ -326,6 +340,7 @@ import {
   Calendar,
   Hash
 } from 'lucide-vue-next'
+import type { AddIncomeSourcePayload, UpdateIncomeSourcePayload, DeleteIncomeSourcePayload } from '../../types/income'
 
 // Composables
 import { useIncome } from '../../composables/useIncome'
@@ -338,7 +353,8 @@ const {
   error,
   updateFilters,
   fetchIncomesWithAnalytics,
-  initialize
+  initialize,
+  recurringSources
 } = useIncome()
 
 // Local state

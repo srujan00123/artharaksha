@@ -160,6 +160,20 @@
         </div>
       </div>
 
+      <!-- Recurring Income Sources -->
+      <div v-if="recurringSources.length > 0" class="mb-6">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Recurring Income Sources</h3>
+        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+          <li v-for="source in recurringSources" :key="source.name" class="py-2 flex flex-col md:flex-row md:items-center md:space-x-4">
+            <span class="font-medium text-gray-800 dark:text-gray-200">{{ source.type }}</span>
+            <span class="text-gray-600 dark:text-gray-400">₹{{ source.amount?.toLocaleString('en-IN') }}</span>
+            <span class="text-gray-600 dark:text-gray-400">{{ source.frequency ? formatFrequency(source.frequency) : '' }}</span>
+            <span class="text-gray-500 dark:text-gray-400">Start: {{ source.start_date ? formatDate(source.start_date) : 'N/A' }}</span>
+            <span v-if="source.stop_date" class="text-gray-500 dark:text-gray-400">End: {{ formatDate(source.stop_date) }}</span>
+          </li>
+        </ul>
+      </div>
+
       <!-- Income Sources List -->
       <div v-else class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
         <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
@@ -199,6 +213,7 @@
                     class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
                   >
                     {{ formatFrequency(source.frequency) }}
+                    <span v-if="source.stop_date" class="ml-2 text-xs text-gray-500">(ends {{ formatDate(source.stop_date) }})</span>
                   </span>
                   <span 
                     v-else
@@ -224,7 +239,7 @@
                   <Edit2 class="w-3 h-3" />
                 </button>
                 <button 
-                  @click="deleteIncomeSource(source)"
+                  @click="deleteIncomeSourceHandler(source)"
                   class="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:text-red-200 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors"
                   title="Delete income source"
                 >
@@ -252,6 +267,7 @@
                   class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
                 >
                   {{ formatFrequency(source.frequency) }}
+                  <span v-if="source.stop_date" class="ml-2 text-xs text-gray-500">(ends {{ formatDate(source.stop_date) }})</span>
                 </span>
                 <span 
                   v-else
@@ -280,7 +296,7 @@
                   <Edit2 class="w-3 h-3" />
                 </button>
                 <button 
-                  @click="deleteIncomeSource(source)"
+                  @click="deleteIncomeSourceHandler(source)"
                   class="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:text-red-200 hover:bg-red-50 dark:bg-red-900/20 rounded transition-colors"
                   title="Delete income source"
                 >
@@ -326,7 +342,10 @@ import { useIncome } from '../../composables/useIncome'
 import type { 
   IncomeFilters, 
   IncomeFormData, 
-  IncomeFormUIData
+  IncomeFormUIData,
+  AddIncomeSourcePayload,
+  UpdateIncomeSourcePayload,
+  DeleteIncomeSourcePayload
 } from '../../types/income'
 import {
   convertIncomeAmount,
@@ -348,11 +367,13 @@ const {
   fetchIncomes,
   createIncome,
   updateIncome,
-  deleteIncome,
+  deleteIncomeSource,
   updateFilters,
   resetFilters,
   initialize,
-  fetchMonthlyAnalytics
+  fetchMonthlyAnalytics,
+  recurringSources,
+  ...rest
 } = useIncome()
 
 // Local state
@@ -501,39 +522,33 @@ const editIncomeSource = (source: any) => {
 
 const handleIncomeSubmit = async (formData: IncomeFormUIData) => {
   console.log('Income Dashboard: Form submitted with data:', formData)
-  
   try {
     // Convert form data to backend API format
-    const backendFormData: IncomeFormData = {
-      monthly_income: formData.amount, // Backend calculates monthly income
-      income_source: [{
-        type: formData.type,
-        income: formData.amount,
-        recur: convertRecurFlag(formData.isRecurring),
-        date_time: formData.dateTime,
-        recur_frequency: formData.frequency
-      }],
-      income_name: editingSource.value ? editingSource.value.incomeId : undefined
+    const sourcePayload = {
+      type: formData.type,
+      income: formData.amount,
+      recur: convertRecurFlag(formData.isRecurring),
+      date_time: formData.dateTime,
+      recur_frequency: formData.frequency
     }
-    
     if (editingSource.value) {
-      console.log('Income Dashboard: Updating existing income')
-      await updateIncome(backendFormData)
+      // Update existing source
+      const payload: UpdateIncomeSourcePayload = {
+        income_source: [sourcePayload],
+        income_name: editingSource.value.incomeId,
+        source_name: editingSource.value.name || editingSource.value.sourceId
+      }
+      await updateIncome(payload)
     } else {
-      console.log('Income Dashboard: Creating new income')
-      await createIncome(backendFormData)
+      // Add new source
+      const payload: AddIncomeSourcePayload = {
+        income_source: [sourcePayload],
+        income_name: incomes.value[0]?.name // always use the single Income record
+      }
+      await createIncome(payload)
     }
-    
-    console.log('Income Dashboard: Refreshing incomes...')
-    // Refresh data
     await fetchIncomes(true)
-    
-    console.log('Income Dashboard: Closing form...')
-    // Close form after successful submission
     closeIncomeForm()
-    
-    console.log('Income Dashboard: Form submission completed successfully')
-    
   } catch (error) {
     console.error('Income Dashboard: Failed to save income:', error)
     alert('Failed to save income. Please try again.')
@@ -541,13 +556,16 @@ const handleIncomeSubmit = async (formData: IncomeFormUIData) => {
   }
 }
 
-const deleteIncomeSource = async (source: any) => {
+const deleteIncomeSourceHandler = async (source: any) => {
   if (confirm(`Are you sure you want to delete the ${source.type} income source (₹${source.amount.toLocaleString('en-IN')})?`)) {
     try {
-      // Delete the entire income record
-      await deleteIncome(source.incomeId)
-      
-      // Refresh data
+      const payload: DeleteIncomeSourcePayload = {
+        income_source: [],
+        income_name: source.incomeId,
+        action: 'delete',
+        source_name: source.name || source.sourceId || source.idx?.toString() || ''
+      }
+      await deleteIncomeSource(payload)
       await fetchIncomes(true)
     } catch (error) {
       console.error('Failed to delete income source:', error)

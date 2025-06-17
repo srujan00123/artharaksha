@@ -1,4 +1,5 @@
-export interface MedicalExpenseType {
+
+export interface MedicalExpenseType{
 	name: string
 	creation: string
 	modified: string
@@ -10,19 +11,7 @@ export interface MedicalExpenseType {
 	parenttype?: string
 	idx?: number
 	/**	Medical Expense Type : Select	*/
-	medical_expense_type?:
-		| "Consultation"
-		| "Diagnostics Tests"
-		| "Surgery"
-		| "Medicine"
-		| "Medication"
-		| "Therapy"
-		| "Dental"
-		| "Optical"
-		| "Emergency"
-		| "Hospitalization"
-		| "Transportation"
-		| "Other"
+	medical_expense_type?: "Consultation" | "Diagnostics Tests" | "Surgery" | "Medicine" | "Medication" | "Therapy" | "Dental" | "Optical" | "Emergency" | "Hospitalization" | "Transportation" | "Other"
 	/**	Amount : Currency	*/
 	amount?: number
 	/**	Is Direct Medical Expense : Check	*/

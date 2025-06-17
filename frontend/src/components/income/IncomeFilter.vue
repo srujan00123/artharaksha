@@ -177,7 +177,7 @@ import {
 	SlidersHorizontal,
 } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
-import type { IncomeFilters, IncomeType } from "../../types/income"
+import type { IncomeFilters, IncomeTypeRecord } from "../../types/income"
 import { getClientDateString, getClientTime } from "../../utils/date"
 
 // Quick date filter interface
@@ -200,7 +200,7 @@ interface Props {
 	filters: IncomeFilters
 	totalCount: number
 	filteredCount: number
-	incomeTypes: IncomeType[]
+	incomeTypes: IncomeTypeRecord[]
 }
 
 const props = withDefaults(defineProps<Props>(), {

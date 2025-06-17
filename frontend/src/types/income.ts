@@ -12,7 +12,12 @@ export type { ArthaIncome, ArthaIncomeSourceType, ArthaIncomeType }
 
 // Backend API Response Types (exact structure from income.py)
 
-// Income record as returned by get_user_income API
+/**
+ * Income record as returned by get_user_income API
+ *
+ * NOTE: Only one IncomeRecord exists per household_profile.
+ * All income sources are managed as children in the income_source array.
+ */
 export interface IncomeRecord {
 	name: string
 	household_profile: string // Links to Household Profile (which has user field)
@@ -23,7 +28,11 @@ export interface IncomeRecord {
 	income_source?: IncomeSourceRecord[]
 }
 
-// Income source as returned by backend API
+/**
+ * Income source as returned by backend API
+ *
+ * NOTE: All CRUD operations on sources are performed via the parent Income record.
+ */
 export interface IncomeSourceRecord {
 	name?: string
 	creation?: string
@@ -38,7 +47,8 @@ export interface IncomeSourceRecord {
 	type: string
 	income: number
 	recur: 0 | 1
-	date_time: string
+	date_time: string // Start date
+	stop_date?: string // End date for recurring income (optional)
 	recur_frequency?: "daily" | "weekly" | "monthly" | "yearly"
 }
 
@@ -121,6 +131,7 @@ export interface IncomeSourceFormData {
 	recur: 0 | 1
 	date_time: string
 	recur_frequency?: "daily" | "weekly" | "monthly" | "yearly"
+	stop_date?: string // End date for recurring income (optional)
 }
 
 // Frontend form interfaces (for UI components)
@@ -130,6 +141,7 @@ export interface IncomeFormUIData {
 	isRecurring: boolean
 	dateTime: string
 	frequency?: "daily" | "weekly" | "monthly" | "yearly"
+	stop_date?: string // End date for recurring income (optional)
 }
 
 export interface IncomeValidationResult {
@@ -149,6 +161,7 @@ export interface ProcessedIncomeItem {
 	createdAt: string
 	updatedAt: string
 	sources?: ProcessedIncomeSource[]
+	stop_date?: string // End date for recurring income (optional)
 }
 
 export interface ProcessedIncomeSource {
@@ -222,4 +235,36 @@ export function isIncomeSourceRecord(obj: any): obj is IncomeSourceRecord {
 		(obj.recur === 0 || obj.recur === 1) &&
 		typeof obj.date_time === "string"
 	)
+}
+
+// --- New types for source operations ---
+
+/**
+ * Payload for adding a new income source to the single Income record
+ * NOTE: monthly_income is not sent from the client; it is always computed by the backend.
+ */
+export interface AddIncomeSourcePayload {
+	income_source: IncomeSourceFormData[] // New source(s) to add
+	income_name: string // Parent Income record name
+}
+
+/**
+ * Payload for updating an existing income source
+ * NOTE: monthly_income is not sent from the client; it is always computed by the backend.
+ */
+export interface UpdateIncomeSourcePayload {
+	income_source: IncomeSourceFormData[] // Updated source data (single item)
+	income_name: string // Parent Income record name
+	source_name: string // Name of the child to update
+}
+
+/**
+ * Payload for deleting an income source
+ * NOTE: monthly_income is not sent from the client; it is always computed by the backend.
+ */
+export interface DeleteIncomeSourcePayload {
+	income_source: [] // Always empty for delete
+	income_name: string // Parent Income record name
+	action: 'delete'
+	source_name: string // Name of the child to delete
 }
