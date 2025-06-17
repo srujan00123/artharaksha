@@ -372,27 +372,26 @@ def get_user_income(filters=None, include_analytics=False):
                     )
 
                     # Calculate monthly equivalent from ledger entries
-                    if ledger_entries:
-                        for entry in ledger_entries:
-                            entry_amount = flt(entry.amount)
+                    for entry in ledger_entries:
+                        entry_amount = flt(entry.amount)
 
-                            # For recurring income, use the amount as is (already monthly equivalent)
-                            # For one-time income, we need to convert based on the time period
-                            if entry.income_type == "recurring":
-                                calculated_monthly_income += entry_amount
+                        # For recurring income, use the amount as is (already monthly equivalent)
+                        # For one-time income, we need to convert based on the time period
+                        if entry.income_type == "recurring":
+                            calculated_monthly_income += entry_amount
+                        else:
+                            # For one-time income in a filtered period, calculate monthly equivalent
+                            if start_date and end_date:
+                                # Calculate days in the period
+                                period_days = (
+                                    end_date - start_date).days + 1
+                                # Convert to monthly equivalent (assuming 30 days per month)
+                                monthly_equivalent = (
+                                    entry_amount / period_days) * 30
+                                calculated_monthly_income += monthly_equivalent
                             else:
-                                # For one-time income in a filtered period, calculate monthly equivalent
-                                if start_date and end_date:
-                                    # Calculate days in the period
-                                    period_days = (
-                                        end_date - start_date).days + 1
-                                    # Convert to monthly equivalent (assuming 30 days per month)
-                                    monthly_equivalent = (
-                                        entry_amount / period_days) * 30
-                                    calculated_monthly_income += monthly_equivalent
-                                else:
-                                    # If no date filter, treat one-time as monthly amount
-                                    calculated_monthly_income += entry_amount
+                                # If no date filter, treat one-time as monthly amount
+                                calculated_monthly_income += entry_amount
 
                     source.ledger_entries = ledger_entries
 
@@ -558,41 +557,37 @@ def get_monthly_income_summary():
                 "total_sources": 0
             }
 
-        # Calculate totals from ledger entries
+        # Calculate totals from ledger entries only
         total_monthly_income = 0
         total_recurring_income = 0
         total_one_time_income = 0
         total_sources = 0
 
         for record in income_records:
-            # Get income sources for this record
+            # Get income sources for this record (for counting)
             income_sources = frappe.get_all(
                 "Income Source Type",
                 filters={"parent": record.name},
-                fields=["name", "type"]
+                fields=["name"]
             )
 
             total_sources += len(income_sources)
 
-            # Calculate from ledger entries for each source
-            for source in income_sources:
-                ledger_entries = frappe.get_all(
-                    "Income Ledger",
-                    filters={
-                        "parent": record.name,
-                        "income_source": source.name
-                    },
-                    fields=["amount", "income_type"]
-                )
+            # Get all ledger entries for this record
+            ledger_entries = frappe.get_all(
+                "Income Ledger",
+                filters={"parent": record.name},
+                fields=["amount", "income_type"]
+            )
 
-                for entry in ledger_entries:
-                    entry_amount = flt(entry.amount)
-                    total_monthly_income += entry_amount
+            for entry in ledger_entries:
+                entry_amount = flt(entry.amount)
+                total_monthly_income += entry_amount
 
-                    if entry.income_type == "recurring":
-                        total_recurring_income += entry_amount
-                    else:
-                        total_one_time_income += entry_amount
+                if entry.income_type == "recurring":
+                    total_recurring_income += entry_amount
+                else:
+                    total_one_time_income += entry_amount
 
         return {
             "monthly_income": total_monthly_income,
@@ -763,11 +758,7 @@ def update_recurring_ledger_entries():
     """
     try:
         # Get all income records
-        income_records = frappe.get_all(
-            "Income",
-            fields=["name"]
-        )
-
+        income_records = frappe.get_all("Income", fields=["name"])
         updated_count = 0
 
         for record in income_records:
@@ -781,18 +772,14 @@ def update_recurring_ledger_entries():
                 for source in income_doc.income_source:
                     if source.recur and not source.stop_date:
                         # Get the latest ledger entry for this source
-                        latest_entries = [
+                        source_entries = [
                             entry for entry in income_doc.income_ledger
                             if entry.income_source == source.name
                         ]
 
-                        if latest_entries:
-                            # Sort by date and get the most recent
-                            latest_entries.sort(key=lambda x: getdate(
-                                x.date_time), reverse=True)
-                            latest_date = getdate(latest_entries[0].date_time)
-
-                            # If the latest entry is not today, we need updates
+                        if source_entries:
+                            latest_date = max(getdate(entry.date_time)
+                                              for entry in source_entries)
                             if latest_date < today:
                                 needs_update = True
                                 break
@@ -802,7 +789,7 @@ def update_recurring_ledger_entries():
                             break
 
                 if needs_update:
-                    income_doc.update_recurring_ledgers()
+                    income_doc.update_future_recurring_entries()
                     updated_count += 1
 
             except Exception as e:
@@ -820,6 +807,36 @@ def update_recurring_ledger_entries():
         frappe.log_error(f"Error updating recurring ledger entries: {str(e)}")
         frappe.throw(
             _("Failed to update recurring ledger entries: {0}").format(str(e)))
+
+
+def on_income_source_type_update(doc, method=None):
+    """
+    This function is no longer needed as ledger entries are automatically
+    managed by the Income doctype's on_update method
+    """
+    pass
+
+
+@frappe.whitelist()
+def update_all_recurring_ledgers():
+    """
+    Scheduled function to update recurring ledger entries for all income documents
+    Should be set up as a daily scheduled job
+    """
+    try:
+        result = update_recurring_ledger_entries()
+        frappe.log_error(
+            f"Scheduled update of recurring ledgers completed: {result.get('message', 'Unknown result')}",
+            "Income Recurring Ledger Update"
+        )
+        return result
+
+    except Exception as e:
+        frappe.log_error(
+            f"Scheduled recurring ledger update failed: {str(e)}",
+            "Income Recurring Ledger Update Error"
+        )
+        return {"status": "error", "message": str(e)}
 
 
 @frappe.whitelist()
@@ -1008,44 +1025,3 @@ def get_income_insights():
     except Exception as e:
         frappe.log_error(f"Error getting income insights: {str(e)}")
         frappe.throw(_("Failed to get income insights"))
-
-
-def on_income_source_type_update(doc, method=None):
-    """
-    When an Income Source Type is updated, regenerate all ledger entries for the parent Income document.
-    This is triggered via hooks when child table changes.
-    """
-    try:
-        # Get the parent Income document
-        income_doc = frappe.get_doc("Income", doc.parent)
-
-        # Recreate all ledger entries (this will handle the updated source)
-        income_doc.recreate_ledger_entries()
-
-        # Save the parent Income doc to persist new ledgers
-        income_doc.save()
-
-    except Exception as e:
-        frappe.log_error(f"Error in on_income_source_type_update: {str(e)}")
-        frappe.throw(
-            _("Failed to update income ledger entries for source update."))
-
-
-@frappe.whitelist()
-def update_all_recurring_ledgers():
-    """
-    Scheduled function to update recurring ledger entries for all income documents
-    Should be set up as a daily scheduled job
-    """
-    try:
-        result = update_recurring_ledger_entries()
-        frappe.log_error(
-            f"Scheduled update of recurring ledgers completed: {result.get('message', 'Unknown result')}",
-            "Income Recurring Ledger Update"
-        )
-        return result
-
-    except Exception as e:
-        frappe.log_error(
-            f"Scheduled recurring ledger update failed: {str(e)}", "Income Recurring Ledger Update Error")
-        return {"status": "error", "message": str(e)}

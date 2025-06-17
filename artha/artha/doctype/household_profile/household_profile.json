@@ -98,7 +98,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-06-13 15:48:13.759065",
+ "modified": "2025-06-17 10:58:54.385564",
  "modified_by": "Administrator",
  "module": "Artha",
  "name": "Household Profile",
@@ -132,6 +132,5 @@
  "row_format": "Dynamic",
  "sort_field": "creation",
  "sort_order": "DESC",
- "states": [],
- "title_field": "user"
+ "states": []
 }
