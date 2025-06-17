@@ -389,13 +389,11 @@ export const cacheService = new CacheService()
 
 // Export cache keys constants
 export const CACHE_KEYS = {
-	// Expense cache keys
-	EXPENSES: "expense-cache",
+	// Expense cache keys - following income pattern
+	USER_EXPENSES: "user-expenses",
+	USER_EXPENSES_ANALYTICS: "user-expenses-analytics",
 	EXPENSE_TYPES: "expense-types",
-	EXPENSE_ANALYTICS: "expense-analytics",
-	EXPENSE_MONTHLY: "expense-monthly-summary",
-	EXPENSE_BREAKDOWN: "expense-breakdown",
-	EXPENSE_MEDICAL_ANALYTICS: "expense-medical-analytics",
+	EXPENSE_DASHBOARD: "expense-dashboard",
 	EXPENSE_FILTERS: "expense-filters",
 	EXPENSE_PREFERENCES: "expense-preferences",
 

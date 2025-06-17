@@ -227,7 +227,9 @@ const {
 	refreshData,
 	invalidateCache,
 	loading,
-	filters
+	filters,
+	isCacheValid,
+	clearCache
 } = useIncome()
 
 // Local state
@@ -257,31 +259,31 @@ const quickDateFilters: QuickDateFilter[] = [
 	},
 	{
 		label: "This Week",
-		value: "this-week",
+		value: "this_week",
 		dateFrom: getWeekStart(),
 		dateTo: getClientDateString(),
 	},
 	{
 		label: "This Month",
-		value: "this-month",
+		value: "this_month",
 		dateFrom: getMonthStart(),
 		dateTo: getClientDateString(),
 	},
 	{
 		label: "Last Month",
-		value: "last-month",
+		value: "last_month",
 		dateFrom: getLastMonthStart(),
 		dateTo: getLastMonthEnd(),
 	},
 	{
 		label: "Last 3 Months",
-		value: "last-3-months",
+		value: "last_3_months",
 		dateFrom: getThreeMonthsAgo(),
 		dateTo: getClientDateString(),
 	},
 	{
 		label: "This Year",
-		value: "this-year",
+		value: "this_year",
 		dateFrom: getYearStart(),
 		dateTo: getClientDateString(),
 	},
@@ -433,14 +435,11 @@ async function applyQuickDateFilter(period: string) {
 	if (filter) {
 		localFilters.value.dateFrom = filter.dateFrom
 		localFilters.value.dateTo = filter.dateTo
-		// Map period values to match IncomeFilters type
-		const periodMapping: Record<string, IncomeFilters['period']> = {
-			'this-month': 'this_month',
-			'last-month': 'last_month',
-			'last-3-months': 'last_3_months',
-			'this-year': 'this_year'
+		// Direct period assignment (values now match IncomeFilters type)
+		const validPeriods = ["today", "this_week", "this_month", "last_month", "last_3_months", "last_6_months", "this_year", "all", "custom"] as const
+		if (validPeriods.includes(period as any)) {
+			localFilters.value.period = period as typeof validPeriods[number]
 		}
-		localFilters.value.period = periodMapping[period] || undefined
 		activePeriod.value = period
 		// Directly apply the filter with cache invalidation
 		await onFilterChange()
@@ -480,8 +479,18 @@ watch(
 	{ immediate: true, deep: true },
 )
 
-// Initialize
-onMounted(() => {
+// Initialize with cache validation and default filter
+onMounted(async () => {
+	// Check cache validity and refresh if needed
+	if (!isCacheValid.value) {
+		try {
+			clearCache()
+			await refreshData({ withAnalytics: true })
+		} catch (error) {
+			console.error("Failed to refresh income data on mount:", error)
+		}
+	}
+	
 	// Sync with store filters first
 	if (filters.value) {
 		localFilters.value = { ...filters.value }
@@ -493,7 +502,7 @@ onMounted(() => {
 		!localFilters.value.dateFrom &&
 		!localFilters.value.dateTo
 	) {
-		applyQuickDateFilter("this-month")
+		await applyQuickDateFilter("this_month")
 	}
 })
 </script>

@@ -533,8 +533,8 @@ export const useIncomeStore = defineStore("income", () => {
 
       const result = await incomeService.updateLedgerEntry(payload);
 
-      // Refresh data after update
-      await fetchIncome({ forceRefresh: true });
+      // Refresh data after update with analytics
+      await fetchIncomeWithAnalytics({ forceRefresh: true });
       await fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true });
 
       return result;
@@ -554,8 +554,8 @@ export const useIncomeStore = defineStore("income", () => {
 
       const result = await incomeService.deleteLedgerEntry(payload);
 
-      // Refresh data after deletion
-      await fetchIncome({ forceRefresh: true });
+      // Refresh data after deletion with analytics
+      await fetchIncomeWithAnalytics({ forceRefresh: true });
       await fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true });
 
       return result;

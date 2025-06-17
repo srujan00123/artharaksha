@@ -64,12 +64,17 @@
           <!-- Info Section -->
           <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
             <p class="text-sm text-blue-800 dark:text-blue-200">
-              <span class="font-medium">Note:</span>
+              <span class="font-medium">✨ Edit Mode:</span>
               {{ entry.income_type === 'recurring' 
-                ? 'Editing a recurring entry will update the source amount for future entries. This specific entry will be modified independently.'
-                : 'Editing a one-time entry will only affect this specific ledger entry and may also update the underlying source.'
+                ? 'You\'re editing a specific occurrence of this recurring income. The original income source pattern remains unchanged - this edit only affects this individual entry.'
+                : 'You\'re editing a one-time income entry. This will only update this specific ledger entry.'
               }}
             </p>
+            <div class="mt-2 text-xs text-blue-700 dark:text-blue-300" v-if="entry.income_type === 'recurring'">
+              <span class="font-medium">Source:</span> {{ entry.source_type }} 
+              <span v-if="entry.source_recur_frequency">({{ formatFrequency(entry.source_recur_frequency) }})</span>
+              - Future entries will continue as scheduled
+            </div>
           </div>
         </form>
       </div>
@@ -161,6 +166,22 @@ const handleSubmit = () => {
   if (isFormValid.value && props.entry) {
     emit('submit', { ...formData }, props.entry.name)
   }
+}
+
+// Utility function to format frequency
+const formatFrequency = (frequency?: string) => {
+  if (!frequency) return ""
+  const frequencyMap: Record<string, string> = {
+    daily: "Daily",
+    weekly: "Weekly",
+    "bi-weekly": "Bi-weekly",
+    monthly: "Monthly",
+    quarterly: "Quarterly",
+    "semi-annually": "Semi-annually",
+    annually: "Annually",
+    yearly: "Yearly",
+  }
+  return frequencyMap[frequency] || frequency
 }
 </script>
 

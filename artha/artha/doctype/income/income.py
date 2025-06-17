@@ -6,6 +6,7 @@ from frappe.model.document import Document
 from frappe.utils import flt, getdate
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
+from typing import Dict, List, Any, Optional, Union, Set
 
 
 class Income(Document):
@@ -19,21 +20,21 @@ class Income(Document):
     - Income ledger entries automatically generated from sources
     """
 
-    def validate(self):
+    def validate(self) -> None:
         """
         Validate the income document before saving
         """
         # Calculate total monthly income from recurring sources only
         self.calculate_monthly_income()
 
-    def on_update(self):
+    def on_update(self) -> None:
         """
         After update, create ledger entries for new recurring sources only
         """
         # Only create ledger entries for new recurring sources
         self.create_ledger_entries_for_new_sources()
 
-    def calculate_monthly_income(self):
+    def calculate_monthly_income(self) -> None:
         """
         Calculate monthly income from recurring income sources only
         All sources in income_source table are recurring by design
@@ -45,7 +46,7 @@ class Income(Document):
             total_monthly += flt(source.income)
         self.monthly_income = total_monthly
 
-    def create_ledger_entries_for_new_sources(self):
+    def create_ledger_entries_for_new_sources(self) -> None:
         """
         Create ledger entries only for new recurring sources that don't have any ledger entries yet
         Only recurring sources (income_source table) generate automatic ledger entries
@@ -53,7 +54,7 @@ class Income(Document):
         """
         try:
             # Get existing ledger source names (excluding None for direct entries)
-            existing_ledger_sources = {
+            existing_ledger_sources: Set[str] = {
                 entry.income_source for entry in self.income_ledger
                 if entry.income_source  # Exclude direct entries with no source
             }
@@ -67,9 +68,10 @@ class Income(Document):
         except Exception as e:
             frappe.log_error(
                 f"Error creating ledger entries for new sources in {self.name}: {str(e)}")
-            frappe.throw(f"Failed to create ledger entries for new sources: {str(e)}")
+            frappe.throw(
+                f"Failed to create ledger entries for new sources: {str(e)}")
 
-    def create_initial_recurring_entries(self, source):
+    def create_initial_recurring_entries(self, source: Any) -> None:
         """
         Create initial ledger entries for a new recurring source
         Only creates entries from start date to today (or stop date if earlier)
@@ -78,10 +80,12 @@ class Income(Document):
             amount = flt(source.income)
             start_date = getdate(source.date_time)
             today = getdate()
-            stop_date = getdate(source.stop_date) if source.stop_date else today
+            stop_date = getdate(
+                source.stop_date) if source.stop_date else today
 
             # Get all dates for this recurring income
-            dates = self.get_recurring_dates(start_date, min(stop_date, today), source.recur_frequency)
+            dates = self.get_recurring_dates(start_date, min(
+                stop_date, today), source.recur_frequency)
 
             # Create ledger entries for each date
             for entry_date in dates:
@@ -98,11 +102,11 @@ class Income(Document):
             frappe.throw(
                 f"Failed to create initial recurring entries for source {source.name}: {str(e)}")
 
-    def get_recurring_dates(self, start_date, end_date, frequency):
+    def get_recurring_dates(self, start_date: Any, end_date: Any, frequency: str) -> Set[Any]:
         """
         Get all dates for recurring income within the date range
         """
-        dates = set()
+        dates: Set[Any] = set()
         current_date = start_date
 
         while current_date <= end_date:
@@ -115,7 +119,7 @@ class Income(Document):
 
         return dates
 
-    def get_next_occurrence(self, current_date, frequency):
+    def get_next_occurrence(self, current_date: Any, frequency: str) -> Any:
         """
         Calculate the next occurrence date based on frequency
         """
@@ -139,7 +143,7 @@ class Income(Document):
             # Default to monthly
             return current_date + relativedelta(months=1)
 
-    def update_future_recurring_entries(self):
+    def update_future_recurring_entries(self) -> None:
         """
         Add new ledger entries for ongoing recurring income (called by scheduler)
         """
@@ -185,7 +189,7 @@ class Income(Document):
                 f"Error updating future recurring entries for {self.name}: {str(e)}")
 
 
-def get_permission_query_conditions_for_income(user):
+def get_permission_query_conditions_for_income(user: Optional[str]) -> str:
     """
     Return query conditions to filter income based on user's household profile
     """
@@ -213,7 +217,7 @@ def get_permission_query_conditions_for_income(user):
     return f"({household_condition})"
 
 
-def has_permission(doc, user=None, ptype=None):
+def has_permission(doc: Any, user: Optional[str] = None, ptype: Optional[str] = None) -> bool:
     """
     Check if user has permission to access the income document
     """

@@ -8,13 +8,15 @@ from frappe import _
 from frappe.utils import flt, getdate, now_datetime
 from datetime import datetime, timedelta
 import json
+from typing import Dict, List, Any, Optional, Union
 
 
 @frappe.whitelist()
-def get_income_types():
+def get_income_types() -> Dict[str, List[Dict[str, str]]]:
     """
     Get all available income types
-    Returns: {'income_types': [{'name': 'Agriculture', 'type': 'Agriculture'}, ...]}
+    Returns: {'income_types': [
+        {'name': 'Agriculture', 'type': 'Agriculture'}, ...]}
     """
     try:
         income_types = frappe.get_all(
@@ -33,7 +35,7 @@ def get_income_types():
 
 
 @frappe.whitelist()
-def get_income_ledger(filters=None):
+def get_income_ledger(filters: Optional[Union[str, Dict]] = None) -> List[Dict[str, Any]]:
     """
     Get flattened income ledger entries for the current user's household profile
     Returns all ledger entries with source information attached
@@ -131,7 +133,7 @@ def get_income_ledger(filters=None):
 
 
 @frappe.whitelist()
-def get_user_income(filters=None, include_analytics=False):
+def get_user_income(filters: Optional[Union[str, Dict]] = None, include_analytics: bool = False) -> Dict[str, Any]:
     """
     Get income data for the current user's household profile
     Returns:
@@ -217,7 +219,7 @@ def get_user_income(filters=None, include_analytics=False):
                     "amount": entry.amount,
                     "description": entry.description
                 }
-                
+
                 if entry.income_source:
                     # This is from a recurring source - get source details
                     source_info = frappe.get_all(
@@ -245,7 +247,7 @@ def get_user_income(filters=None, include_analytics=False):
                 else:
                     # This is a direct entry - use stored source_type
                     flattened_entry["source_type"] = entry.source_type or "One-time"
-                
+
                 all_ledger_entries.append(flattened_entry)
 
         # Step 3: Apply filters to ledger entries
@@ -255,14 +257,13 @@ def get_user_income(filters=None, include_analytics=False):
         if filters.get('dateFrom'):
             start_date = getdate(filters['dateFrom'])
             filtered_ledger_entries = [
-                e for e in filtered_ledger_entries 
-                if getdate(e['date_time']) >= start_date
-            ]
+                e for e in filtered_ledger_entries
+                if getdate(e['date_time']) >= start_date]
 
         if filters.get('dateTo'):
             end_date = getdate(filters['dateTo'])
             filtered_ledger_entries = [
-                e for e in filtered_ledger_entries 
+                e for e in filtered_ledger_entries
                 if getdate(e['date_time']) <= end_date
             ]
 
@@ -281,25 +282,27 @@ def get_user_income(filters=None, include_analytics=False):
                 start_date = last_month.replace(day=1)
                 end_date = last_month
             elif period == "last_3_months":
-                start_date = (today.replace(day=1) - timedelta(days=90)).replace(day=1)
+                start_date = (today.replace(day=1) -
+                              timedelta(days=90)).replace(day=1)
                 end_date = today
             elif period == "last_6_months":
-                start_date = (today.replace(day=1) - timedelta(days=180)).replace(day=1)
+                start_date = (today.replace(day=1) -
+                              timedelta(days=180)).replace(day=1)
                 end_date = today
             elif period == "this_year":
                 start_date = today.replace(month=1, day=1)
                 end_date = today
 
-            if start_date and end_date:
-                filtered_ledger_entries = [
-                    e for e in filtered_ledger_entries 
-                    if start_date <= getdate(e['date_time']) <= end_date
-                ]
+        if start_date and end_date:
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries
+                if start_date <= getdate(e['date_time']) <= end_date
+            ]
 
         # Income type filter
         if filters.get('type'):
             filtered_ledger_entries = [
-                e for e in filtered_ledger_entries 
+                e for e in filtered_ledger_entries
                 if e['source_type'] == filters['type']
             ]
 
@@ -307,12 +310,12 @@ def get_user_income(filters=None, include_analytics=False):
         if filters.get('isRecurring') is not None:
             if filters['isRecurring']:
                 filtered_ledger_entries = [
-                    e for e in filtered_ledger_entries 
+                    e for e in filtered_ledger_entries
                     if e['income_type'] == 'recurring'
                 ]
             else:
                 filtered_ledger_entries = [
-                    e for e in filtered_ledger_entries 
+                    e for e in filtered_ledger_entries
                     if e['income_type'] == 'one-time'
                 ]
 
@@ -320,14 +323,14 @@ def get_user_income(filters=None, include_analytics=False):
         if filters.get('amountMin'):
             min_amount = flt(filters['amountMin'])
             filtered_ledger_entries = [
-                e for e in filtered_ledger_entries 
+                e for e in filtered_ledger_entries
                 if flt(e['amount']) >= min_amount
             ]
 
         if filters.get('amountMax'):
             max_amount = flt(filters['amountMax'])
             filtered_ledger_entries = [
-                e for e in filtered_ledger_entries 
+                e for e in filtered_ledger_entries
                 if flt(e['amount']) <= max_amount
             ]
 
@@ -335,7 +338,7 @@ def get_user_income(filters=None, include_analytics=False):
         if filters.get('searchTerm'):
             search_term = filters['searchTerm'].lower()
             filtered_ledger_entries = [
-                e for e in filtered_ledger_entries 
+                e for e in filtered_ledger_entries
                 if search_term in e['source_type'].lower()
             ]
 
@@ -346,17 +349,17 @@ def get_user_income(filters=None, include_analytics=False):
 
         if sort_by == 'date':
             filtered_ledger_entries.sort(
-                key=lambda x: getdate(x['date_time']), 
+                key=lambda x: getdate(x['date_time']),
                 reverse=reverse_sort
             )
         elif sort_by == 'amount':
             filtered_ledger_entries.sort(
-                key=lambda x: flt(x['amount']), 
+                key=lambda x: flt(x['amount']),
                 reverse=reverse_sort
             )
         elif sort_by == 'type':
             filtered_ledger_entries.sort(
-                key=lambda x: x['source_type'], 
+                key=lambda x: x['source_type'],
                 reverse=reverse_sort
             )
 
@@ -433,7 +436,7 @@ def get_user_income(filters=None, include_analytics=False):
 
             # Summary statistics
             analytics_data["summary"]["average_source_amount"] = (
-                total_amount / len(filtered_ledger_entries) 
+                total_amount / len(filtered_ledger_entries)
                 if len(filtered_ledger_entries) > 0 else 0
             )
 
@@ -443,9 +446,11 @@ def get_user_income(filters=None, include_analytics=False):
                 analytics_data["summary"]["top_income_type"] = top_type[0]
 
             # Calculate additional metrics
-            total_income_for_percentage = analytics_data["recurring_income"] + analytics_data["one_time_income"]
+            total_income_for_percentage = analytics_data["recurring_income"] + \
+                analytics_data["one_time_income"]
             analytics_data["recurring_percentage"] = (
-                (analytics_data["recurring_income"] / total_income_for_percentage) * 100
+                (analytics_data["recurring_income"] /
+                 total_income_for_percentage) * 100
                 if total_income_for_percentage > 0 else 0
             )
 
@@ -461,11 +466,20 @@ def get_user_income(filters=None, include_analytics=False):
             else:
                 analytics_data["growth_rate"] = 0
 
-        return {
-            "recurring_sources": recurring_sources,
-            "ledger_entries": filtered_ledger_entries,
-            "analytics": analytics_data
-        }
+            # Calculate proper monthly income from recurring sources only
+            analytics_data["monthly_recurring_income"] = sum(
+                flt(s.income) for s in recurring_sources)
+
+            # Calculate actual income for the period from ledger
+            analytics_data["period_recurring_income"] = analytics_data["recurring_income"]
+            analytics_data["period_one_time_income"] = analytics_data["one_time_income"]
+            analytics_data["period_total_income"] = analytics_data["total_income"]
+
+            return {
+                "recurring_sources": recurring_sources,
+                "ledger_entries": filtered_ledger_entries,
+                "analytics": analytics_data
+            }
 
     except Exception as e:
         frappe.log_error(f"Error fetching user income: {str(e)}")
@@ -473,7 +487,7 @@ def get_user_income(filters=None, include_analytics=False):
 
 
 @frappe.whitelist()
-def get_monthly_income_summary():
+def get_monthly_income_summary() -> Dict[str, Union[float, int]]:
     """
     Get monthly income summary for CHE analysis
     Calculated from ledger entries to ensure consistency with filtered data
@@ -554,7 +568,7 @@ def get_monthly_income_summary():
 
 
 @frappe.whitelist()
-def get_income_dashboard_metrics(period="this_month"):
+def get_income_dashboard_metrics(period: str = "this_month") -> Dict[str, Any]:
     """
     Get computed dashboard metrics for income management
     Provides all the key metrics needed for dashboard displays
@@ -611,7 +625,7 @@ def get_income_dashboard_metrics(period="this_month"):
 
 
 @frappe.whitelist()
-def create_or_update_income(income_source, income_name=None, source_name=None, action=None):
+def create_or_update_income(income_source: Union[str, List[Dict]], income_name: Optional[str] = None, source_name: Optional[str] = None, action: Optional[str] = None) -> Dict[str, Any]:
     """
     Create or update RECURRING income sources only
     - Only recurring income sources (recur=True) are managed here
@@ -662,21 +676,25 @@ def create_or_update_income(income_source, income_name=None, source_name=None, a
                     for source in income_source:
                         # Ensure this is a recurring source
                         if not source.get("recur", False):
-                            frappe.throw(_("Only recurring income sources can be managed here. Use direct ledger entry for one-time income."))
-                        
+                            frappe.throw(
+                                _("Only recurring income sources can be managed here. Use direct ledger entry for one-time income."))
+
                         existing_source.type = source.get("type")
                         existing_source.income = flt(source.get("income"))
                         existing_source.recur = True  # Always true for income sources
-                        existing_source.date_time = source.get("date_time") or now_datetime()
-                        existing_source.recur_frequency = source.get("recur_frequency")
+                        existing_source.date_time = source.get(
+                            "date_time") or now_datetime()
+                        existing_source.recur_frequency = source.get(
+                            "recur_frequency")
                         existing_source.stop_date = source.get("stop_date")
                     break
         else:
             # Add new recurring sources only
             for source in income_source:
                 if not source.get("recur", False):
-                    frappe.throw(_("Only recurring income sources can be created here. Use direct ledger entry for one-time income."))
-                
+                    frappe.throw(
+                        _("Only recurring income sources can be created here. Use direct ledger entry for one-time income."))
+
                 income_doc.append("income_source", {
                     "type": source.get("type"),
                     "income": flt(source.get("income")),
@@ -700,7 +718,7 @@ def create_or_update_income(income_source, income_name=None, source_name=None, a
 
 
 @frappe.whitelist()
-def update_recurring_ledger_entries():
+def update_recurring_ledger_entries() -> Dict[str, Any]:
     """
     Update ledger entries for recurring income sources without stop dates across all income documents
     This should be called periodically (e.g., daily) to ensure ledger entries are up to date
@@ -758,7 +776,7 @@ def update_recurring_ledger_entries():
             _("Failed to update recurring ledger entries: {0}").format(str(e)))
 
 
-def on_income_source_type_update(doc, method=None):
+def on_income_source_type_update(doc: Any, method: Optional[str] = None) -> None:
     """
     This function is no longer needed as ledger entries are automatically
     managed by the Income doctype's on_update method
@@ -767,7 +785,7 @@ def on_income_source_type_update(doc, method=None):
 
 
 @frappe.whitelist()
-def update_all_recurring_ledgers():
+def update_all_recurring_ledgers() -> Dict[str, Any]:
     """
     Scheduled function to update recurring ledger entries for all income documents
     Should be set up as a daily scheduled job
@@ -789,7 +807,7 @@ def update_all_recurring_ledgers():
 
 
 @frappe.whitelist()
-def validate_income_data(monthly_income, income_source):
+def validate_income_data(monthly_income: Union[str, float], income_source: Union[str, List[Dict]]) -> Dict[str, Any]:
     """
     Validate income data before saving
     """
@@ -843,7 +861,7 @@ def validate_income_data(monthly_income, income_source):
 
 
 @frappe.whitelist()
-def get_income_insights():
+def get_income_insights() -> Dict[str, Any]:
     """
     Get AI-powered insights and recommendations for income management
     """
@@ -977,17 +995,22 @@ def get_income_insights():
 
 
 @frappe.whitelist()
-def update_ledger_entry(ledger_entry_name, new_amount, new_date, new_type=None):
+def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], new_date: str, new_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Update a specific ledger entry directly without affecting the income source
     - For recurring entries: Edit the specific occurrence only, source remains unchanged
     - For one-time entries: Edit the entry directly
+    - This allows editing individual occurrences without changing the recurring pattern
     """
     try:
         # Get the ledger entry
         ledger_entry = frappe.get_doc("Income Ledger", ledger_entry_name)
         if not ledger_entry:
             frappe.throw(_("Ledger entry not found"))
+
+        # Store original data for reference
+        original_amount = ledger_entry.amount
+        original_type = ledger_entry.income_type
 
         # Update the ledger entry
         ledger_entry.amount = flt(new_amount)
@@ -1000,15 +1023,21 @@ def update_ledger_entry(ledger_entry_name, new_amount, new_date, new_type=None):
 
         # Note: We intentionally do NOT update the income source
         # This allows editing specific occurrences without affecting the recurring pattern
+        # For recurring entries, the source settings remain unchanged for future entries
+        # For one-time entries, there's no source to update anyway
 
         return {
             "status": "success",
-            "message": "Ledger entry updated successfully (source unchanged)",
+            "message": f"Ledger entry updated successfully. {original_type.title()} source pattern unchanged.",
             "updated_entry": {
                 "name": ledger_entry.name,
                 "amount": ledger_entry.amount,
                 "date_time": ledger_entry.date_time,
                 "income_type": ledger_entry.income_type
+            },
+            "changes": {
+                "amount_changed": original_amount != ledger_entry.amount,
+                "type_changed": original_type != ledger_entry.income_type
             }
         }
 
@@ -1018,7 +1047,7 @@ def update_ledger_entry(ledger_entry_name, new_amount, new_date, new_type=None):
 
 
 @frappe.whitelist()
-def delete_ledger_entry(ledger_entry_name):
+def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
     """
     Delete a specific ledger entry without affecting the income source
     - For recurring entries: Delete just that one occurrence, source remains
@@ -1031,7 +1060,7 @@ def delete_ledger_entry(ledger_entry_name):
             frappe.throw(_("Ledger entry not found"))
 
         income_type = ledger_entry.income_type
-        
+
         # Delete the ledger entry only (do NOT delete the source)
         frappe.delete_doc("Income Ledger", ledger_entry_name)
 
@@ -1051,7 +1080,7 @@ def delete_ledger_entry(ledger_entry_name):
 
 
 @frappe.whitelist()
-def create_direct_ledger_entry(income_type, amount, date_time, description=None):
+def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date_time: str, description: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a direct ledger entry for one-time income without creating an income source
     This is for freelance work, bonuses, gifts, etc. that don't need recurring tracking
@@ -1073,7 +1102,7 @@ def create_direct_ledger_entry(income_type, amount, date_time, description=None)
             {"household_profile": household_profile},
             "name"
         )
-        
+
         if income_name_db:
             income_doc = frappe.get_doc("Income", income_name_db)
         else:
@@ -1089,10 +1118,10 @@ def create_direct_ledger_entry(income_type, amount, date_time, description=None)
             "source_type": income_type,  # Store the type directly in ledger
             "description": description or ""
         }
-        
+
         # Add to ledger
         income_doc.append("income_ledger", new_entry)
-        
+
         # Recalculate monthly income (only from recurring sources)
         income_doc.validate()
         income_doc.save()
@@ -1105,11 +1134,12 @@ def create_direct_ledger_entry(income_type, amount, date_time, description=None)
 
     except Exception as e:
         frappe.log_error(f"Error creating direct ledger entry: {str(e)}")
-        frappe.throw(_("Failed to create direct ledger entry: {0}").format(str(e)))
+        frappe.throw(
+            _("Failed to create direct ledger entry: {0}").format(str(e)))
 
 
 @frappe.whitelist()
-def create_ledger_entry(income_source_name, amount, date_time, income_type="one-time"):
+def create_ledger_entry(income_source_name: str, amount: Union[str, float], date_time: str, income_type: str = "one-time") -> Dict[str, Any]:
     """
     Create a new ledger entry for an existing income source
     """
@@ -1121,13 +1151,13 @@ def create_ledger_entry(income_source_name, amount, date_time, income_type="one-
             ["parent"],
             as_dict=True
         )
-        
+
         if not source_doc:
             frappe.throw(_("Income source not found"))
 
         # Get the income document
         income_doc = frappe.get_doc("Income", source_doc.parent)
-        
+
         # Create new ledger entry
         new_entry = {
             "income_source": income_source_name,
@@ -1135,10 +1165,10 @@ def create_ledger_entry(income_source_name, amount, date_time, income_type="one-
             "date_time": date_time,
             "amount": flt(amount)
         }
-        
+
         # Add to ledger
         income_doc.append("income_ledger", new_entry)
-        
+
         # Recalculate and save
         income_doc.validate()
         income_doc.save()

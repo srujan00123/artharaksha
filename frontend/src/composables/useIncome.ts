@@ -315,6 +315,7 @@ export function useIncome() {
       withLedger?: boolean;
       withSummary?: boolean;
       withInsights?: boolean;
+      withDashboard?: boolean;
     } = {},
   ) => {
     const {
@@ -322,6 +323,7 @@ export function useIncome() {
       withLedger = false,
       withSummary = false,
       withInsights = false,
+      withDashboard = true,
     } = options;
 
     try {
@@ -352,6 +354,12 @@ export function useIncome() {
 
       if (withInsights) {
         additionalFetches.push(fetchIncomeInsights({ forceRefresh: true }));
+      }
+
+      if (withDashboard) {
+        additionalFetches.push(
+          fetchDashboardMetrics("this_month", { forceRefresh: true }),
+        );
       }
 
       // Execute additional fetches in parallel

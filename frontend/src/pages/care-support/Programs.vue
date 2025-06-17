@@ -1,24 +1,37 @@
 <template>
-    <div class="p-4 lg:p-6">
+    <div class="p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-6">
         <!-- Header -->
-        <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Welfare & Insurance Schemes</h1>
-            <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-2">Discover government welfare programs and insurance schemes that you may be eligible for</p>
+        <div class="bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
+                        Welfare & Insurance Schemes
+                    </h1>
+                    <p class="text-purple-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
+                        Discover government welfare programs and insurance schemes that you may be eligible for
+                    </p>
+                </div>
+                <div class="hidden sm:block">
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <Shield class="w-8 h-8 text-white" />
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Filters and Search -->
-        <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 <!-- Search -->
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Search Schemes</label>
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Search Schemes</label>
                     <div class="relative">
-                        <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                        <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <input
                             v-model="searchQuery"
                             type="text"
                             placeholder="Search by name or description..."
-                            class="pl-10 w-full rounded-md border-gray-300 dark:border-gray-600 shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400"
+                            class="pl-10 w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
                         />
                     </div>
                 </div>
@@ -69,7 +82,7 @@
                     <p class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">Eligible for You</p>
                 </div>
             </div>
-        </div>
+        </Card>
 
         <!-- Loading State -->
         <div v-if="support.loading.value.allSchemes" class="flex justify-center items-center py-12">

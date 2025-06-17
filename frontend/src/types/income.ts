@@ -107,6 +107,11 @@ export interface IncomeAnalytics {
   recurring_percentage: number;
   growth_rate: number;
   actual_monthly_income: number;
+  // New fields for better metrics display
+  monthly_recurring_income: number; // Monthly income from recurring sources only
+  period_recurring_income: number; // Actual recurring income for the filtered period
+  period_one_time_income: number; // Actual one-time income for the filtered period
+  period_total_income: number; // Total income for the filtered period
 }
 
 export interface MonthlyTrend {
@@ -194,11 +199,15 @@ export interface IncomeFilters {
   dateFrom?: string;
   dateTo?: string;
   period?:
+    | "today"
+    | "this_week"
     | "this_month"
     | "last_month"
     | "last_3_months"
     | "last_6_months"
-    | "this_year";
+    | "this_year"
+    | "all"
+    | "custom";
   type?: string; // Primary filter name for income type
   frequency?:
     | "one-time"
@@ -394,6 +403,10 @@ export interface UpdateLedgerEntryResponse {
     date_time: string;
     income_type: "recurring" | "one-time";
   };
+  changes: {
+    amount_changed: boolean;
+    type_changed: boolean;
+  };
 }
 
 export interface DeleteLedgerEntryPayload {
@@ -444,9 +457,9 @@ export interface ProcessedIncomeItem {
 export interface IncomeFormUIData {
   type: string;
   amount: number;
-  isRecurring: true; // Always true for income sources
+  isRecurring: boolean; // Can be true or false for form input
   dateTime: string;
-  frequency: string;
+  frequency?: string; // Optional for one-time income
   stop_date?: string;
 }
 

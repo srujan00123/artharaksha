@@ -1,327 +1,334 @@
 <template>
-    <div class="p-4 lg:p-6">
-        <div class="mb-6 text-center">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Profile Settings</h1>
-            <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 mt-2">Manage your account information and preferences</p>
-        </div>
-
-        <div class="max-w-4xl mx-auto">
-            <!-- Loading State -->
-            <div v-if="userStore.loading" class="flex items-center justify-center py-12">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span class="ml-3 text-gray-600 dark:text-gray-400 dark:text-gray-500">Loading profile...</span>
-            </div>
-
-            <!-- Error State -->
-            <div v-else-if="userStore.error" class="mb-6">
-                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
-                    <div class="flex">
-                        <AlertCircle class="h-5 w-5 text-red-400" />
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium  dark:text-red-200" :class="getFinancialStatusClass('expense', '800')">Error loading profile</h3>
-                            <p class="mt-1 text-sm  dark:text-red-300" :class="getFinancialStatusClass('expense', '700')">{{ userStore.error }}</p>
-                            <div class="mt-3">
-                                <Button variant="outline" size="sm" @click="loadProfile">
-                                    <RefreshCw class="w-4 h-4 mr-2" />
-                                    Retry
-                                </Button>
-                            </div>
-                        </div>
+    <div class="p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-6">
+        <!-- Header Section -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
+                        Profile Settings
+                    </h1>
+                    <p class="text-blue-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
+                        Manage your account information, preferences, and security settings
+                    </p>
+                </div>
+                <div class="hidden sm:block">
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <User class="w-8 h-8 text-white" />
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Profile Content -->
-            <div v-else>
-                <!-- User Info Card -->
-                <Card class="mb-6">
-                    <div class="p-6">
-                        <div class="flex items-center space-x-6">
-                            <div class="relative">
-                                <div v-if="userStore.currentUser?.user_image" class="w-20 h-20 rounded-full overflow-hidden">
-                                    <img :src="userStore.currentUser.user_image" :alt="userStore.userDisplayName" class="w-full h-full object-cover" />
-                                </div>
-                                <div v-else class="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center">
-                                    <span class="text-2xl font-bold text-white dark:text-black">{{ userStore.userInitials }}</span>
-                                </div>
-                                <button 
-                                    @click="$refs.imageInput.click()"
-                                    class="absolute bottom-0 right-0 bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-full p-1 shadow dark:shadow-gray-900/20-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100"
-                                >
-                                    <Camera class="w-4 h-4 text-gray-600 dark:text-gray-400 dark:text-gray-500" />
-                                </button>
-                                <input 
-                                    ref="imageInput" 
-                                    type="file" 
-                                    accept="image/*" 
-                                    class="hidden" 
-                                    @change="handleImageUpload"
-                                />
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ userStore.userDisplayName }}</h3>
-                                <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500">{{ userStore.currentUser?.email }}</p>
-                                <div class="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                                    <User class="w-4 h-4 mr-1" />
-                                    <span>{{ userStore.currentUser?.user_type || 'User' }}</span>
-                                    <span v-if="userStore.currentUser?.last_active" class="ml-4 flex items-center">
-                                        <Clock class="w-4 h-4 mr-1" />
-                                        Last active: {{ formatDate(userStore.currentUser.last_active) }}
-                                    </span>
-                                </div>
-                            </div>
-                            <Button variant="outline" @click="refreshProfile">
-                                <RefreshCw class="w-4 h-4 mr-2" />
-                                Refresh
-                            </Button>
-                        </div>
+        <!-- Loading State -->
+        <div v-if="userStore.loading" class="flex items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span class="ml-3 text-gray-600 dark:text-gray-400">Loading profile...</span>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="userStore.error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div class="flex">
+                <AlertCircle class="h-5 w-5 text-red-400" />
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error loading profile</h3>
+                    <p class="mt-1 text-sm text-red-700 dark:text-red-300">{{ userStore.error }}</p>
+                    <div class="mt-3">
+                        <Button variant="outline" size="sm" @click="loadProfile">
+                            <RefreshCw class="w-4 h-4 mr-2" />
+                            Retry
+                        </Button>
                     </div>
-                </Card>
-
-                <!-- Account Information -->
-                <Card class="mb-6">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Account Information</h3>
-                        <form @submit.prevent="updateProfile">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">First Name</label>
-                                    <Input 
-                                        v-model="profileForm.first_name" 
-                                        placeholder="Enter your first name" 
-                                        :disabled="updating"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Last Name</label>
-                                    <Input 
-                                        v-model="profileForm.last_name" 
-                                        placeholder="Enter your last name" 
-                                        :disabled="updating"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Full Name</label>
-                                    <Input 
-                                        v-model="profileForm.full_name" 
-                                        placeholder="Enter your full name" 
-                                        :disabled="updating"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Email</label>
-                                    <Input :value="userStore.currentUser?.email" disabled />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Phone</label>
-                                    <Input 
-                                        v-model="profileForm.phone" 
-                                        placeholder="Enter your phone number" 
-                                        :disabled="updating"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Mobile</label>
-                                    <Input 
-                                        v-model="profileForm.mobile_no" 
-                                        placeholder="Enter your mobile number" 
-                                        :disabled="updating"
-                                    />
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Location</label>
-                                    <Input 
-                                        v-model="profileForm.location" 
-                                        placeholder="Enter your location" 
-                                        :disabled="updating"
-                                    />
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Bio</label>
-                                    <textarea 
-                                        v-model="profileForm.bio"
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
-                                        rows="3"
-                                        placeholder="Tell us about yourself"
-                                        :disabled="updating"
-                                    ></textarea>
-                                </div>
-                            </div>
-                            <div class="mt-6 flex space-x-3">
-                                <Button 
-                                    type="submit" 
-                                    variant="solid" 
-                                    :disabled="updating || !hasChanges"
-                                    :loading="updating"
-                                >
-                                    <Save class="w-4 h-4 mr-2" />
-                                    {{ updating ? 'Saving...' : 'Save Changes' }}
-                                </Button>
-                                <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    @click="resetForm"
-                                    :disabled="updating"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </Card>
-
-                <!-- Preferences -->
-                <Card class="mb-6">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Preferences</h3>
-                        <div class="space-y-6">
-                            <!-- Theme Selection -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Theme</label>
-                                <select 
-                                    v-model="preferencesForm.theme"
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
-                                    @change="updatePreferences"
-                                >
-                                    <option value="Light">Light</option>
-                                    <option value="Dark">Dark</option>
-                                    <option value="Automatic">Automatic</option>
-                                </select>
-                            </div>
-
-                            <!-- Language Selection -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Language</label>
-                                <select 
-                                    v-model="preferencesForm.language"
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
-                                    @change="updatePreferences"
-                                >
-                                    <option value="en">English</option>
-                                    <option value="hi">Hindi</option>
-                                    <option value="bn">Bengali</option>
-                                    <option value="te">Telugu</option>
-                                    <option value="ta">Tamil</option>
-                                </select>
-                            </div>
-
-                            <!-- Notification Preferences -->
-                            <div class="space-y-4">
-                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">Notifications</h4>
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">Email Notifications</h5>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Receive email updates about your health expenses</p>
-                                    </div>
-                                    <input 
-                                        type="checkbox" 
-                                        v-model="preferencesForm.emailNotifications"
-                                        class="toggle toggle-blue" 
-                                        @change="updatePreferences"
-                                    />
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">CHE Alerts</h5>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Get notified when approaching catastrophic health expenditure</p>
-                                    </div>
-                                    <input 
-                                        type="checkbox" 
-                                        v-model="preferencesForm.cheAlerts"
-                                        class="toggle toggle-blue" 
-                                        @change="updatePreferences"
-                                    />
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">Monthly Reports</h5>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Automatically generate monthly expense reports</p>
-                                    </div>
-                                    <input 
-                                        type="checkbox" 
-                                        v-model="preferencesForm.monthlyReports"
-                                        class="toggle toggle-blue" 
-                                        @change="updatePreferences"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-
-                <!-- Admin Section (only for System Manager/Administrator) -->
-                <Card v-if="hasAdminRole" class="mb-6">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Administration</h3>
-                        <div class="space-y-4">
-                            <router-link 
-                                to="/admin/notifications" 
-                                class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 dark:bg-gray-800 dark:bg-gray-200 transition-colors"
-                            >
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                                        <Bell class="w-5 h-5 text-white dark:text-black" />
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">Admin Notification Center</h4>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Manage role-based and broadcast notifications</p>
-                                    </div>
-                                </div>
-                                <ChevronRight class="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                            </router-link>
-                        </div>
-                    </div>
-                </Card>
-
-                <!-- Password Change -->
-                <Card>
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Change Password</h3>
-                        <form @submit.prevent="changePassword">
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Current Password</label>
-                                    <Input 
-                                        type="password" 
-                                        v-model="passwordForm.oldPassword" 
-                                        placeholder="Enter current password"
-                                        :disabled="changingPassword"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">New Password</label>
-                                    <Input 
-                                        type="password" 
-                                        v-model="passwordForm.newPassword" 
-                                        placeholder="Enter new password"
-                                        :disabled="changingPassword"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">Confirm New Password</label>
-                                    <Input 
-                                        type="password" 
-                                        v-model="passwordForm.confirmPassword" 
-                                        placeholder="Confirm new password"
-                                        :disabled="changingPassword"
-                                    />
-                                </div>
-                            </div>
-                            <div class="mt-6">
-                                <Button 
-                                    type="submit" 
-                                    variant="solid" 
-                                    :disabled="changingPassword || !canChangePassword"
-                                    :loading="changingPassword"
-                                >
-                                    <Lock class="w-4 h-4 mr-2" />
-                                    {{ changingPassword ? 'Changing...' : 'Change Password' }}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </Card>
+                </div>
             </div>
+        </div>
+
+        <!-- Profile Content -->
+        <div v-else class="space-y-4 lg:space-y-6">
+            <!-- User Info Card -->
+            <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                    <div class="relative mx-auto sm:mx-0">
+                        <div v-if="userStore.currentUser?.user_image" class="w-16 sm:w-20 h-16 sm:h-20 rounded-full overflow-hidden">
+                            <img :src="userStore.currentUser.user_image" :alt="userStore.userDisplayName" class="w-full h-full object-cover" />
+                        </div>
+                        <div v-else class="w-16 sm:w-20 h-16 sm:h-20 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span class="text-lg sm:text-2xl font-bold text-white">{{ userStore.userInitials }}</span>
+                        </div>
+                        <button 
+                            @click="$refs.imageInput.click()"
+                            class="absolute bottom-0 right-0 bg-white dark:bg-slate-800 rounded-full p-1 sm:p-1.5 shadow-md border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700"
+                        >
+                            <Camera class="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 dark:text-gray-400" />
+                        </button>
+                        <input 
+                            ref="imageInput" 
+                            type="file" 
+                            accept="image/*" 
+                            class="hidden" 
+                            @change="handleImageUpload"
+                        />
+                    </div>
+                    <div class="flex-1 text-center sm:text-left">
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">{{ userStore.userDisplayName }}</h3>
+                        <p class="text-gray-600 dark:text-gray-400 text-sm sm:text-base">{{ userStore.currentUser?.email }}</p>
+                        <div class="mt-2 flex flex-col sm:flex-row sm:items-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 space-y-1 sm:space-y-0 sm:space-x-4">
+                            <div class="flex items-center justify-center sm:justify-start">
+                                <User class="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                <span>{{ userStore.currentUser?.user_type || 'User' }}</span>
+                            </div>
+                            <div v-if="userStore.currentUser?.last_active" class="flex items-center justify-center sm:justify-start">
+                                <Clock class="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                <span>Last active: {{ formatDate(userStore.currentUser.last_active) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-full sm:w-auto">
+                        <Button variant="outline" size="sm" @click="refreshProfile" class="w-full sm:w-auto">
+                            <RefreshCw class="w-4 h-4 mr-2" />
+                            Refresh
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+
+            <!-- Account Information -->
+            <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 lg:mb-6">Account Information</h3>
+                <form @submit.prevent="updateProfile">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
+                            <Input 
+                                v-model="profileForm.first_name" 
+                                placeholder="Enter your first name" 
+                                :disabled="updating"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
+                            <Input 
+                                v-model="profileForm.last_name" 
+                                placeholder="Enter your last name" 
+                                :disabled="updating"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
+                            <Input 
+                                v-model="profileForm.full_name" 
+                                placeholder="Enter your full name" 
+                                :disabled="updating"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+                            <Input :value="userStore.currentUser?.email" disabled />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone</label>
+                            <Input 
+                                v-model="profileForm.phone" 
+                                placeholder="Enter your phone number" 
+                                :disabled="updating"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mobile</label>
+                            <Input 
+                                v-model="profileForm.mobile_no" 
+                                placeholder="Enter your mobile number" 
+                                :disabled="updating"
+                            />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                            <Input 
+                                v-model="profileForm.location" 
+                                placeholder="Enter your location" 
+                                :disabled="updating"
+                            />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
+                            <textarea 
+                                v-model="profileForm.bio"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                                rows="3"
+                                placeholder="Tell us about yourself"
+                                :disabled="updating"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="mt-4 lg:mt-6 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                        <Button 
+                            type="submit" 
+                            variant="solid" 
+                            :disabled="updating || !hasChanges"
+                            :loading="updating"
+                            class="w-full sm:w-auto"
+                        >
+                            <Save class="w-4 h-4 mr-2" />
+                            {{ updating ? 'Saving...' : 'Save Changes' }}
+                        </Button>
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            @click="resetForm"
+                            :disabled="updating"
+                            class="w-full sm:w-auto"
+                        >
+                            Cancel
+                        </Button>
+                    </div>
+                </form>
+            </Card>
+
+            <!-- Preferences -->
+            <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 lg:mb-6">Preferences</h3>
+                <div class="space-y-4 lg:space-y-6">
+                    <!-- Theme Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Theme</label>
+                        <select 
+                            v-model="preferencesForm.theme"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                            @change="updatePreferences"
+                        >
+                            <option value="Light">Light</option>
+                            <option value="Dark">Dark</option>
+                            <option value="Automatic">Automatic</option>
+                        </select>
+                    </div>
+
+                    <!-- Language Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Language</label>
+                        <select 
+                            v-model="preferencesForm.language"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
+                            @change="updatePreferences"
+                        >
+                            <option value="en">English</option>
+                            <option value="hi">Hindi</option>
+                            <option value="bn">Bengali</option>
+                            <option value="te">Telugu</option>
+                            <option value="ta">Tamil</option>
+                        </select>
+                    </div>
+
+                    <!-- Notification Preferences -->
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">Notifications</h4>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">Email Notifications</h5>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Receive email updates about your health expenses</p>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                v-model="preferencesForm.emailNotifications"
+                                class="toggle toggle-blue" 
+                                @change="updatePreferences"
+                            />
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">CHE Alerts</h5>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Get notified when approaching catastrophic health expenditure</p>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                v-model="preferencesForm.cheAlerts"
+                                class="toggle toggle-blue" 
+                                @change="updatePreferences"
+                            />
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100">Monthly Reports</h5>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Automatically generate monthly expense reports</p>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                v-model="preferencesForm.monthlyReports"
+                                class="toggle toggle-blue" 
+                                @change="updatePreferences"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            <!-- Admin Section (only for System Manager/Administrator) -->
+            <Card v-if="hasAdminRole" class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 lg:mb-6">Administration</h3>
+                <div class="space-y-4">
+                    <router-link 
+                        to="/admin/notifications" 
+                        class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 dark:bg-gray-800 dark:bg-gray-200 transition-colors"
+                    >
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                                <Bell class="w-5 h-5 text-white dark:text-black" />
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">Admin Notification Center</h4>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Manage role-based and broadcast notifications</p>
+                            </div>
+                        </div>
+                        <ChevronRight class="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                    </router-link>
+                </div>
+            </Card>
+
+            <!-- Password Change -->
+            <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 lg:mb-6">Change Password</h3>
+                <form @submit.prevent="changePassword">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Password</label>
+                            <Input 
+                                type="password" 
+                                v-model="passwordForm.oldPassword" 
+                                placeholder="Enter current password"
+                                :disabled="changingPassword"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">New Password</label>
+                            <Input 
+                                type="password" 
+                                v-model="passwordForm.newPassword" 
+                                placeholder="Enter new password"
+                                :disabled="changingPassword"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirm New Password</label>
+                            <Input 
+                                type="password" 
+                                v-model="passwordForm.confirmPassword" 
+                                placeholder="Confirm new password"
+                                :disabled="changingPassword"
+                            />
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <Button 
+                            type="submit" 
+                            variant="solid" 
+                            :disabled="changingPassword || !canChangePassword"
+                            :loading="changingPassword"
+                            class="w-full sm:w-auto"
+                        >
+                            <Lock class="w-4 h-4 mr-2" />
+                            {{ changingPassword ? 'Changing...' : 'Change Password' }}
+                        </Button>
+                    </div>
+                </form>
+            </Card>
         </div>
     </div>
 </template>

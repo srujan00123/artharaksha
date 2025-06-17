@@ -54,8 +54,8 @@ function normalizeIncomeRecord(record: any): IncomeRecord {
       name: src.name || "",
       type: src.type || "",
       income: Number(src.income || 0),
-      recur: Boolean(src.recur),
-      recur_frequency: src.recur_frequency || undefined,
+      recur: true as const, // IncomeSourceRecord always has recur: true
+      recur_frequency: src.recur_frequency || "monthly",
       date_time: src.date_time || "",
       stop_date: src.stop_date || undefined,
       ledger_entries: safeArray(src.ledger_entries).map((entry: any) => ({
@@ -218,6 +218,7 @@ class IncomeService {
           owner: "current_user",
           income_source: recurringSources.map((source) => ({
             ...source,
+            recur: true as const,
             ledger_entries: ledgerEntries
               .filter((entry) => entry.income_source === source.name)
               .map((entry) => ({
@@ -244,6 +245,10 @@ class IncomeService {
         recurring_percentage: 0,
         growth_rate: 0,
         actual_monthly_income: 0,
+        monthly_recurring_income: 0,
+        period_recurring_income: 0,
+        period_one_time_income: 0,
+        period_total_income: 0,
       };
 
       if (useCache) {

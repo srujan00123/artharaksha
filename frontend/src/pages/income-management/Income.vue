@@ -1,151 +1,159 @@
 <template>
-  <div class="income-management">
+  <div class="income-management p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-6">
     <!-- Header Section -->
-    <div class="header-section mb-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Income Management</h1>
-          <p class="text-gray-600 dark:text-gray-400 mt-1">Manage your household income sources and track monthly earnings</p>
+    <div class="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
+      <div class="flex items-start justify-between">
+        <div class="flex-1">
+          <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
+            Income Management
+          </h1>
+          <p class="text-green-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
+            Manage your household income sources and track monthly earnings
+          </p>
         </div>
-        <div class="flex items-center space-x-3">
-          <button @click="openIncomeForm" :disabled="loading"
-            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+        <div class="hidden sm:block">
+          <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+            <TrendingUp class="w-8 h-8 text-white" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Bar -->
+    <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+          <Button @click="openIncomeForm" :disabled="loading" variant="solid" size="sm" class="w-full sm:w-auto">
             <Plus class="w-4 h-4 mr-2" />
             Add Income Source
-          </button>
-          <button @click="handleRefresh" :disabled="loading"
-            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors">
+          </Button>
+          <Button @click="handleRefresh" :disabled="loading" variant="outline" size="sm" class="w-full sm:w-auto">
             <RefreshCw class="w-4 h-4 mr-2" />
             Refresh
+          </Button>
+        </div>
+        
+        <!-- View Toggle -->
+        <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-full sm:w-auto">
+          <button @click="currentView = 'sources'" :class="[
+              'px-3 py-1 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none',
+              currentView === 'sources' 
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+          ]">
+            Sources
           </button>
-          <!-- View Toggle -->
-          <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-            <button @click="currentView = 'sources'" :class="[
-                'px-3 py-1 text-sm font-medium rounded-md transition-colors',
-                currentView === 'sources' 
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' 
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-            ]">
-              Sources
-            </button>
-            <button @click="switchToLedgerView" :class="[
-                'px-3 py-1 text-sm font-medium rounded-md transition-colors',
-                currentView === 'ledger' 
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' 
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-            ]">
-              Ledger
-            </button>
-          </div>
+          <button @click="switchToLedgerView" :class="[
+              'px-3 py-1 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none',
+              currentView === 'ledger' 
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+          ]">
+            Ledger
+          </button>
         </div>
       </div>
-      
-      <!-- Summary Cards using backend metrics -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Monthly Income</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
-                (dashboardMetrics?.actual_monthly_income || 0).toLocaleString('en-IN') }}</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">{{ dashboardMetrics?.total_sources || 0 }} sources</p>
+    </Card>
+    
+    <!-- Summary Cards using backend metrics -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+      <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
             </div>
           </div>
+          <div class="ml-3 min-w-0 flex-1">
+            <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Monthly Recurring Income</p>
+            <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">₹{{
+              (analytics?.monthly_recurring_income || dashboardMetrics?.actual_monthly_income || 0).toLocaleString('en-IN') }}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ dashboardMetrics?.total_sources || 0 }} sources</p>
+          </div>
         </div>
+      </Card>
 
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                <Repeat class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Recurring Income</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
-                (dashboardMetrics?.recurring_income || 0).toLocaleString('en-IN') }}</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ (dashboardMetrics?.recurring_percentage || 0).toFixed(1) }}% of total
-              </p>
+      <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+              <Repeat class="w-4 h-4 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
+          <div class="ml-3 min-w-0 flex-1">
+            <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Period Recurring Income</p>
+            <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">₹{{
+              (analytics?.period_recurring_income || dashboardMetrics?.recurring_income || 0).toLocaleString('en-IN') }}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ (analytics?.recurring_percentage || dashboardMetrics?.recurring_percentage || 0).toFixed(1) }}% of period total
+            </p>
+          </div>
         </div>
+      </Card>
 
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-                <Calendar class="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">One-time Income</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
-                (dashboardMetrics?.one_time_income || 0).toLocaleString('en-IN') }}</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">This period</p>
+      <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+              <Calendar class="w-4 h-4 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
+          <div class="ml-3 min-w-0 flex-1">
+            <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Period One-time Income</p>
+            <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">₹{{
+              (analytics?.period_one_time_income || dashboardMetrics?.one_time_income || 0).toLocaleString('en-IN') }}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">This period</p>
+          </div>
         </div>
+      </Card>
 
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-                <TrendingUp class="w-4 h-4 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Growth Rate</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                {{ (dashboardMetrics?.growth_rate || 0) >= 0 ? '+' : '' }}{{ (dashboardMetrics?.growth_rate || 0).toFixed(1) }}%
-              </p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">vs last period</p>
+      <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+              <TrendingUp class="w-4 h-4 text-orange-600 dark:text-orange-400" />
             </div>
           </div>
+          <div class="ml-3 min-w-0 flex-1">
+            <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Growth Rate</p>
+            <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {{ (analytics?.growth_rate || dashboardMetrics?.growth_rate || 0) >= 0 ? '+' : '' }}{{ (analytics?.growth_rate || dashboardMetrics?.growth_rate || 0).toFixed(1) }}%
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">vs last period</p>
+          </div>
         </div>
-      </div>
+      </Card>
     </div>
 
     <!-- Filter Section -->
     <IncomeFilter 
       :total-count="getTotalCount()"
       :filtered-count="getFilteredCount()"
-      :income-types="incomeTypes" 
-      :current-view="currentView" 
-      class="mb-6" 
+      :income-types="incomeTypes"
+      :current-view="currentView"
     />
 
     <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      <div class="flex items-center justify-center py-12">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p class="text-gray-600 dark:text-gray-400 ml-3">Loading income data...</p>
-      </div>
+    <div v-if="loading" class="flex items-center justify-center py-12">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <p class="text-gray-600 dark:text-gray-400 ml-3">Loading income data...</p>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="error-state">
-      <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <AlertCircle class="h-5 w-5 text-red-400" />
-          </div>
-          <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Income Data</h3>
-            <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ error }}</p>
-          </div>
+    <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <AlertCircle class="h-5 w-5 text-red-400" />
         </div>
-        <div class="mt-4">
-          <button @click="handleRefresh"
-            class="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 text-red-800 dark:text-red-200 px-3 py-1 rounded text-sm transition-colors">
-            Try Again
-          </button>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Income Data</h3>
+          <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ error }}</p>
         </div>
+      </div>
+      <div class="mt-4">
+        <Button variant="outline" size="sm" @click="handleRefresh">
+          Try Again
+        </Button>
       </div>
     </div>
 
@@ -185,11 +193,11 @@
 
     <!-- Modals -->
     <IncomeForm 
-      v-if="showIncomeForm" 
-      :is-open="showIncomeForm" 
-      :editing-source="editingSource" 
+      v-if="showIncomeForm"
+      :is-open="showIncomeForm"
+      :editing-source="editingSource"
       @close="closeIncomeForm"
-      @submit="handleIncomeSubmit" 
+      @submit="handleIncomeSubmit"
     />
 
     <!-- Ledger Entry Edit Modal -->
@@ -206,12 +214,12 @@
 <script setup lang="ts">
 import { 
   AlertCircle, 
-  Calendar,
-  DollarSign,
+	Calendar,
+	DollarSign,
   Plus,
-  RefreshCw,
+	RefreshCw,
   Repeat,
-  TrendingUp,
+	TrendingUp,
 } from "lucide-vue-next"
 import { onMounted, ref, watch } from "vue"
 
@@ -221,16 +229,16 @@ import { IncomeFilter, IncomeForm, IncomeSources, IncomeLedger, LedgerEntryModal
 // Composables
 import { useIncome } from "../../composables/useIncome"
 import type { 
-  AddIncomeSourcePayload,
+	AddIncomeSourcePayload,
   CreateDirectLedgerEntryPayload,
-  DeleteIncomeSourcePayload,
+	DeleteIncomeSourcePayload,
   DirectLedgerEntryFormData,
-  FlattenedLedgerEntry,
-  IncomeFormUIData,
-  IncomeSourceFormData,
+	FlattenedLedgerEntry,
+	IncomeFormUIData,
+	IncomeSourceFormData,
   IncomeSourceRecord,
   LedgerEntryFormData,
-  UpdateIncomeSourcePayload,
+	UpdateIncomeSourcePayload,
   UpdateLedgerEntryPayload,
 } from "../../types/income"
 
@@ -243,6 +251,7 @@ const {
 	filteredSources,
 	filteredLedgerEntries,
 	dashboardMetrics,
+  analytics,
   fetchDashboardMetrics,
 	fetchIncomeLedger,
 	addIncomeSource,
@@ -311,29 +320,29 @@ const switchToLedgerView = async () => {
 // Selection handlers
 const handleSourceSelection = (source: IncomeSourceRecord, selected: boolean) => {
   const sourceId = source.name || source.type
-  if (selected) {
-    if (!selectedItems.value.includes(sourceId)) {
-      selectedItems.value.push(sourceId)
-    }
-  } else {
-    const index = selectedItems.value.indexOf(sourceId)
-    if (index > -1) {
-      selectedItems.value.splice(index, 1)
-    }
-  }
+	if (selected) {
+		if (!selectedItems.value.includes(sourceId)) {
+			selectedItems.value.push(sourceId)
+		}
+	} else {
+		const index = selectedItems.value.indexOf(sourceId)
+		if (index > -1) {
+			selectedItems.value.splice(index, 1)
+		}
+	}
 }
 
 const handleLedgerSelection = (entry: FlattenedLedgerEntry, selected: boolean) => {
-  if (selected) {
+	if (selected) {
     if (!selectedLedgerItems.value.includes(entry.name)) {
       selectedLedgerItems.value.push(entry.name)
-    }
-  } else {
+		}
+	} else {
     const index = selectedLedgerItems.value.indexOf(entry.name)
-    if (index > -1) {
-      selectedLedgerItems.value.splice(index, 1)
-    }
-  }
+		if (index > -1) {
+			selectedLedgerItems.value.splice(index, 1)
+		}
+	}
 }
 
 // Toggle select all functionality
@@ -341,7 +350,7 @@ const toggleSelectAll = (selected: boolean) => {
   if (selected) {
     selectedItems.value = filteredSources.value.map(source => source.name || source.type)
   } else {
-    selectedItems.value = []
+	selectedItems.value = []
   }
 }
 
@@ -355,8 +364,8 @@ const toggleSelectAllLedger = (selected: boolean) => {
 
 // Ledger management
 const editLedgerEntry = (entry: FlattenedLedgerEntry) => {
-  editingLedgerEntry.value = entry
-  showLedgerModal.value = true
+	editingLedgerEntry.value = entry
+	showLedgerModal.value = true
 }
 
 const deleteLedgerEntryHandler = async (entry: FlattenedLedgerEntry) => {
@@ -364,20 +373,21 @@ const deleteLedgerEntryHandler = async (entry: FlattenedLedgerEntry) => {
     try {
       await deleteLedgerEntry({ ledger_entry_name: entry.name })
       await invalidateCache({ incomeData: true, analytics: true, ledgerData: true })
-    } catch (error) {
-      console.error('Failed to delete ledger entry:', error)
-      alert('Failed to delete ledger entry. Please try again.')
-    }
-  }
+      await refreshData({ withAnalytics: true, withDashboard: true })
+		} catch (error) {
+			console.error('Failed to delete ledger entry:', error)
+			alert('Failed to delete ledger entry. Please try again.')
+		}
+	}
 }
 
 const closeLedgerModal = () => {
-  showLedgerModal.value = false
-  editingLedgerEntry.value = null
+	showLedgerModal.value = false
+	editingLedgerEntry.value = null
 }
 
 const handleLedgerSubmit = async (formData: LedgerEntryFormData, entryName: string) => {
-  try {
+	try {
     const payload: UpdateLedgerEntryPayload = {
       ledger_entry_name: entryName,
       new_amount: formData.amount,
@@ -387,16 +397,17 @@ const handleLedgerSubmit = async (formData: LedgerEntryFormData, entryName: stri
 
     await updateLedgerEntry(payload)
     await invalidateCache({ incomeData: true, analytics: true, ledgerData: true })
-    closeLedgerModal()
-  } catch (error) {
-    console.error('Failed to update ledger entry:', error)
-    alert('Failed to update ledger entry. Please try again.')
-  }
+    await refreshData({ withAnalytics: true, withDashboard: true })
+		closeLedgerModal()
+	} catch (error) {
+		console.error('Failed to update ledger entry:', error)
+		alert('Failed to update ledger entry. Please try again.')
+	}
 }
 
 // Main handlers
 const handleRefresh = async () => {
-  await refreshData({ withAnalytics: true, withLedger: true })
+  await refreshData({ withAnalytics: true, withLedger: true, withDashboard: true })
 }
 
 const openIncomeForm = () => {
@@ -424,28 +435,28 @@ const handleIncomeSubmit = async (formData: IncomeFormUIData) => {
 		// Check if this is recurring or one-time income
 		if (formData.isRecurring) {
 			// Recurring income goes to income sources
-			const sourceData: IncomeSourceFormData = {
-				type: formData.type,
-				income: formData.amount,
+		const sourceData: IncomeSourceFormData = {
+        type: formData.type,
+        income: formData.amount,
 				recur: true, // Always true for income sources
-				date_time: formData.dateTime,
+        date_time: formData.dateTime,
 				recur_frequency: formData.frequency as "daily" | "weekly" | "bi-weekly" | "monthly" | "quarterly" | "semi-annually" | "annually" | "yearly",
-				stop_date: formData.stop_date,
-			}
-			
-			if (editingSource.value) {
-				const payload: UpdateIncomeSourcePayload = {
-					income_source: [sourceData],
-					income_name: mainIncomeRecord.name,
+			stop_date: formData.stop_date,
+    }
+    
+    if (editingSource.value) {
+			const payload: UpdateIncomeSourcePayload = {
+				income_source: [sourceData],
+				income_name: mainIncomeRecord.name,
 					source_name: editingSource.value.name || '',
-				}
-				await updateIncomeSource(payload)
-			} else {
-				const payload: AddIncomeSourcePayload = {
-					income_source: [sourceData],
-					income_name: mainIncomeRecord.name,
-				}
-				await addIncomeSource(payload)
+			}
+			await updateIncomeSource(payload)
+    } else {
+			const payload: AddIncomeSourcePayload = {
+				income_source: [sourceData],
+				income_name: mainIncomeRecord.name,
+			}
+			await addIncomeSource(payload)
 			}
 		} else {
 			// One-time income goes directly to ledger
@@ -459,50 +470,50 @@ const handleIncomeSubmit = async (formData: IncomeFormUIData) => {
 		}
 
 		await invalidateCache({ incomeData: true, analytics: true })
-		closeIncomeForm()
-	} catch (error) {
+    closeIncomeForm()
+  } catch (error) {
 		console.error("Failed to save income:", error)
 		alert("Failed to save income. Please try again.")
-		throw error
-	}
+    throw error
+  }
 }
 
 const deleteIncomeSourceHandler = async (source: IncomeSourceRecord) => {
-  if (
-    confirm(
+	if (
+		confirm(
       `Are you sure you want to delete the ${source.type} income source (₹${source.income.toLocaleString("en-IN")})?`,
-    )
-  ) {
-    try {
-      const mainIncomeRecord = incomes.value[0]
-      if (!mainIncomeRecord) {
-        throw new Error("No income record found for household")
-      }
+		)
+	) {
+		try {
+			const mainIncomeRecord = incomes.value[0]
+			if (!mainIncomeRecord) {
+				throw new Error("No income record found for household")
+			}
 
-      const payload: DeleteIncomeSourcePayload = {
-        income_source: [],
-        income_name: mainIncomeRecord.name,
-        action: "delete",
+			const payload: DeleteIncomeSourcePayload = {
+				income_source: [],
+				income_name: mainIncomeRecord.name,
+				action: "delete",
         source_name: source.name || '',
-      }
-      await deleteIncomeSource(payload)
-      await invalidateCache({ incomeData: true, analytics: true })
+			}
+			await deleteIncomeSource(payload)
+			await invalidateCache({ incomeData: true, analytics: true })
     } catch (error) {
-      console.error("Failed to delete income source:", error)
-      alert("Failed to delete income source. Please try again.")
-    }
-  }
+			console.error("Failed to delete income source:", error)
+			alert("Failed to delete income source. Please try again.")
+		}
+	}
 }
 
 // Watch for view changes to clear selections
 watch(currentView, () => {
-  selectedItems.value = []
-  selectedLedgerItems.value = []
+	selectedItems.value = []
+	selectedLedgerItems.value = []
 })
 
 onMounted(async () => {
-  await initialize({ withAnalytics: true, forceRefresh: false })
-  await fetchDashboardMetrics()
+    await initialize({ withAnalytics: true, forceRefresh: false })
+	await fetchDashboardMetrics()
   // Ledger entries are now part of the main API response - no separate call needed
 })
 </script>
@@ -511,4 +522,4 @@ onMounted(async () => {
 .income-management {
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
 }
-</style> 
+</style>

@@ -98,6 +98,31 @@
       :on-cache-invalidate="handleCacheInvalidated"
     />
 
+    <!-- Profile Warning -->
+    <div v-if="showProfileWarning" class="profile-warning mb-6">
+      <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <AlertTriangle class="h-5 w-5 text-yellow-400" />
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">No Household Profile Found</h3>
+            <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+              You need to set up your household profile to track expenses and get CHE analysis.
+            </p>
+          </div>
+        </div>
+        <div class="mt-4">
+          <button 
+            @click="$router.push('/profile')"
+            class="bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 text-yellow-800 dark:text-yellow-200 px-3 py-1 rounded text-sm transition-colors"
+          >
+            Set Up Profile
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Content Section -->
     <div class="expense-content mt-6">
       <!-- Loading State -->
@@ -464,23 +489,52 @@ import { ExpenseFilter, ExpenseForm } from "../../components"
 
 // Composables
 import { useExpense } from "../../composables/useExpense"
+import { useHousehold } from "../../composables/useHousehold"
 
-// Initialize composable
-const composableResult = useExpense({ enableAdvancedAnalysis: true }) as any
-const state = composableResult.state
-const actions = composableResult.actions
+// Initialize the expense composable following income management pattern
+const {
+	expenses,
+	allExpenses,
+	loading,
+	error,
+	filters,
+	medicalExpenses,
+	otherExpenses,
+	directMedicalExpenses,
+	indirectMedicalExpenses,
+	totalAmount,
+	medicalAmount,
+	otherAmount,
+	directMedicalAmount,
+	indirectMedicalAmount,
+	expenseCount,
+	expensesByDate,
+	expensesByCategory,
+	topCategories,
+	fetchExpenses,
+	refreshExpenses,
+	createExpense,
+	updateExpense,
+	deleteExpense,
+	updateFilters,
+	clearFilters,
+	invalidateAndRefresh,
+} = useExpense()
 
-// Extract cache invalidation method from composable
-const { invalidateAndRefresh } = composableResult
+// Initialize household composable
+const household = useHousehold()
 
 // Pagination state
 const medicalPage = ref(1)
 const otherPage = ref(1)
 const itemsPerPage = 20
 
+// Household profile status
+const showProfileWarning = computed(() => !household.hasProfile.value && !household.isLoadingProfile.value)
+
 // Pagination computed properties
 const paginatedMedicalExpenses = computed(() => {
-	const items = state.groupedExpenses.medical.items
+	const items = medicalExpenses.value
 	const total = items.length
 	const totalPages = Math.ceil(total / itemsPerPage)
 	const start = (medicalPage.value - 1) * itemsPerPage + 1
@@ -500,7 +554,7 @@ const paginatedMedicalExpenses = computed(() => {
 })
 
 const paginatedOtherExpenses = computed(() => {
-	const items = state.groupedExpenses.other.items
+	const items = otherExpenses.value
 	const total = items.length
 	const totalPages = Math.ceil(total / itemsPerPage)
 	const start = (otherPage.value - 1) * itemsPerPage + 1
@@ -519,6 +573,43 @@ const paginatedOtherExpenses = computed(() => {
 	}
 })
 
+// Local state for form management
+const showExpenseForm = ref(false)
+const editingExpense = ref<ProcessedExpenseItem | null>(null)
+
+// Computed properties for grouped expenses
+const groupedExpenses = computed(() => {
+	const medical = medicalExpenses.value
+	const other = otherExpenses.value
+
+	return {
+		medical: {
+			items: medical,
+			count: medical.length,
+			total: medicalAmount.value,
+		},
+		other: {
+			items: other,
+			count: other.length,
+			total: otherAmount.value,
+		},
+		summary: {
+			totalItems: expenseCount.value,
+			totalAmount: totalAmount.value,
+			medicalAmount: medicalAmount.value,
+			otherAmount: otherAmount.value,
+			allExpensesCount: allExpenses.value.length,
+		},
+	}
+})
+
+const isEmpty = computed(() => expenses.value.length === 0)
+const hasFilters = computed(() => {
+	return Object.entries(filters.value).some(([key, value]) => {
+		return value !== "" && value !== null && value !== undefined
+	})
+})
+
 // Utility functions
 const formatDate = (dateString: string) => {
 	return new Date(dateString).toLocaleDateString("en-IN", {
@@ -531,7 +622,7 @@ const formatDate = (dateString: string) => {
 // Event Handlers
 const handleRefresh = async () => {
 	try {
-		await actions.refreshExpenses()
+		await refreshExpenses()
 	} catch (error) {
 		console.error("Failed to refresh expenses:", error)
 	}
@@ -542,7 +633,7 @@ const handleFiltersUpdate = async (newFilters: Partial<ExpenseFilters>) => {
 		// Reset pagination when filters change
 		medicalPage.value = 1
 		otherPage.value = 1
-		await actions.updateFilters(newFilters)
+		await updateFilters(newFilters)
 	} catch (error) {
 		console.error("Failed to update filters:", error)
 	}
@@ -553,7 +644,7 @@ const handleFiltersReset = async () => {
 		// Reset pagination when filters are reset
 		medicalPage.value = 1
 		otherPage.value = 1
-		await actions.resetFilters()
+		await clearFilters()
 	} catch (error) {
 		console.error("Failed to reset filters:", error)
 	}
@@ -564,21 +655,27 @@ const handleCacheInvalidated = async () => {
 		await invalidateAndRefresh()
 	} catch (error) {
 		console.error("Failed to invalidate and refresh cache:", error)
+		// If it's a household profile error, show a more user-friendly message
+		if (error.message && error.message.includes("No household profile found")) {
+			console.warn("ExpenseAnalyzer: No household profile found, please ensure your profile is set up correctly")
+		}
 	}
 }
 
 const handleAddExpense = () => {
-	actions.openExpenseForm()
+	showExpenseForm.value = true
+	editingExpense.value = null
 }
 
 const handleEditExpense = (expense: ProcessedExpenseItem) => {
-	actions.editExpense(expense)
+	editingExpense.value = expense
+	showExpenseForm.value = true
 }
 
 const handleDeleteExpense = async (expense: ProcessedExpenseItem) => {
 	if (confirm("Are you sure you want to delete this expense?")) {
 		try {
-			await actions.deleteExpense(expense)
+			await deleteExpense(expense)
 		} catch (error) {
 			console.error("Failed to delete expense:", error)
 		}
@@ -586,25 +683,34 @@ const handleDeleteExpense = async (expense: ProcessedExpenseItem) => {
 }
 
 const handleCloseExpenseForm = () => {
-	actions.closeExpenseForm()
+	showExpenseForm.value = false
+	editingExpense.value = null
 }
 
 const handleExpenseFormSuccess = async () => {
 	try {
-		await actions.loadExpenses()
+		await fetchExpenses()
 	} catch (error) {
 		console.error("Failed to reload expenses after form success:", error)
 	}
 }
 
-// Lifecycle
+// Initialize data
 onMounted(async () => {
 	try {
-		console.log("ExpenseAnalyzer: Initializing...")
-		await actions.initialize()
-		console.log("ExpenseAnalyzer: Initialization complete")
+		// Load household profile first
+		await household.loadProfile()
+		
+		// If no profile exists, show warning but don't load expenses
+		if (!household.profile.value) {
+			console.warn("No household profile found")
+			return
+		}
+		
+		// Load expenses
+		await fetchExpenses()
 	} catch (error) {
-		console.error("ExpenseAnalyzer: Initialization failed:", error)
+		console.error("Failed to initialize ExpenseAnalyzer:", error)
 	}
 })
 </script>

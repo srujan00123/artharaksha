@@ -1,630 +1,298 @@
 /**
- * Unified Expense Composable
- * Combines basic expense operations with advanced analysis features
- * Supports both simple CRUD operations and complex filtering/grouping
+ * Expense Composable
+ * Reactive wrapper around expense service and store
+ * Follows the income management pattern with clean separation of concerns
  */
 
-import { computed, onUnmounted, reactive, ref, watch } from "vue"
-import { session } from "../data/session.js"
-import { expenseService } from "../services/expense-service.js"
-import { useExpenseStore } from "../stores/expense.js"
+import { computed, onUnmounted, watch } from "vue";
+import { session } from "../data/session.js";
+import { useExpenseStore } from "../stores/expense.js";
 import type {
-	ExpenseAnalyzerState,
-	ExpenseFilters,
-	ExpenseFormData,
-	ExpenseServiceOptions,
-	GroupedExpenses,
-	ProcessedExpenseItem,
-} from "../types/expense"
-import {
-	getClientDateString,
-	getClientTime,
-	getClientTimezone,
-} from "../utils/date"
+  ExpenseFilters,
+  ExpenseFormData,
+  ExpenseServiceOptions,
+  FlattenedExpenseEntry,
+} from "../types/expense";
 
 // Options interface for the composable
 interface UseExpenseOptions {
-	enableAdvancedAnalysis?: boolean
+  autoInitialize?: boolean;
+  cacheTimeout?: number;
 }
 
-// Default filters using client timezone
-const getDefaultFilters = (): ExpenseFilters => {
-	const now = getClientTime()
-	const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-	const timezone = getClientTimezone()
-	const clientFirstDay = new Date(
-		firstDayOfMonth.toLocaleString("en-US", { timeZone: timezone }),
-	)
-
-	return {
-		searchTerm: "",
-		dateFrom:
-			clientFirstDay.getFullYear() +
-			"-" +
-			String(clientFirstDay.getMonth() + 1).padStart(2, "0") +
-			"-" +
-			String(clientFirstDay.getDate()).padStart(2, "0"),
-		dateTo: getClientDateString(),
-		amountMin: "",
-		amountMax: "",
-		category: "",
-		type: "",
-		sortBy: "date",
-		sortOrder: "desc",
-		period: "current-month",
-	}
+// Cache invalidation options
+interface CacheInvalidationOptions {
+  expenseData?: boolean;
+  analytics?: boolean;
+  all?: boolean;
 }
 
 export function useExpense(options: UseExpenseOptions = {}) {
-	const { enableAdvancedAnalysis = false } = options
+  const { autoInitialize = true, cacheTimeout = 300000 } = options;
 
-	// Use the enhanced store
-	const expenseStore = useExpenseStore()
+  // Use the store
+  const expenseStore = useExpenseStore();
 
-	// Advanced analysis state (only when needed)
-	const analysisState: ExpenseAnalyzerState | null = enableAdvancedAnalysis
-		? reactive({
-				rawExpenses: [],
-				filteredExpenses: [],
-				loading: false,
-				error: "",
-				filters: getDefaultFilters(),
-				showExpenseForm: false,
-				editingExpense: null,
-				groupedExpenses: {
-					medical: { items: [], count: 0, total: 0 },
-					other: { items: [], count: 0, total: 0 },
-					summary: { totalItems: 0, totalAmount: 0, medicalPercentage: 0 },
-				},
-				summary: {
-					totalItems: 0,
-					totalAmount: 0,
-					medicalPercentage: 0,
-				},
-				isEmpty: false,
-				hasFilters: false,
-			})
-		: null
+  // Reactive state from store
+  const expenses = computed(() => expenseStore.filteredExpenses);
+  const allExpenses = computed(() => expenseStore.expenses);
+  const expenseTypes = computed(() => expenseStore.expenseTypes);
+  const analytics = computed(() => expenseStore.analytics);
+  const dashboardMetrics = computed(() => expenseStore.dashboardMetrics);
+  const loading = computed(() => expenseStore.loading);
+  const error = computed(() => expenseStore.error);
+  const filters = computed(() => expenseStore.filters);
 
-	// Basic computed properties (always available)
-	const filteredExpenses = computed(() =>
-		enableAdvancedAnalysis
-			? analysisState!.filteredExpenses
-			: expenseStore.filteredExpenses,
-	)
-	const allExpenses = computed(() => expenseStore.processedExpenses)
+  // Computed values from store
+  const medicalExpenses = computed(() => expenseStore.medicalExpenses);
+  const otherExpenses = computed(() => expenseStore.otherExpenses);
+  const directMedicalExpenses = computed(
+    () => expenseStore.directMedicalExpenses,
+  );
+  const indirectMedicalExpenses = computed(
+    () => expenseStore.indirectMedicalExpenses,
+  );
+  const totalAmount = computed(() => expenseStore.totalAmount);
+  const medicalAmount = computed(() => expenseStore.medicalAmount);
+  const otherAmount = computed(() => expenseStore.otherAmount);
+  const directMedicalAmount = computed(() => expenseStore.directMedicalAmount);
+  const indirectMedicalAmount = computed(
+    () => expenseStore.indirectMedicalAmount,
+  );
+  const expenseCount = computed(() => expenseStore.expenseCount);
+  const averageExpense = computed(() => expenseStore.averageExpense);
+  const expensesByDate = computed(() => expenseStore.expensesByDate);
+  const expensesByCategory = computed(() => expenseStore.expensesByCategory);
+  const topCategories = computed(() => expenseStore.topCategories);
+  const recentExpenses = computed(() => expenseStore.recentExpenses);
+  const hasActiveFilters = computed(() => expenseStore.hasActiveFilters);
 
-	const groupedExpenses = computed(() => {
-		if (enableAdvancedAnalysis && analysisState) {
-			return analysisState.groupedExpenses
-		}
+  // Helper methods for common operations
+  const hasData = computed(() => expenseStore.hasData);
+  const isCacheValid = computed(() => expenseStore.isCacheValid);
 
-		// Basic grouping for simple mode - group from filtered expenses
-		const filtered = expenseStore.filteredExpenses
-		const medical = filtered.filter((expense) => expense.type === "medical")
-		const other = filtered.filter((expense) => expense.type === "other")
-		const summary = expenseStore.expenseSummary
+  // Add error handling wrapper
+  const handleError = (error: unknown, message: string) => {
+    console.error(message, error);
+    throw error instanceof Error ? error : new Error(message);
+  };
 
-		return {
-			medical: {
-				items: medical,
-				count: medical.length,
-				total: summary.medicalAmount,
-			},
-			other: {
-				items: other,
-				count: other.length,
-				total: summary.otherAmount,
-			},
-			summary: {
-				totalItems: summary.expenseCount,
-				totalAmount: summary.totalAmount,
-				medicalAmount: summary.medicalAmount,
-				otherAmount: summary.otherAmount,
-				allExpensesCount: expenseStore.processedExpenses.length,
-			},
-		}
-	})
+  // Actions with proper error handling
+  const fetchExpenses = async (options: ExpenseServiceOptions = {}) => {
+    try {
+      return await expenseStore.fetchExpenses(options);
+    } catch (error) {
+      handleError(error, "Failed to fetch expenses");
+    }
+  };
 
-	// Advanced filtering function (only when analysis mode is enabled)
-	const applyFilters = (
-		expenses: ProcessedExpenseItem[],
-		filters: ExpenseFilters,
-	): ProcessedExpenseItem[] => {
-		if (!enableAdvancedAnalysis) return expenses
+  const fetchExpenseTypes = async (options: ExpenseServiceOptions = {}) => {
+    try {
+      return await expenseStore.fetchExpenseTypes(options);
+    } catch (error) {
+      handleError(error, "Failed to fetch expense types");
+    }
+  };
 
-		let filtered = [...expenses]
+  const fetchDashboardMetrics = async (
+    period: string = "this_month",
+    options: ExpenseServiceOptions = {},
+  ) => {
+    try {
+      return await expenseStore.fetchDashboardMetrics(period, options);
+    } catch (error) {
+      handleError(error, "Failed to fetch dashboard metrics");
+    }
+  };
 
-		// Search term filter
-		if (filters.searchTerm?.trim()) {
-			const searchTerm = filters.searchTerm.toLowerCase().trim()
-			filtered = filtered.filter(
-				(expense) =>
-					expense.category.toLowerCase().includes(searchTerm) ||
-					expense.description.toLowerCase().includes(searchTerm),
-			)
-		}
+  const refreshExpenses = async () => {
+    try {
+      return await expenseStore.refreshExpenses();
+    } catch (error) {
+      handleError(error, "Failed to refresh expenses");
+    }
+  };
 
-		// Date range filter - Fixed to handle timezone and same-day comparisons consistently
-		if (filters.dateFrom) {
-			filtered = filtered.filter((expense) => {
-				// Extract date part only for comparison (YYYY-MM-DD)
-				const expenseDateStr =
-					expense.date.split("T")[0] || expense.date.split(" ")[0]
-				return expenseDateStr >= filters.dateFrom
-			})
-		}
+  const createExpense = async (expenseData: ExpenseFormData) => {
+    try {
+      return await expenseStore.createExpense(expenseData);
+    } catch (error) {
+      handleError(error, "Failed to create expense");
+    }
+  };
 
-		if (filters.dateTo) {
-			filtered = filtered.filter((expense) => {
-				// Extract date part only for comparison (YYYY-MM-DD)
-				const expenseDateStr =
-					expense.date.split("T")[0] || expense.date.split(" ")[0]
-				return expenseDateStr <= filters.dateTo
-			})
-		}
+  const updateExpense = async (
+    expenseName: string,
+    expenseData: ExpenseFormData,
+  ) => {
+    try {
+      return await expenseStore.updateExpense(expenseName, expenseData);
+    } catch (error) {
+      handleError(error, "Failed to update expense");
+    }
+  };
 
-		// Amount range filter
-		if (filters.amountMin && !isNaN(Number.parseFloat(filters.amountMin))) {
-			filtered = filtered.filter(
-				(expense) => expense.amount >= Number.parseFloat(filters.amountMin),
-			)
-		}
+  const deleteExpense = async (expenseName: string, expenseId: string) => {
+    try {
+      return await expenseStore.deleteExpense(expenseName, expenseId);
+    } catch (error) {
+      handleError(error, "Failed to delete expense");
+    }
+  };
 
-		if (filters.amountMax && !isNaN(Number.parseFloat(filters.amountMax))) {
-			filtered = filtered.filter(
-				(expense) => expense.amount <= Number.parseFloat(filters.amountMax),
-			)
-		}
+  const updateFilters = (newFilters: Partial<ExpenseFilters>) => {
+    expenseStore.updateFilters(newFilters);
+  };
 
-		// Category filter
-		if (filters.category) {
-			filtered = filtered.filter(
-				(expense) => expense.category === filters.category,
-			)
-		}
+  const clearFilters = () => {
+    expenseStore.clearFilters();
+  };
 
-		// Type filter
-		if (filters.type) {
-			filtered = filtered.filter((expense) => expense.type === filters.type)
-		}
+  const clearError = () => {
+    expenseStore.clearError();
+  };
 
-		// Sort expenses
-		filtered.sort((a, b) => {
-			let aVal: any, bVal: any
+  // Cache management methods
+  const clearCache = () => {
+    expenseStore.clearCache();
+  };
 
-			switch (filters.sortBy) {
-				case "amount":
-					aVal = a.amount
-					bVal = b.amount
-					break
-				case "category":
-					aVal = a.category
-					bVal = b.category
-					break
-				case "date":
-				default:
-					aVal = new Date(a.date)
-					bVal = new Date(b.date)
-			}
+  const invalidateCache = async (options: CacheInvalidationOptions = {}) => {
+    const { expenseData = false, analytics = false, all = false } = options;
 
-			if (filters.sortOrder === "asc") {
-				return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
-			} else {
-				return aVal > bVal ? -1 : aVal < bVal ? 1 : 0
-			}
-		})
+    try {
+      if (all) {
+        expenseStore.clearCache();
+        await initialize({ forceRefresh: true });
+        return;
+      }
 
-		return filtered
-	}
+      // Selective cache invalidation with better error handling
+      if (expenseData || analytics) {
+        // Clear cache and refetch
+        expenseStore.clearCache();
+        await fetchExpenses({ forceRefresh: true });
+      }
+    } catch (error) {
+      handleError(error, "Failed to invalidate cache");
+    }
+  };
 
-	const updateComputedState = () => {
-		if (!enableAdvancedAnalysis || !analysisState) return
+  const refreshData = async (
+    options: {
+      withAnalytics?: boolean;
+      forceRefresh?: boolean;
+    } = {},
+  ) => {
+    const { withAnalytics = false, forceRefresh = true } = options;
 
-		// Group expenses
-		const medical = analysisState.filteredExpenses.filter(
-			(expense) => expense.type === "medical",
-		)
-		const other = analysisState.filteredExpenses.filter(
-			(expense) => expense.type === "other",
-		)
+    try {
+      await fetchExpenses({
+        forceRefresh,
+        include_analytics: withAnalytics,
+      });
+    } catch (error) {
+      handleError(error, "Failed to refresh expense data");
+    }
+  };
 
-		const medicalTotal = medical.reduce(
-			(sum, expense) => sum + expense.amount,
-			0,
-		)
-		const otherTotal = other.reduce((sum, expense) => sum + expense.amount, 0)
-		const totalAmount = medicalTotal + otherTotal
+  // Initialization helper with better error handling
+  const initialize = async (options: { forceRefresh?: boolean } = {}) => {
+    const { forceRefresh = false } = options;
+    try {
+      await expenseStore.fetchExpenses({ forceRefresh });
+    } catch (error) {
+      handleError(error, "Failed to initialize expense data");
+    }
+  };
 
-		analysisState.groupedExpenses = {
-			medical: {
-				items: medical,
-				count: medical.length,
-				total: medicalTotal,
-			},
-			other: {
-				items: other,
-				count: other.length,
-				total: otherTotal,
-			},
-			summary: {
-				totalItems: analysisState.filteredExpenses.length,
-				totalAmount,
-				medicalPercentage:
-					totalAmount > 0 ? (medicalTotal / totalAmount) * 100 : 0,
-			},
-		}
+  // Simple cache invalidation and refresh - this is what components should call
+  const invalidateAndRefresh = async (): Promise<void> => {
+    clearCache();
+    await refreshExpenses();
+  };
 
-		analysisState.summary = {
-			totalItems: analysisState.filteredExpenses.length,
-			totalAmount,
-			medicalPercentage:
-				totalAmount > 0 ? (medicalTotal / totalAmount) * 100 : 0,
-		}
+  // Watch for user changes and reinitialize
+  let userWatcher: (() => void) | null = null;
+  const setupUserWatcher = () => {
+    userWatcher = watch(
+      () => session.user,
+      (newUser, oldUser) => {
+        if (newUser !== oldUser) {
+          expenseStore.$reset();
+          if (newUser) {
+            initialize();
+          }
+        }
+      },
+    );
+  };
 
-		analysisState.isEmpty = analysisState.filteredExpenses.length === 0
+  // Auto-initialize if enabled
+  if (autoInitialize) {
+    setupUserWatcher();
+    if (session.user) {
+      initialize();
+    }
+  }
 
-		const defaultFilters = getDefaultFilters()
-		analysisState.hasFilters = Object.keys(analysisState.filters).some(
-			(key) => {
-				const filterKey = key as keyof ExpenseFilters
-				const currentValue = analysisState.filters[filterKey]
-				const defaultValue = defaultFilters[filterKey]
-				return (
-					currentValue !== defaultValue &&
-					currentValue !== "" &&
-					currentValue !== null
-				)
-			},
-		)
-	}
+  // Cleanup
+  onUnmounted(() => {
+    if (userWatcher) {
+      userWatcher();
+    }
+  });
 
-	// Core actions (always available)
-	const loadExpenses = async (options: ExpenseServiceOptions = {}) => {
-		if (enableAdvancedAnalysis && analysisState) {
-			// Check if we already have data and cache is valid (unless force refresh)
-			if (!options.forceReload) {
-				// Check analysis state first
-				if (analysisState.rawExpenses.length > 0 && expenseStore.isCacheValid) {
-					console.log("useExpense: Using existing cached data in analysis mode")
-					return analysisState.rawExpenses
-				}
-				// If analysis state is empty but store has valid cached data, sync it
-				if (
-					expenseStore.processedExpenses.length > 0 &&
-					expenseStore.isCacheValid
-				) {
-					console.log("useExpense: Syncing store cache to analysis state")
-					analysisState.rawExpenses = expenseStore.processedExpenses
-					analysisState.filteredExpenses = applyFilters(
-						expenseStore.processedExpenses,
-						analysisState.filters,
-					)
-					updateComputedState()
-					return analysisState.rawExpenses
-				}
-			}
+  return {
+    // State
+    expenses,
+    allExpenses,
+    expenseTypes,
+    analytics,
+    dashboardMetrics,
+    loading,
+    error,
+    filters,
 
-			try {
-				analysisState.loading = true
-				analysisState.error = ""
+    // Computed values
+    medicalExpenses,
+    otherExpenses,
+    directMedicalExpenses,
+    indirectMedicalExpenses,
+    totalAmount,
+    medicalAmount,
+    otherAmount,
+    directMedicalAmount,
+    indirectMedicalAmount,
+    expenseCount,
+    averageExpense,
+    expensesByDate,
+    expensesByCategory,
+    topCategories,
+    recentExpenses,
+    hasActiveFilters,
+    hasData,
+    isCacheValid,
 
-				console.log(
-					"useExpense: Loading expenses in analysis mode with caching",
-				)
-				const expenses = await expenseService.getExpenses({
-					includeDetails: true,
-					useCache: true,
-					forceReload: options.forceReload,
-				})
-				analysisState.rawExpenses = expenses
-				analysisState.filteredExpenses = applyFilters(
-					expenses,
-					analysisState.filters,
-				)
-				updateComputedState()
-				return expenses
-			} catch (error) {
-				analysisState.error =
-					error instanceof Error ? error.message : "Failed to load expenses"
-				throw error
-			} finally {
-				analysisState.loading = false
-			}
-		} else {
-			return await expenseStore.loadExpenses(options)
-		}
-	}
+    // Actions
+    fetchExpenses,
+    fetchExpenseTypes,
+    fetchDashboardMetrics,
+    refreshExpenses,
+    createExpense,
+    updateExpense,
+    deleteExpense,
+    updateFilters,
+    clearFilters,
+    clearError,
 
-	const refreshExpenses = async () => {
-		if (enableAdvancedAnalysis) {
-			return await loadExpenses({ forceReload: true })
-		}
-		return await expenseStore.refreshExpenses()
-	}
+    // Cache management
+    clearCache,
+    invalidateCache,
+    refreshData,
 
-	const createExpense = async (expenseData: ExpenseFormData) => {
-		const result = await expenseStore.createExpense(expenseData)
-		if (enableAdvancedAnalysis) {
-			await refreshExpenses()
-		}
-		return result
-	}
-
-	const updateExpense = async (
-		originalExpense: ProcessedExpenseItem,
-		updatedData: ExpenseFormData,
-	) => {
-		const result = await expenseStore.updateExpense(
-			originalExpense,
-			updatedData,
-		)
-		if (enableAdvancedAnalysis) {
-			await refreshExpenses()
-		}
-		return result
-	}
-
-	const deleteExpense = async (expense: ProcessedExpenseItem) => {
-		const result = await expenseStore.deleteExpense(expense)
-		if (enableAdvancedAnalysis) {
-			await refreshExpenses()
-		}
-		return result
-	}
-
-	// Advanced analysis actions (only when enabled)
-	const updateFilters = async (newFilters: Partial<ExpenseFilters>) => {
-		if (enableAdvancedAnalysis && analysisState) {
-			analysisState.filters = { ...analysisState.filters, ...newFilters }
-			analysisState.filteredExpenses = applyFilters(
-				analysisState.rawExpenses,
-				analysisState.filters,
-			)
-			updateComputedState()
-		} else {
-			expenseStore.setFilters(newFilters)
-		}
-	}
-
-	const resetFilters = async () => {
-		if (enableAdvancedAnalysis && analysisState) {
-			analysisState.filters = getDefaultFilters()
-			analysisState.filteredExpenses = applyFilters(
-				analysisState.rawExpenses,
-				analysisState.filters,
-			)
-			updateComputedState()
-		} else {
-			expenseStore.clearFilters()
-		}
-	}
-
-	// Form management (for analysis mode)
-	const openExpenseForm = () => {
-		if (analysisState) {
-			analysisState.showExpenseForm = true
-			analysisState.editingExpense = null
-		}
-	}
-
-	const editExpense = (expense: ProcessedExpenseItem) => {
-		if (analysisState) {
-			analysisState.editingExpense = expense
-			analysisState.showExpenseForm = true
-		}
-	}
-
-	const closeExpenseForm = () => {
-		if (analysisState) {
-			analysisState.showExpenseForm = false
-			analysisState.editingExpense = null
-		}
-	}
-
-	// Additional utility functions
-	const loadFilterPreferences = () => {
-		// For simple mode, we don't have filter preferences in the store
-		// This is a no-op for compatibility
-		return Promise.resolve()
-	}
-
-	// Lazy loading - only load if needed
-	const ensureDataLoaded = async (options: ExpenseServiceOptions = {}) => {
-		console.log("useExpense: ensureDataLoaded called", {
-			enableAdvancedAnalysis,
-			forceRefresh: options.forceReload,
-			hasAnalysisData:
-				enableAdvancedAnalysis && analysisState
-					? analysisState.rawExpenses.length
-					: "N/A",
-			hasStoreData: expenseStore.processedExpenses.length,
-			isCacheValid: expenseStore.isCacheValid,
-		})
-
-		// Check if we have data and cache is valid
-		if (!options.forceReload) {
-			if (enableAdvancedAnalysis && analysisState) {
-				// Check analysis state first
-				if (analysisState.rawExpenses.length > 0 && expenseStore.isCacheValid) {
-					console.log("useExpense: Using cached analysis data")
-					return analysisState.rawExpenses
-				}
-				// If analysis state is empty but store has valid cached data, sync it
-				if (
-					expenseStore.processedExpenses.length > 0 &&
-					expenseStore.isCacheValid
-				) {
-					console.log("useExpense: Syncing store cache to analysis state")
-					analysisState.rawExpenses = expenseStore.processedExpenses
-					analysisState.filteredExpenses = applyFilters(
-						expenseStore.processedExpenses,
-						analysisState.filters,
-					)
-					updateComputedState()
-					return analysisState.rawExpenses
-				}
-			} else {
-				if (
-					expenseStore.processedExpenses.length > 0 &&
-					expenseStore.isCacheValid
-				) {
-					console.log("useExpense: Using cached store data")
-					return expenseStore.processedExpenses
-				}
-			}
-		}
-
-		// Load data if not cached or force refresh
-		console.log("useExpense: Cache miss or force refresh - loading data")
-		return await loadExpenses(options)
-	}
-
-	const clearCache = () => {
-		// Clear service cache directly
-		expenseService.clearCache()
-		// Clear store cache
-		expenseStore.reset()
-		// Clear analysis state if available
-		if (enableAdvancedAnalysis && analysisState) {
-			analysisState.rawExpenses = []
-			analysisState.filteredExpenses = []
-			analysisState.error = ""
-		}
-	}
-
-	// Simple cache invalidation and refresh - this is what components should call
-	const invalidateAndRefresh = async (): Promise<void> => {
-		clearCache()
-		await refreshExpenses()
-	}
-
-	// Watch for user changes
-	let userWatcher: (() => void) | null = null
-	const setupUserWatcher = () => {
-		userWatcher = watch(
-			() => session.user,
-			(newUser, oldUser) => {
-				if (newUser !== oldUser) {
-					expenseStore.reset()
-					if (analysisState) {
-						analysisState.rawExpenses = []
-						analysisState.filteredExpenses = []
-						analysisState.error = ""
-					}
-					if (newUser) {
-						loadFilterPreferences()
-						loadExpenses()
-					}
-				}
-			},
-		)
-	}
-
-	// Initialize
-	const initialize = async () => {
-		setupUserWatcher()
-		if (session.user) {
-			loadFilterPreferences()
-			if (enableAdvancedAnalysis) {
-				await loadExpenses()
-			}
-		}
-	}
-
-	// Cleanup
-	onUnmounted(() => {
-		if (userWatcher) {
-			userWatcher()
-		}
-	})
-
-	// Auto-initialize
-	initialize()
-
-	// Return different APIs based on mode
-	const baseApi = {
-		// Data
-		expenses: filteredExpenses,
-		allExpenses,
-		loading: computed(() =>
-			enableAdvancedAnalysis ? analysisState?.loading : expenseStore.loading,
-		),
-		error: computed(() =>
-			enableAdvancedAnalysis ? analysisState?.error : expenseStore.error,
-		),
-		groupedExpenses,
-
-		// Store getters (for simple mode)
-		medicalExpenses: computed(() => expenseStore.medicalExpenses),
-		otherExpenses: computed(() => expenseStore.otherExpenses),
-		totalExpenseAmount: computed(() => expenseStore.expenseSummary.totalAmount),
-		medicalExpenseAmount: computed(
-			() => expenseStore.expenseSummary.medicalAmount,
-		),
-		otherExpenseAmount: computed(() => expenseStore.expenseSummary.otherAmount),
-		expenseCount: computed(() => expenseStore.expenseSummary.expenseCount),
-		totalExpenseCount: computed(() => expenseStore.processedExpenses.length),
-
-		// Direct/Indirect medical expense helpers
-		directMedicalExpenses: computed(() =>
-			expenseStore.medicalExpenses.filter(
-				(expense) => expense.isDirect === true,
-			),
-		),
-		indirectMedicalExpenses: computed(() =>
-			expenseStore.medicalExpenses.filter(
-				(expense) => expense.isDirect === false,
-			),
-		),
-		directMedicalAmount: computed(() =>
-			expenseStore.medicalExpenses
-				.filter((expense) => expense.isDirect === true)
-				.reduce((sum, expense) => sum + expense.amount, 0),
-		),
-		indirectMedicalAmount: computed(() =>
-			expenseStore.medicalExpenses
-				.filter((expense) => expense.isDirect === false)
-				.reduce((sum, expense) => sum + expense.amount, 0),
-		),
-
-		// Core actions
-		loadExpenses,
-		refreshExpenses,
-		createExpense,
-		updateExpense,
-		deleteExpense,
-		updateFilters,
-		resetFilters,
-		loadFilterPreferences,
-		ensureDataLoaded,
-		clearCache,
-		invalidateAndRefresh,
-	}
-
-	if (enableAdvancedAnalysis && analysisState) {
-		return {
-			...baseApi,
-			// Analysis-specific state
-			state: analysisState,
-			filters: computed(() => analysisState.filters),
-
-			// Analysis-specific actions grouped for compatibility with ExpenseAnalyzer
-			actions: {
-				initialize: loadExpenses,
-				loadExpenses,
-				refreshExpenses,
-				updateFilters,
-				resetFilters,
-				openExpenseForm,
-				editExpense,
-				closeExpenseForm,
-				cancelExpenseForm: closeExpenseForm,
-				deleteExpense,
-				saveExpense: createExpense,
-			},
-		}
-	}
-
-	return baseApi
+    // Utilities
+    initialize,
+    invalidateAndRefresh,
+  };
 }

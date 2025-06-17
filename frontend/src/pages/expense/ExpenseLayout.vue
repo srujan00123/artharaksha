@@ -29,14 +29,15 @@ import { ExpenseForm } from "../../components"
 // Composables
 import { useExpense } from "../../composables/useExpense"
 
-// Initialize composable
-const composableResult = useExpense({ enableAdvancedAnalysis: true }) as any
-const state = composableResult.state
-const actions = composableResult.actions
+// Initialize expense composable
+const {
+	expenses,
+	loading,
+	error,
+	fetchExpenses,
+} = useExpense()
 
 // Computed properties for child components
-const loading = computed(() => state.loading)
-const error = computed(() => state.error)
 const showExpenseForm = computed(() => state.showExpenseForm)
 const editingExpense = computed(() => state.editingExpense)
 

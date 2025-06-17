@@ -2,19 +2,19 @@
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50"
         @click.self="handleClickOutside">
         <div
-            class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-t-xl sm:rounded-lg p-4 sm:p-6 w-full max-w-2xl mx-0 sm:mx-4 max-h-[90vh] sm:max-h-[80vh] overflow-y-auto transform transition-all duration-300 ease-out">
+            class="bg-white dark:bg-gray-800 rounded-t-xl sm:rounded-lg p-4 sm:p-6 w-full max-w-2xl mx-0 sm:mx-4 max-h-[90vh] sm:max-h-[80vh] overflow-y-auto transform transition-all duration-300 ease-out">
             <!-- Header -->
             <div class="flex items-center justify-between mb-4 sm:mb-6 border-b border-gray-200 dark:border-gray-700 pb-3">
                 <div>
                     <h3 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
                         {{ isEditing ? 'Edit Expense' : 'Add New Expense' }}
                     </h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-200 dark:text-gray-500 mt-1">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         {{ isEditing ? 'Update your expense details' : 'Track your healthcare and living expenses' }}
                     </p>
                 </div>
                 <button @click="handleClose"
-                    class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 dark:bg-gray-800 dark:bg-gray-200 transition-colors touch-manipulation"
+                    class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
                     :disabled="submitting">
                     <X class="w-5 h-5" />
                 </button>
@@ -24,7 +24,7 @@
             <div v-if="initialLoading" class="flex items-center justify-center py-12">
                 <div class="text-center">
                     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                    <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 text-sm">{{ isEditing ? 'Loading expense...' : 'Initializing form...' }}</p>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm">{{ isEditing ? 'Loading expense...' : 'Initializing form...' }}</p>
                 </div>
             </div>
 
@@ -32,7 +32,7 @@
             <form @submit.prevent="handleSubmit" class="space-y-6" novalidate>
                 <!-- Expense Type Selection -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-3">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                         Expense Type <span class="text-red-500">*</span>
                     </label>
                     <div class="grid grid-cols-2 gap-3">
@@ -45,7 +45,7 @@
                         ]">
                             <Stethoscope class="w-6 h-6 mx-auto mb-2" />
                             <div class="text-sm font-medium">Medical</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-200 dark:text-gray-500">Healthcare related expenses</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Healthcare related expenses</div>
                         </button>
                         <button type="button" @click="formData.type = 'other'" :disabled="submitting" :class="[
                             'p-4 border-2 rounded-lg text-center transition-all duration-200 touch-manipulation focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
@@ -56,14 +56,14 @@
                         ]">
                             <ShoppingBag class="w-6 h-6 mx-auto mb-2" />
                             <div class="text-sm font-medium">Other</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-200 dark:text-gray-500">Living & other expenses</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Living & other expenses</div>
                         </button>
                     </div>
                 </div>
 
                 <!-- Category Selection -->
                 <div>
-                    <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
+                    <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Category <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
@@ -88,21 +88,21 @@
                 <div v-if="formData.type === 'medical'">
                     <label class="flex items-center space-x-3 cursor-pointer">
                         <input
-                            v-model="formData.isDirect"
+                            v-model="formData.is_direct"
                             type="checkbox"
-                            class="w-4 h-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400"
+                            class="w-4 h-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:ring-blue-400"
                             :disabled="submitting"
                         />
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">This is a direct medical expense</span>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">This is a direct medical expense</span>
                     </label>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-200 dark:text-gray-500">
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         Direct expenses are payments made directly to healthcare providers (consultations, medicines, tests, etc.)
                     </p>
                 </div>
 
                 <!-- Description -->
                 <div>
-                    <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
+                    <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Description <span class="text-gray-400 dark:text-gray-500">(Optional)</span>
                     </label>
                     <TextInput v-model="formData.description" id="description" size="sm" variant="subtle"
@@ -112,12 +112,12 @@
 
                 <!-- Amount -->
                 <div>
-                    <label for="amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
+                    <label for="amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Amount (₹) <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 dark:text-gray-200 dark:text-gray-500 text-sm">₹</span>
+                            <span class="text-gray-500 dark:text-gray-400 text-sm">₹</span>
                         </div>
                         <TextInput v-model="formData.amount" id="amount" type="number" step="0.01" min="0" size="sm"
                             variant="subtle" :disabled="submitting" :class="[
@@ -132,30 +132,43 @@
 
                 <!-- Date & Time -->
                 <div>
-                    <label for="dateTime" class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
+                    <label for="date_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Date & Time <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
-                        <TextInput v-model="formData.dateTime" id="dateTime" type="datetime-local" size="sm"
+                        <TextInput v-model="formData.date_time" id="date_time" type="datetime-local" size="sm"
                             variant="subtle" :disabled="submitting" :class="[
-                                validationErrors.dateTime && 'border-red-300 bg-red-50'
+                                validationErrors.date_time && 'border-red-300 bg-red-50'
                             ]" :max="maxDateTime" required />
-                        <div v-if="validationErrors.dateTime" class="mt-1 text-sm text-red-600 dark:text-red-400">
-                            {{ validationErrors.dateTime }}
+                        <div v-if="validationErrors.date_time" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {{ validationErrors.date_time }}
                         </div>
                     </div>
                 </div>
 
                 <!-- Receipt Upload (for medical expenses) -->
                 <div v-if="formData.type === 'medical'">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Receipt/Proof <span class="text-gray-400 dark:text-gray-500">(Optional)</span>
                     </label>
                     <div
-                        class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 transition-colors hover:border-gray-400 dark:border-gray-500">
-                        <FileUpload :accepted-types="['image/*', 'application/pdf']" :max-size-m-b="5"
-                            :disabled="submitting" @upload="handleReceiptUpload" @error="handleUploadError" />
-                        <div v-if="formData.receipt" class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                        class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 transition-colors hover:border-gray-400 dark:hover:border-gray-500">
+                        <div class="text-center">
+                            <div class="text-sm text-gray-600 dark:text-gray-400">
+                                <p>Upload receipt or proof of payment</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                    Supported formats: Images, PDF (Max 5MB)
+                                </p>
+                            </div>
+                            <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                @change="handleReceiptUpload"
+                                :disabled="submitting"
+                                class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            />
+                        </div>
+                        <div v-if="formData.proof_of_payment" class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                             <div class="flex items-center text-sm text-green-700 dark:text-green-300">
                                 <Check class="w-4 h-4 mr-2" />
                                 Receipt uploaded successfully
@@ -200,15 +213,12 @@ import {
 	Stethoscope,
 	X,
 } from "lucide-vue-next"
-import { storeToRefs } from "pinia"
-import { computed, nextTick, onMounted, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useExpense } from "../../composables/useExpense"
-import { useHousehold } from "../../composables/useHousehold"
-import { useExpenseStore } from "../../stores/expense"
 import type {
 	ExpenseFormData,
 	ExpenseValidationErrors,
-	ProcessedExpenseItem,
+	FlattenedExpenseEntry,
 } from "../../types/expense"
 import {
 	MEDICAL_EXPENSE_CATEGORIES,
@@ -217,14 +227,11 @@ import {
 import {
 	getClientDateTimeString,
 	getClientTime,
-	getTimezoneInfo,
-	toClientDateTimeString,
 } from "../../utils/date"
-import { FileUpload } from "../common"
 
 // Props
 interface Props {
-	expense?: ProcessedExpenseItem | null
+	expense?: FlattenedExpenseEntry | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -237,12 +244,14 @@ const emit = defineEmits<{
 	success: []
 }>()
 
-// Use the composables directly for more flexibility
-const expenseComposable = useExpense()
-const householdComposable = useHousehold()
-
-// Use store for additional state management if needed
-const expenseStore = useExpenseStore()
+// Use the expense composable
+const {
+	createExpense,
+	updateExpense,
+	loading,
+	error,
+	clearError,
+} = useExpense()
 
 // Form state
 const initialLoading = ref(false)
@@ -256,9 +265,9 @@ const formData = ref<ExpenseFormData>({
 	category: "",
 	description: "",
 	amount: "",
-	dateTime: getClientDateTimeString(),
-	receipt: null,
-	isDirect: true,
+	date_time: getClientDateTimeString(),
+	proof_of_payment: "",
+	is_direct: true,
 })
 
 // Computed properties
@@ -279,7 +288,7 @@ const isFormValid = computed(() => {
 		formData.value.category &&
 		formData.value.amount &&
 		Number.parseFloat(formData.value.amount) > 0 &&
-		formData.value.dateTime &&
+		formData.value.date_time &&
 		Object.keys(validationErrors.value).length === 0
 	)
 })
@@ -308,16 +317,16 @@ function validateField(field: keyof ExpenseFormData, value: any) {
 				}
 			}
 			break
-		case "dateTime":
+		case "date_time":
 			if (!value) {
-				validationErrors.value.dateTime = "Please select date and time"
+				validationErrors.value.date_time = "Please select date and time"
 			} else {
 				const selectedDate = new Date(value)
 				const now = getClientTime()
 				if (selectedDate > now) {
-					validationErrors.value.dateTime = "Date cannot be in the future"
+					validationErrors.value.date_time = "Date cannot be in the future"
 				} else {
-					delete validationErrors.value.dateTime
+					delete validationErrors.value.date_time
 				}
 			}
 			break
@@ -327,17 +336,19 @@ function validateField(field: keyof ExpenseFormData, value: any) {
 function validateForm(): boolean {
 	validateField("category", formData.value.category)
 	validateField("amount", formData.value.amount)
-	validateField("dateTime", formData.value.dateTime)
+	validateField("date_time", formData.value.date_time)
 	return Object.keys(validationErrors.value).length === 0
 }
 
 // Event handlers
-function handleReceiptUpload(file: File) {
-	formData.value.receipt = file
-}
-
-function handleUploadError(errorMsg: string) {
-	submitError.value = errorMsg
+function handleReceiptUpload(event: Event) {
+	const target = event.target as HTMLInputElement
+	const file = target.files?.[0]
+	if (file) {
+		// For now, just store the file name
+		// In a real implementation, you'd upload the file and get a URL
+		formData.value.proof_of_payment = file.name
+	}
 }
 
 function handleClickOutside() {
@@ -353,6 +364,7 @@ function handleClose() {
 
 async function handleSubmit() {
 	submitError.value = ""
+	clearError()
 
 	if (!validateForm()) {
 		return
@@ -361,22 +373,12 @@ async function handleSubmit() {
 	submitting.value = true
 
 	try {
-		const expenseData: ExpenseFormData = {
-			type: formData.value.type,
-			category: formData.value.category || "",
-			description: formData.value.description || "",
-			amount: formData.value.amount,
-			dateTime: formData.value.dateTime || new Date().toISOString(),
-			receipt: formData.value.receipt || null,
-			isDirect: formData.value.isDirect || false,
-		}
-
 		if (isEditing.value && props.expense) {
 			// Update existing expense
-			await expenseStore.updateExpense(props.expense, expenseData)
+			await updateExpense(props.expense.name, formData.value)
 		} else {
 			// Create new expense
-			await expenseStore.createExpense(expenseData)
+			await createExpense(formData.value)
 		}
 
 		// Reset form after successful submission
@@ -400,9 +402,9 @@ function resetForm() {
 		category: "",
 		description: "",
 		amount: "",
-		dateTime: getClientDateTimeString(),
-		receipt: null,
-		isDirect: true,
+		date_time: getClientDateTimeString(),
+		proof_of_payment: "",
+		is_direct: true,
 	}
 	validationErrors.value = {}
 	submitError.value = ""
@@ -424,9 +426,9 @@ watch(
 )
 
 watch(
-	() => formData.value.dateTime,
+	() => formData.value.date_time,
 	(newValue) => {
-		validateField("dateTime", newValue)
+		validateField("date_time", newValue)
 	},
 )
 
@@ -435,7 +437,7 @@ watch(
 	() => formData.value.type,
 	(newType) => {
 		formData.value.category = ""
-		formData.value.isDirect = newType === "medical"
+		formData.value.is_direct = newType === "medical"
 	},
 )
 
@@ -449,14 +451,11 @@ watch(
 				category: newExpense.category || "",
 				description: newExpense.description || "",
 				amount: newExpense.amount?.toString() || "",
-				dateTime: newExpense.date?.slice(0, 16) || getClientDateTimeString(),
-				receipt: null,
-				isDirect:
-					newExpense.type === "medical"
-						? newExpense.isDirect !== undefined
-							? newExpense.isDirect
-							: true
-						: false,
+				date_time: newExpense.date_time?.slice(0, 16) || getClientDateTimeString(),
+				proof_of_payment: newExpense.proof_of_payment || "",
+				is_direct: newExpense.type === "medical" 
+					? (newExpense.is_direct !== undefined ? newExpense.is_direct : true)
+					: false,
 			}
 		}
 	},

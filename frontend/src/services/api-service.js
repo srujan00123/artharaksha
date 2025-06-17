@@ -163,17 +163,13 @@ export const apiService = new ApiService()
 // API endpoints constants
 export const API_ENDPOINTS = {
 	EXPENSE: {
-		LIST: "frappe.client.get_list",
-		GET: "frappe.client.get",
-		CREATE: "frappe.client.insert",
-		UPDATE: "frappe.client.set_value",
-		DELETE: "frappe.client.delete",
-		DETAILS: "frappe.client.get_list",
-		INITIALIZE: "frappe.client.insert",
 		TYPES: "artha.api.expense.get_expense_types",
-		ANALYTICS: "artha.api.expense.get_expense_analytics",
-		MONTHLY_SUMMARY: "artha.api.expense.get_monthly_summary",
-		DETAILED_BREAKDOWN: "artha.api.expense.get_detailed_breakdown",
+		USER_EXPENSES: "artha.api.expense.get_user_expenses",
+		CREATE: "artha.api.expense.create_expense",
+		UPDATE: "artha.api.expense.update_expense",
+		DELETE: "artha.api.expense.delete_expense",
+		VALIDATE: "artha.api.expense.validate_expense_data",
+		DASHBOARD_METRICS: "artha.api.expense.get_expense_dashboard_metrics",
 	},
 	HOUSEHOLD: {
 		LIST: "frappe.client.get_list",

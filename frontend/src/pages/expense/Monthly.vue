@@ -10,7 +10,7 @@
         <div class="flex items-center space-x-3">
           <button 
             @click="handleRefresh"
-            :disabled="state.loading"
+            :disabled="loading"
             class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 bg-white dark:bg-gray-800 dark:bg-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 disabled:opacity-50 transition-colors"
           >
             <RefreshCw class="w-4 h-4 mr-2" />
@@ -21,7 +21,7 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="state.loading" class="loading-state">
+    <div v-if="loading" class="loading-state">
       <div class="flex items-center justify-center py-12">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         <p class="text-gray-600 dark:text-gray-400 dark:text-gray-500 ml-3">Loading monthly analysis...</p>
@@ -29,7 +29,7 @@
     </div>
 
     <!-- Error State -->
-    <div v-else-if="state.error" class="error-state">
+    <div v-else-if="error" class="error-state">
       <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <div class="flex items-center">
           <div class="flex-shrink-0">
@@ -37,7 +37,7 @@
           </div>
           <div class="ml-3">
             <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Data</h3>
-            <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ state.error }}</p>
+            <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ error }}</p>
           </div>
         </div>
       </div>
@@ -187,8 +187,8 @@
           </div>
         </div>
       </div>
-        </div>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -207,10 +207,20 @@ import type { ProcessedExpenseItem } from "../../types/expense"
 // Composables
 import { useExpense } from "../../composables/useExpense"
 
-// Initialize composable
-const composableResult = useExpense({ enableAdvancedAnalysis: true }) as any
-const state = composableResult.state
-const actions = composableResult.actions
+// Initialize composables
+const {
+	expenses,
+	loading,
+	error,
+	medicalExpenses,
+	otherExpenses,
+	totalAmount,
+	medicalAmount,
+	otherAmount,
+	expensesByDate,
+	fetchExpenses,
+	updateFilters,
+} = useExpense()
 
 // Monthly analysis computed property
 const monthlyAnalysis = computed(() => {
@@ -219,7 +229,7 @@ const monthlyAnalysis = computed(() => {
 	const currentYear = now.getFullYear()
 
 	// Calculate current month expenses
-	const currentMonthExpenses = state.filteredExpenses.filter(
+	const currentMonthExpenses = expenses.value.filter(
 		(expense: ProcessedExpenseItem) => {
 			const expenseDate = new Date(expense.date)
 			return (
@@ -232,7 +242,7 @@ const monthlyAnalysis = computed(() => {
 	// Calculate last month expenses
 	const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1
 	const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
-	const lastMonthExpenses = state.filteredExpenses.filter(
+	const lastMonthExpenses = expenses.value.filter(
 		(expense: ProcessedExpenseItem) => {
 			const expenseDate = new Date(expense.date)
 			return (
@@ -325,7 +335,7 @@ const monthlyBreakdown = computed(() => {
 
 	for (let i = 5; i >= 0; i--) {
 		const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-		const monthExpenses = state.filteredExpenses.filter(
+		const monthExpenses = expenses.value.filter(
 			(expense: ProcessedExpenseItem) => {
 				const expenseDate = new Date(expense.date)
 				return (
@@ -343,7 +353,7 @@ const monthlyBreakdown = computed(() => {
 
 		// Calculate change from previous month
 		const prevDate = new Date(date.getFullYear(), date.getMonth() - 1, 1)
-		const prevMonthExpenses = state.filteredExpenses.filter(
+		const prevMonthExpenses = expenses.value.filter(
 			(expense: ProcessedExpenseItem) => {
 				const expenseDate = new Date(expense.date)
 				return (
@@ -396,7 +406,7 @@ const currentMonthCategories = computed(() => {
 	const currentMonth = now.getMonth()
 	const currentYear = now.getFullYear()
 
-	const currentMonthExpenses = state.filteredExpenses.filter(
+	const currentMonthExpenses = expenses.value.filter(
 		(expense: ProcessedExpenseItem) => {
 			const expenseDate = new Date(expense.date)
 			return (
@@ -442,7 +452,7 @@ const recentExpenses = computed(() => {
 	const currentMonth = now.getMonth()
 	const currentYear = now.getFullYear()
 
-	return state.filteredExpenses
+	return expenses.value
 		.filter((expense: ProcessedExpenseItem) => {
 			const expenseDate = new Date(expense.date)
 			return (
@@ -482,8 +492,7 @@ const getCategoryColor = (category: string) => {
 const handleRefresh = async () => {
 	try {
 		// Clear cache and refresh
-		actions.clearCache()
-		await actions.refreshExpenses()
+		fetchExpenses()
 	} catch (error) {
 		console.error("Failed to refresh expenses:", error)
 	}
@@ -493,7 +502,7 @@ const handleRefresh = async () => {
 onMounted(async () => {
 	try {
 		console.log("Monthly Analysis: Initializing...")
-		await actions.initialize()
+		await fetchExpenses()
 		console.log("Monthly Analysis: Initialization complete")
 	} catch (error) {
 		console.error("Monthly Analysis: Initialization failed:", error)
