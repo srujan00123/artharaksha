@@ -21,7 +21,6 @@ export const API_ENDPOINTS = {
 	},
 	EXPENSE: {
 		USER_EXPENSES: "artha.api.expense.get_user_expenses",
-		USER_EXPENSES_ANALYTICS: "artha.api.expense.get_user_expenses_with_analytics",
 		TYPES: "artha.api.expense.get_expense_types",
 		CREATE: "artha.api.expense.create_expense",
 		UPDATE: "artha.api.expense.update_expense",
@@ -38,6 +37,25 @@ export const API_ENDPOINTS = {
 		GET: "artha.api.profile.get_user_profile",
 		UPDATE: "artha.api.profile.update_user_profile",
 		HOUSEHOLD: "artha.api.profile.get_household_profile",
+	},
+	SUPPORT: {
+		HEALTH_CONDITIONS: "artha.api.support.get_health_conditions",
+		WELFARE_SCHEMES: "artha.api.support.get_welfare_schemes",
+		INSURANCE_SCHEMES: "artha.api.support.get_insurance_schemes",
+		ALL_SCHEMES: "artha.api.support.get_all_schemes",
+		PATHWAYS: "artha.api.support.get_support_pathways",
+		HOUSEHOLD_PROFILE: "artha.api.support.get_household_profile",
+		ELIGIBLE_SCHEMES: "artha.api.support.get_eligible_schemes",
+		RECOMMENDATIONS: "artha.api.support.get_support_recommendations",
+		UPDATE_HEALTH_CONDITIONS: "artha.api.support.update_health_conditions",
+		GET_APPLICATIONS: "artha.api.support.get_scheme_applications",
+		CREATE_APPLICATION: "artha.api.support.create_scheme_application",
+		UPDATE_APPLICATION: "artha.api.support.update_scheme_application",
+		DELETE_APPLICATION: "artha.api.support.delete_scheme_application",
+		GET_CLAIMS: "artha.api.support.get_scheme_claims",
+		CREATE_CLAIM: "artha.api.support.create_scheme_claim",
+		UPDATE_CLAIM: "artha.api.support.update_scheme_claim",
+		DELETE_CLAIM: "artha.api.support.delete_scheme_claim",
 	},
 }
 
