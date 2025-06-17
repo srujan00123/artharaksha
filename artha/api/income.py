@@ -133,8 +133,11 @@ def get_income_ledger(filters=None):
 @frappe.whitelist()
 def get_user_income(filters=None, include_analytics=False):
     """
-    Get income records for the current user's household profile with optional filtering and analytics
-    Unified endpoint that handles all complex filtering needs
+    Get income data for the current user's household profile
+    Returns:
+    - recurring_sources: Always unfiltered recurring income sources
+    - ledger_entries: All ledger entries (filtered if filters provided)
+    - analytics: Computed from ledger entries only
     """
     try:
         # Get user's household profile
@@ -145,23 +148,22 @@ def get_user_income(filters=None, include_analytics=False):
         )
 
         if not household_profile:
-            if include_analytics:
-                return {
-                    "income_records": [],
-                    "analytics": {
-                        "total_income": 0,
-                        "recurring_income": 0,
-                        "one_time_income": 0,
-                        "income_by_type": {},
-                        "monthly_trends": [],
-                        "summary": {
-                            "total_sources": 0,
-                            "average_source_amount": 0,
-                            "top_income_type": ""
-                        }
+            return {
+                "recurring_sources": [],
+                "ledger_entries": [],
+                "analytics": {
+                    "total_income": 0,
+                    "recurring_income": 0,
+                    "one_time_income": 0,
+                    "income_by_type": {},
+                    "monthly_trends": [],
+                    "summary": {
+                        "total_sources": 0,
+                        "average_source_amount": 0,
+                        "top_income_type": ""
                     }
-                }
-            return []
+                } if include_analytics else None
+            }
 
         # Parse filters if provided
         if isinstance(filters, str):
@@ -170,47 +172,106 @@ def get_user_income(filters=None, include_analytics=False):
         if not filters:
             filters = {}
 
-        # Build base query conditions
-        conditions = {"household_profile": household_profile}
+        # Step 1: Get ALL recurring income sources (unfiltered)
+        recurring_sources = []
+        income_records = frappe.get_all(
+            "Income",
+            filters={"household_profile": household_profile},
+            fields=["name"]
+        )
 
-        # Enhanced date filtering logic
-        start_date = None
-        end_date = None
+        for record in income_records:
+            sources = frappe.get_all(
+                "Income Source Type",
+                filters={"parent": record.name, "recur": 1},
+                fields=[
+                    "name", "type", "income", "recur",
+                    "date_time", "recur_frequency", "stop_date"
+                ],
+                order_by="creation desc"
+            )
+            for source in sources:
+                source.recur = bool(source.recur)
+                recurring_sources.append(source)
 
-        # Handle multiple date filter formats
-        if filters.get('dateRange'):
-            date_range = filters['dateRange']
-            today = getdate()
+        # Step 2: Get ALL ledger entries and apply filters to them
+        all_ledger_entries = []
+        for record in income_records:
+            entries = frappe.get_all(
+                "Income Ledger",
+                filters={"parent": record.name},
+                fields=[
+                    "name", "income_source", "income_type",
+                    "date_time", "amount", "source_type", "description"
+                ],
+                order_by="date_time desc"
+            )
 
-            if date_range == 'today':
-                start_date = today
-                end_date = today
-            elif date_range == 'this-week':
-                start_date = today - timedelta(days=today.weekday())
-                end_date = today
-            elif date_range == 'this-month':
-                start_date = today.replace(day=1)
-                end_date = today
-            elif date_range == 'last-month':
-                last_month = today.replace(day=1) - timedelta(days=1)
-                start_date = last_month.replace(day=1)
-                end_date = last_month
-            elif date_range == 'last-3-months':
-                start_date = (today.replace(day=1) -
-                              timedelta(days=90)).replace(day=1)
-                end_date = today
-            elif date_range == 'this-year':
-                start_date = today.replace(month=1, day=1)
-                end_date = today
-        elif filters.get('dateFrom') or filters.get('dateTo'):
-            if filters.get('dateFrom'):
-                start_date = getdate(filters['dateFrom'])
-            if filters.get('dateTo'):
-                end_date = getdate(filters['dateTo'])
-        elif filters.get('period'):
-            # Period-based filtering for analytics
+            # For each ledger entry, get the source information if it exists
+            for entry in entries:
+                flattened_entry = {
+                    "name": entry.name,
+                    "income_source": entry.income_source,
+                    "income_type": entry.income_type,
+                    "date_time": entry.date_time,
+                    "amount": entry.amount,
+                    "description": entry.description
+                }
+                
+                if entry.income_source:
+                    # This is from a recurring source - get source details
+                    source_info = frappe.get_all(
+                        "Income Source Type",
+                        filters={"name": entry.income_source},
+                        fields=[
+                            "type", "income", "recur", "date_time",
+                            "recur_frequency", "stop_date"
+                        ]
+                    )
+
+                    if source_info:
+                        source = source_info[0]
+                        flattened_entry.update({
+                            "source_type": source.type,
+                            "source_recur": source.recur,
+                            "source_income": source.income,
+                            "source_date_time": source.date_time,
+                            "source_recur_frequency": source.recur_frequency,
+                            "source_stop_date": source.stop_date
+                        })
+                    else:
+                        # Source deleted but ledger remains
+                        flattened_entry["source_type"] = "Unknown"
+                else:
+                    # This is a direct entry - use stored source_type
+                    flattened_entry["source_type"] = entry.source_type or "One-time"
+                
+                all_ledger_entries.append(flattened_entry)
+
+        # Step 3: Apply filters to ledger entries
+        filtered_ledger_entries = all_ledger_entries.copy()
+
+        # Date filters
+        if filters.get('dateFrom'):
+            start_date = getdate(filters['dateFrom'])
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries 
+                if getdate(e['date_time']) >= start_date
+            ]
+
+        if filters.get('dateTo'):
+            end_date = getdate(filters['dateTo'])
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries 
+                if getdate(e['date_time']) <= end_date
+            ]
+
+        # Period filters
+        if filters.get('period'):
             period = filters['period']
             today = getdate()
+            start_date = None
+            end_date = None
 
             if period == "this_month":
                 start_date = today.replace(day=1)
@@ -220,48 +281,86 @@ def get_user_income(filters=None, include_analytics=False):
                 start_date = last_month.replace(day=1)
                 end_date = last_month
             elif period == "last_3_months":
-                start_date = (today.replace(day=1) -
-                              timedelta(days=90)).replace(day=1)
+                start_date = (today.replace(day=1) - timedelta(days=90)).replace(day=1)
                 end_date = today
             elif period == "last_6_months":
-                start_date = (today.replace(day=1) -
-                              timedelta(days=180)).replace(day=1)
+                start_date = (today.replace(day=1) - timedelta(days=180)).replace(day=1)
                 end_date = today
             elif period == "this_year":
                 start_date = today.replace(month=1, day=1)
                 end_date = today
 
-        # Apply date filter to income records
-        if start_date and end_date:
-            conditions["creation"] = ["between", [start_date, end_date]]
-        elif start_date:
-            conditions["creation"] = [">=", start_date]
-        elif end_date:
-            conditions["creation"] = ["<=", end_date]
+            if start_date and end_date:
+                filtered_ledger_entries = [
+                    e for e in filtered_ledger_entries 
+                    if start_date <= getdate(e['date_time']) <= end_date
+                ]
 
-        # Determine sort order
+        # Income type filter
+        if filters.get('type'):
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries 
+                if e['source_type'] == filters['type']
+            ]
+
+        # Frequency filter
+        if filters.get('isRecurring') is not None:
+            if filters['isRecurring']:
+                filtered_ledger_entries = [
+                    e for e in filtered_ledger_entries 
+                    if e['income_type'] == 'recurring'
+                ]
+            else:
+                filtered_ledger_entries = [
+                    e for e in filtered_ledger_entries 
+                    if e['income_type'] == 'one-time'
+                ]
+
+        # Amount filters
+        if filters.get('amountMin'):
+            min_amount = flt(filters['amountMin'])
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries 
+                if flt(e['amount']) >= min_amount
+            ]
+
+        if filters.get('amountMax'):
+            max_amount = flt(filters['amountMax'])
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries 
+                if flt(e['amount']) <= max_amount
+            ]
+
+        # Search filter
+        if filters.get('searchTerm'):
+            search_term = filters['searchTerm'].lower()
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries 
+                if search_term in e['source_type'].lower()
+            ]
+
+        # Sorting
         sort_by = filters.get('sortBy', 'date')
         sort_order = filters.get('sortOrder', 'desc')
+        reverse_sort = sort_order == 'desc'
 
-        order_by_field = "creation"
         if sort_by == 'date':
-            order_by_field = "creation"
-        # Note: We can't sort by amount at the database level anymore since
-        # monthly_income is calculated dynamically from filtered ledger data
+            filtered_ledger_entries.sort(
+                key=lambda x: getdate(x['date_time']), 
+                reverse=reverse_sort
+            )
+        elif sort_by == 'amount':
+            filtered_ledger_entries.sort(
+                key=lambda x: flt(x['amount']), 
+                reverse=reverse_sort
+            )
+        elif sort_by == 'type':
+            filtered_ledger_entries.sort(
+                key=lambda x: x['source_type'], 
+                reverse=reverse_sort
+            )
 
-        order_by = f"{order_by_field} {sort_order}"
-
-        # Get income records
-        income_records = frappe.get_all(
-            "Income",
-            filters=conditions,
-            fields=[
-                "name", "household_profile", "creation", "modified", "owner"
-            ],
-            order_by=order_by
-        )
-
-        # Initialize analytics data if requested
+        # Step 4: Calculate analytics from filtered ledger entries
         analytics_data = None
         if include_analytics:
             analytics_data = {
@@ -271,192 +370,58 @@ def get_user_income(filters=None, include_analytics=False):
                 "income_by_type": {},
                 "monthly_trends": [],
                 "summary": {
-                    "total_sources": 0,
+                    "total_sources": len(recurring_sources),
                     "average_source_amount": 0,
                     "top_income_type": ""
                 },
                 "period": filters.get('period', ''),
-                "start_date": start_date.isoformat() if start_date else "",
-                "end_date": end_date.isoformat() if end_date else ""
+                "actual_monthly_income": sum(flt(s.income) for s in recurring_sources)
             }
+
             monthly_data = {}
-            total_sources = 0
             total_amount = 0
             type_amounts = {}
 
-        # Process each income record
-        filtered_records = []
-        for record in income_records:
-            source_conditions = {"parent": record.name}
+            # Calculate metrics from filtered ledger entries
+            for entry in filtered_ledger_entries:
+                entry_amount = flt(entry['amount'])
+                analytics_data["total_income"] += entry_amount
+                total_amount += entry_amount
 
-            # Apply source-level filters
-            if filters.get('type') or filters.get('incomeType'):
-                source_conditions["type"] = filters.get(
-                    'type') or filters.get('incomeType')
-
-            if filters.get('frequency'):
-                if filters['frequency'] == 'one-time':
-                    source_conditions["recur"] = 0
+                # Track by income type
+                if entry['income_type'] == 'recurring':
+                    analytics_data["recurring_income"] += entry_amount
                 else:
-                    source_conditions["recur"] = 1
-                    if filters['frequency'] != 'recurring':
-                        source_conditions["recur_frequency"] = filters['frequency']
-            elif filters.get('isRecurring') is not None:
-                source_conditions["recur"] = 1 if filters['isRecurring'] else 0
+                    analytics_data["one_time_income"] += entry_amount
 
-            # Get income sources
-            income_sources = frappe.get_all(
-                "Income Source Type",
-                filters=source_conditions,
-                fields=[
-                    "name", "type", "income", "recur",
-                    "date_time", "recur_frequency", "stop_date"
-                ],
-                order_by="creation"
-            )
+                # Group by type
+                source_type = entry['source_type']
+                if source_type not in analytics_data["income_by_type"]:
+                    analytics_data["income_by_type"][source_type] = 0
+                analytics_data["income_by_type"][source_type] += entry_amount
 
-            # Apply amount filters at source level
-            if filters.get('amountMin') or filters.get('amountMax'):
-                filtered_sources = []
-                for source in income_sources:
-                    amount = flt(source.income)
-                    if filters.get('amountMin') and amount < flt(filters['amountMin']):
-                        continue
-                    if filters.get('amountMax') and amount > flt(filters['amountMax']):
-                        continue
-                    filtered_sources.append(source)
-                income_sources = filtered_sources
+                # Track for summary
+                if source_type not in type_amounts:
+                    type_amounts[source_type] = 0
+                type_amounts[source_type] += entry_amount
 
-            # Apply search term filter
-            if filters.get('searchTerm'):
-                search_term = filters['searchTerm'].lower()
-                filtered_sources = []
-                for source in income_sources:
-                    if search_term in source.type.lower():
-                        filtered_sources.append(source)
-                income_sources = filtered_sources
-
-            # Only include records that have matching sources after filtering
-            if income_sources or not any([
-                filters.get('type'), filters.get(
-                    'incomeType'), filters.get('frequency'),
-                filters.get('isRecurring') is not None, filters.get(
-                    'amountMin'),
-                filters.get('amountMax'), filters.get('searchTerm')
-            ]):
-                # Calculate monthly_income from ledger entries for this record
-                calculated_monthly_income = 0
-
-                # Get ledger entries for each source and calculate totals
-                for source in income_sources:
-                    ledger_conditions = {
-                        "parent": record.name,
-                        "income_source": source.name
+                # Monthly trends
+                entry_date = getdate(entry['date_time'])
+                month_key = entry_date.strftime("%Y-%m")
+                if month_key not in monthly_data:
+                    monthly_data[month_key] = {
+                        "total": 0,
+                        "recurring": 0,
+                        "one_time": 0
                     }
 
-                    # Apply date filters to ledger entries if specified
-                    if start_date or end_date:
-                        if start_date and end_date:
-                            ledger_conditions["date_time"] = [
-                                "between", [start_date, end_date]]
-                        elif start_date:
-                            ledger_conditions["date_time"] = [">=", start_date]
-                        elif end_date:
-                            ledger_conditions["date_time"] = ["<=", end_date]
+                monthly_data[month_key]["total"] += entry_amount
+                if entry['income_type'] == 'recurring':
+                    monthly_data[month_key]["recurring"] += entry_amount
+                else:
+                    monthly_data[month_key]["one_time"] += entry_amount
 
-                    ledger_entries = frappe.get_all(
-                        "Income Ledger",
-                        filters=ledger_conditions,
-                        fields=["date_time", "amount", "income_type"],
-                        order_by="date_time"
-                    )
-
-                    # Calculate monthly equivalent from ledger entries
-                    for entry in ledger_entries:
-                        entry_amount = flt(entry.amount)
-
-                        # For recurring income, use the amount as is (already monthly equivalent)
-                        # For one-time income, we need to convert based on the time period
-                        if entry.income_type == "recurring":
-                            calculated_monthly_income += entry_amount
-                        else:
-                            # For one-time income in a filtered period, calculate monthly equivalent
-                            if start_date and end_date:
-                                # Calculate days in the period
-                                period_days = (
-                                    end_date - start_date).days + 1
-                                # Convert to monthly equivalent (assuming 30 days per month)
-                                monthly_equivalent = (
-                                    entry_amount / period_days) * 30
-                                calculated_monthly_income += monthly_equivalent
-                            else:
-                                # If no date filter, treat one-time as monthly amount
-                                calculated_monthly_income += entry_amount
-
-                    source.ledger_entries = ledger_entries
-
-                # Set the calculated monthly_income for this record
-                record.monthly_income = calculated_monthly_income
-                record.income_source = income_sources
-                filtered_records.append(record)
-
-                # Calculate analytics if requested
-                if include_analytics and income_sources:
-                    month_key = record.creation.strftime("%Y-%m")
-                    if month_key not in monthly_data:
-                        monthly_data[month_key] = {
-                            "total": 0,
-                            "recurring": 0,
-                            "one_time": 0
-                        }
-
-                    for source in income_sources:
-                        # Use ledger entries for analytics calculations
-                        source_monthly_recurring = 0
-                        source_monthly_one_time = 0
-
-                        for entry in source.ledger_entries:
-                            entry_amount = flt(entry.amount)
-
-                            if entry.income_type == "recurring":
-                                source_monthly_recurring += entry_amount
-                                analytics_data["recurring_income"] += entry_amount
-                                monthly_data[month_key]["recurring"] += entry_amount
-                            else:
-                                # For one-time, convert to monthly equivalent if in period
-                                if start_date and end_date:
-                                    period_days = (
-                                        end_date - start_date).days + 1
-                                    monthly_equivalent = (
-                                        entry_amount / period_days) * 30
-                                    source_monthly_one_time += monthly_equivalent
-                                    analytics_data["one_time_income"] += monthly_equivalent
-                                    monthly_data[month_key]["one_time"] += monthly_equivalent
-                                else:
-                                    source_monthly_one_time += entry_amount
-                                    analytics_data["one_time_income"] += entry_amount
-                                    monthly_data[month_key]["one_time"] += entry_amount
-
-                        source_total = source_monthly_recurring + source_monthly_one_time
-                        analytics_data["total_income"] += source_total
-                        monthly_data[month_key]["total"] += source_total
-
-                        total_sources += 1
-                        total_amount += source_total
-
-                        # Group by type
-                        if source.type not in analytics_data["income_by_type"]:
-                            analytics_data["income_by_type"][source.type] = 0
-                        analytics_data["income_by_type"][source.type] += source_total
-
-                        # Track for summary
-                        if source.type not in type_amounts:
-                            type_amounts[source.type] = 0
-                        type_amounts[source.type] += source_total
-
-        # Generate monthly trends and summary for analytics
-        if include_analytics:
-            # Monthly trends
+            # Generate monthly trends
             for month_key in sorted(monthly_data.keys()):
                 month_date = datetime.strptime(month_key, "%Y-%m")
                 analytics_data["monthly_trends"].append({
@@ -467,21 +432,20 @@ def get_user_income(filters=None, include_analytics=False):
                 })
 
             # Summary statistics
-            analytics_data["summary"]["total_sources"] = total_sources
-            analytics_data["summary"]["average_source_amount"] = total_amount / \
-                total_sources if total_sources > 0 else 0
+            analytics_data["summary"]["average_source_amount"] = (
+                total_amount / len(filtered_ledger_entries) 
+                if len(filtered_ledger_entries) > 0 else 0
+            )
 
             # Find top income type
             if type_amounts:
                 top_type = max(type_amounts.items(), key=lambda x: x[1])
                 analytics_data["summary"]["top_income_type"] = top_type[0]
 
-            # Calculate additional metrics for frontend use
-            total_income_for_percentage = analytics_data["recurring_income"] + \
-                analytics_data["one_time_income"]
+            # Calculate additional metrics
+            total_income_for_percentage = analytics_data["recurring_income"] + analytics_data["one_time_income"]
             analytics_data["recurring_percentage"] = (
-                (analytics_data["recurring_income"] /
-                 total_income_for_percentage) * 100
+                (analytics_data["recurring_income"] / total_income_for_percentage) * 100
                 if total_income_for_percentage > 0 else 0
             )
 
@@ -497,23 +461,11 @@ def get_user_income(filters=None, include_analytics=False):
             else:
                 analytics_data["growth_rate"] = 0
 
-            # Add actual monthly income (only from recurring sources)
-            analytics_data["actual_monthly_income"] = analytics_data["recurring_income"]
-
-        # Sort by amount if requested (must be done after calculations)
-        if filters.get('sortBy') == 'amount':
-            sort_order = filters.get('sortOrder', 'desc')
-            reverse_sort = sort_order == 'desc'
-            filtered_records.sort(
-                key=lambda x: x.monthly_income, reverse=reverse_sort)
-
-        if include_analytics:
-            return {
-                "income_records": filtered_records,
-                "analytics": analytics_data
-            }
-
-        return filtered_records
+        return {
+            "recurring_sources": recurring_sources,
+            "ledger_entries": filtered_ledger_entries,
+            "analytics": analytics_data
+        }
 
     except Exception as e:
         frappe.log_error(f"Error fetching user income: {str(e)}")
@@ -661,14 +613,11 @@ def get_income_dashboard_metrics(period="this_month"):
 @frappe.whitelist()
 def create_or_update_income(income_source, income_name=None, source_name=None, action=None):
     """
-    Create or update income record with sources and corresponding ledger entries
-    - Only one Income doctype per household profile
-    - All sources are children (Income Source Type)
-    - Ledger entries are created based on source configuration
-    - If action == 'delete', remove the specified source and its ledger entries
-    - If source_name is provided, update that source and adjust ledger entries
-    - Otherwise, add a new source and create ledger entries
-    - monthly_income is always recalculated from sources
+    Create or update RECURRING income sources only
+    - Only recurring income sources (recur=True) are managed here
+    - One-time income goes directly to ledger via create_direct_ledger_entry
+    - When source is deleted, all its automatic ledger entries are deleted
+    - When source is updated, existing automatic ledger entries are kept but source is updated
     """
     try:
         # Get user's household profile
@@ -697,47 +646,47 @@ def create_or_update_income(income_source, income_name=None, source_name=None, a
             income_doc.household_profile = household_profile
 
         if action == "delete" and source_name:
-            # Remove specific source
+            # Remove specific source and ALL its ledger entries
             income_doc.income_source = [
                 row for row in income_doc.income_source if row.name != source_name]
 
-            # Remove corresponding ledger entries
+            # Delete ALL ledger entries linked to this source
             frappe.db.delete("Income Ledger", {
                 "parent": income_doc.name,
                 "income_source": source_name
             })
         elif source_name:
-            # Update existing source
+            # Update existing recurring source
             for existing_source in income_doc.income_source:
                 if existing_source.name == source_name:
-                    # Update the source fields
                     for source in income_source:
+                        # Ensure this is a recurring source
+                        if not source.get("recur", False):
+                            frappe.throw(_("Only recurring income sources can be managed here. Use direct ledger entry for one-time income."))
+                        
                         existing_source.type = source.get("type")
                         existing_source.income = flt(source.get("income"))
-                        existing_source.recur = source.get("recur", False)
-                        existing_source.date_time = source.get(
-                            "date_time") or now_datetime()
-                        existing_source.recur_frequency = source.get(
-                            "recur_frequency")
+                        existing_source.recur = True  # Always true for income sources
+                        existing_source.date_time = source.get("date_time") or now_datetime()
+                        existing_source.recur_frequency = source.get("recur_frequency")
                         existing_source.stop_date = source.get("stop_date")
                     break
-
-            # Note: Ledger entries will be recreated automatically by Income.on_update()
         else:
-            # Add new sources
+            # Add new recurring sources only
             for source in income_source:
+                if not source.get("recur", False):
+                    frappe.throw(_("Only recurring income sources can be created here. Use direct ledger entry for one-time income."))
+                
                 income_doc.append("income_source", {
                     "type": source.get("type"),
                     "income": flt(source.get("income")),
-                    "recur": source.get("recur", False),
+                    "recur": True,  # Always true for income sources
                     "date_time": source.get("date_time") or now_datetime(),
                     "recur_frequency": source.get("recur_frequency"),
                     "stop_date": source.get("stop_date")
                 })
 
-        # Save the document - this will automatically:
-        # 1. Validate and calculate monthly_income (via validate method)
-        # 2. Recreate all ledger entries (via on_update method)
+        # Save the document
         income_doc.save()
 
         return {
@@ -1025,3 +974,181 @@ def get_income_insights():
     except Exception as e:
         frappe.log_error(f"Error getting income insights: {str(e)}")
         frappe.throw(_("Failed to get income insights"))
+
+
+@frappe.whitelist()
+def update_ledger_entry(ledger_entry_name, new_amount, new_date, new_type=None):
+    """
+    Update a specific ledger entry directly without affecting the income source
+    - For recurring entries: Edit the specific occurrence only, source remains unchanged
+    - For one-time entries: Edit the entry directly
+    """
+    try:
+        # Get the ledger entry
+        ledger_entry = frappe.get_doc("Income Ledger", ledger_entry_name)
+        if not ledger_entry:
+            frappe.throw(_("Ledger entry not found"))
+
+        # Update the ledger entry
+        ledger_entry.amount = flt(new_amount)
+        ledger_entry.date_time = new_date
+        if new_type:
+            ledger_entry.income_type = new_type
+
+        # Save the ledger entry (do NOT update the source)
+        ledger_entry.save()
+
+        # Note: We intentionally do NOT update the income source
+        # This allows editing specific occurrences without affecting the recurring pattern
+
+        return {
+            "status": "success",
+            "message": "Ledger entry updated successfully (source unchanged)",
+            "updated_entry": {
+                "name": ledger_entry.name,
+                "amount": ledger_entry.amount,
+                "date_time": ledger_entry.date_time,
+                "income_type": ledger_entry.income_type
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error updating ledger entry: {str(e)}")
+        frappe.throw(_("Failed to update ledger entry: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def delete_ledger_entry(ledger_entry_name):
+    """
+    Delete a specific ledger entry without affecting the income source
+    - For recurring entries: Delete just that one occurrence, source remains
+    - For one-time entries: Delete the entry (no source exists)
+    """
+    try:
+        # Get the ledger entry
+        ledger_entry = frappe.get_doc("Income Ledger", ledger_entry_name)
+        if not ledger_entry:
+            frappe.throw(_("Ledger entry not found"))
+
+        income_type = ledger_entry.income_type
+        
+        # Delete the ledger entry only (do NOT delete the source)
+        frappe.delete_doc("Income Ledger", ledger_entry_name)
+
+        # Note: We intentionally do NOT delete the income source
+        # - For recurring entries: Source should remain to continue generating future entries
+        # - For one-time entries: No source exists anyway
+
+        return {
+            "status": "success",
+            "message": f"Ledger entry deleted successfully (source unchanged)",
+            "deleted_type": income_type
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error deleting ledger entry: {str(e)}")
+        frappe.throw(_("Failed to delete ledger entry: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def create_direct_ledger_entry(income_type, amount, date_time, description=None):
+    """
+    Create a direct ledger entry for one-time income without creating an income source
+    This is for freelance work, bonuses, gifts, etc. that don't need recurring tracking
+    """
+    try:
+        # Get user's household profile
+        household_profile = frappe.db.get_value(
+            "Household Profile",
+            {"user": frappe.session.user},
+            "name"
+        )
+
+        if not household_profile:
+            frappe.throw(_("No household profile found for current user"))
+
+        # Find or create the single Income record for this household
+        income_name_db = frappe.db.get_value(
+            "Income",
+            {"household_profile": household_profile},
+            "name"
+        )
+        
+        if income_name_db:
+            income_doc = frappe.get_doc("Income", income_name_db)
+        else:
+            income_doc = frappe.new_doc("Income")
+            income_doc.household_profile = household_profile
+
+        # Create new ledger entry directly (no income source reference needed)
+        new_entry = {
+            "income_source": None,  # No source for direct entries
+            "income_type": "one-time",
+            "date_time": date_time,
+            "amount": flt(amount),
+            "source_type": income_type,  # Store the type directly in ledger
+            "description": description or ""
+        }
+        
+        # Add to ledger
+        income_doc.append("income_ledger", new_entry)
+        
+        # Recalculate monthly income (only from recurring sources)
+        income_doc.validate()
+        income_doc.save()
+
+        return {
+            "status": "success",
+            "message": "One-time income entry created successfully",
+            "entry_name": income_doc.income_ledger[-1].name
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error creating direct ledger entry: {str(e)}")
+        frappe.throw(_("Failed to create direct ledger entry: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def create_ledger_entry(income_source_name, amount, date_time, income_type="one-time"):
+    """
+    Create a new ledger entry for an existing income source
+    """
+    try:
+        # Get the source document to get parent income
+        source_doc = frappe.db.get_value(
+            "Income Source Type",
+            {"name": income_source_name},
+            ["parent"],
+            as_dict=True
+        )
+        
+        if not source_doc:
+            frappe.throw(_("Income source not found"))
+
+        # Get the income document
+        income_doc = frappe.get_doc("Income", source_doc.parent)
+        
+        # Create new ledger entry
+        new_entry = {
+            "income_source": income_source_name,
+            "income_type": income_type,
+            "date_time": date_time,
+            "amount": flt(amount)
+        }
+        
+        # Add to ledger
+        income_doc.append("income_ledger", new_entry)
+        
+        # Recalculate and save
+        income_doc.validate()
+        income_doc.save()
+
+        return {
+            "status": "success",
+            "message": "Ledger entry created successfully",
+            "entry_name": income_doc.income_ledger[-1].name
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error creating ledger entry: {str(e)}")
+        frappe.throw(_("Failed to create ledger entry: {0}").format(str(e)))

@@ -1,7 +1,7 @@
-import type { SupportBenefit } from "./SupportBenefit"
-import type { TargetGroupChild } from "./TargetGroupChild"
+import { TargetGroupChild } from './TargetGroupChild'
+import { SupportBenefit } from './SupportBenefit'
 
-export interface SupportPathway {
+export interface SupportPathway{
 	name: string
 	creation: string
 	modified: string

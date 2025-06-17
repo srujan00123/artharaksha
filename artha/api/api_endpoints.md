@@ -294,6 +294,84 @@ Response: {
 }
 ```
 
+### 11. Update Ledger Entry
+
+```typescript
+POST /api/method/artha.api.income.update_ledger_entry
+
+Parameters: {
+  ledger_entry_name: string;
+  new_amount: number;
+  new_date: string; // ISO date string
+  new_type?: "recurring" | "one-time";
+}
+
+Response: {
+  status: "success";
+  message: string;
+  updated_entry: {
+    name: string;
+    amount: number;
+    date_time: string;
+    income_type: "recurring" | "one-time";
+  };
+}
+```
+
+### 12. Delete Ledger Entry
+
+```typescript
+POST / api / method / artha.api.income.delete_ledger_entry;
+
+Parameters: {
+  ledger_entry_name: string;
+}
+
+Response: {
+  status: "success";
+  message: string;
+  deleted_type: "recurring" | "one-time";
+}
+```
+
+### 13. Create Direct Ledger Entry
+
+```typescript
+POST /api/method/artha.api.income.create_direct_ledger_entry
+
+Parameters: {
+  income_type: string; // Usually the type of income (e.g., "Bonus", "Gift", etc.)
+  amount: number;
+  date_time: string; // ISO date string
+  description?: string; // Optional description
+}
+
+Response: {
+  status: "success";
+  message: string;
+  entry_name: string;
+}
+```
+
+### 14. Create Ledger Entry for Existing Source
+
+```typescript
+POST /api/method/artha.api.income.create_ledger_entry
+
+Parameters: {
+  income_source_name: string;
+  amount: number;
+  date_time: string; // ISO date string
+  income_type?: "recurring" | "one-time";
+}
+
+Response: {
+  status: "success";
+  message: string;
+  entry_name: string;
+}
+```
+
 ## Important Notes
 
 1. **Income Source Types**:

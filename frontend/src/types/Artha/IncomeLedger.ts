@@ -1,4 +1,5 @@
-export interface IncomeLedger {
+
+export interface IncomeLedger{
 	name: string
 	creation: string
 	modified: string
@@ -13,8 +14,12 @@ export interface IncomeLedger {
 	income_type?: "recurring" | "one-time"
 	/**	income Source : Link - Income Source Type	*/
 	income_source?: string
+	/**	Source Type : Link - Income Type	*/
+	source_type?: string
 	/**	Date Time : Datetime	*/
 	date_time?: string
 	/**	Amount : Currency	*/
 	amount?: number
+	/**	Description : Small Text	*/
+	description?: string
 }

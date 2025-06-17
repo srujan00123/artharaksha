@@ -222,9 +222,7 @@ import { IncomeFilter, IncomeForm, IncomeSources, IncomeLedger, LedgerEntryModal
 import { useIncome } from "../../composables/useIncome"
 import type { 
   AddIncomeSourcePayload,
-  CreateDirectLedgerEntryPayload,
   DeleteIncomeSourcePayload,
-  DirectLedgerEntryFormData,
   FlattenedLedgerEntry,
   IncomeFormUIData,
   IncomeSourceFormData,
@@ -240,21 +238,20 @@ const {
   incomeTypes,
   loading,
   error,
-	filteredSources,
-	filteredLedgerEntries,
-	dashboardMetrics,
+  filteredSources,
+  filteredLedgerEntries,
+  dashboardMetrics,
   fetchDashboardMetrics,
-	fetchIncomeLedger,
-	addIncomeSource,
-	addDirectLedgerEntry,
-	updateIncomeSource,
-	deleteIncomeSource,
+  fetchIncomeLedger,
+  addIncomeSource,
+  updateIncomeSource,
+  deleteIncomeSource,
   updateLedgerEntry,
   deleteLedgerEntry,
-	clearFilters,
-	refreshData,
-	invalidateCache,
-	initialize,
+  clearFilters,
+  refreshData,
+  invalidateCache,
+  initialize,
 } = useIncome()
 
 // View management
@@ -301,11 +298,10 @@ const getFilteredCount = () => {
 
 // View switching
 const switchToLedgerView = async () => {
-	currentView.value = 'ledger'
-	// Ledger entries are fetched as part of main API, just ensure we have data
-	if (filteredLedgerEntries.value.length === 0) {
-		await refreshData({ withAnalytics: true })
-	}
+  currentView.value = 'ledger'
+  if (filteredLedgerEntries.value.length === 0) {
+    await fetchIncomeLedger()
+  }
 }
 
 // Selection handlers
@@ -415,56 +411,43 @@ const editIncomeSource = (source: IncomeSourceRecord) => {
 }
 
 const handleIncomeSubmit = async (formData: IncomeFormUIData) => {
-	try {
-		const mainIncomeRecord = incomes.value[0]
-		if (!mainIncomeRecord) {
-			throw new Error("No income record found for household")
-		}
+  try {
+    const mainIncomeRecord = incomes.value[0]
+    if (!mainIncomeRecord) {
+      throw new Error("No income record found for household")
+    }
 
-		// Check if this is recurring or one-time income
-		if (formData.isRecurring) {
-			// Recurring income goes to income sources
-			const sourceData: IncomeSourceFormData = {
-				type: formData.type,
-				income: formData.amount,
-				recur: true, // Always true for income sources
-				date_time: formData.dateTime,
-				recur_frequency: formData.frequency as "daily" | "weekly" | "bi-weekly" | "monthly" | "quarterly" | "semi-annually" | "annually" | "yearly",
-				stop_date: formData.stop_date,
-			}
-			
-			if (editingSource.value) {
-				const payload: UpdateIncomeSourcePayload = {
-					income_source: [sourceData],
-					income_name: mainIncomeRecord.name,
-					source_name: editingSource.value.name || '',
-				}
-				await updateIncomeSource(payload)
-			} else {
-				const payload: AddIncomeSourcePayload = {
-					income_source: [sourceData],
-					income_name: mainIncomeRecord.name,
-				}
-				await addIncomeSource(payload)
-			}
-		} else {
-			// One-time income goes directly to ledger
-			const directLedgerPayload: CreateDirectLedgerEntryPayload = {
-				income_type: formData.type,
-				amount: formData.amount,
-				date_time: formData.dateTime,
-				description: `One-time ${formData.type} income`
-			}
-			await addDirectLedgerEntry(directLedgerPayload)
-		}
+    const sourceData: IncomeSourceFormData = {
+      type: formData.type,
+      income: formData.amount,
+      recur: formData.isRecurring,
+      date_time: formData.dateTime,
+      recur_frequency: formData.frequency as "daily" | "weekly" | "bi-weekly" | "monthly" | "quarterly" | "semi-annually" | "annually" | "yearly" | undefined,
+      stop_date: formData.stop_date,
+    }
+    
+    if (editingSource.value) {
+      const payload: UpdateIncomeSourcePayload = {
+        income_source: [sourceData],
+        income_name: mainIncomeRecord.name,
+        source_name: editingSource.value.name || '',
+      }
+      await updateIncomeSource(payload)
+    } else {
+      const payload: AddIncomeSourcePayload = {
+        income_source: [sourceData],
+        income_name: mainIncomeRecord.name,
+      }
+      await addIncomeSource(payload)
+    }
 
-		await invalidateCache({ incomeData: true, analytics: true })
-		closeIncomeForm()
-	} catch (error) {
-		console.error("Failed to save income:", error)
-		alert("Failed to save income. Please try again.")
-		throw error
-	}
+    await invalidateCache({ incomeData: true, analytics: true })
+    closeIncomeForm()
+  } catch (error) {
+    console.error("Failed to save income:", error)
+    alert("Failed to save income. Please try again.")
+    throw error
+  }
 }
 
 const deleteIncomeSourceHandler = async (source: IncomeSourceRecord) => {
@@ -503,7 +486,7 @@ watch(currentView, () => {
 onMounted(async () => {
   await initialize({ withAnalytics: true, forceRefresh: false })
   await fetchDashboardMetrics()
-  // Ledger entries are now part of the main API response - no separate call needed
+  await fetchIncomeLedger()
 })
 </script>
 

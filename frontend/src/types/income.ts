@@ -31,15 +31,16 @@ export interface IncomeRecord {
 /**
  * Income source as returned by backend API
  *
- * NOTE: All CRUD operations on sources are performed via the parent Income record.
+ * NOTE: Only for RECURRING income sources. One-time income goes directly to ledger.
+ * All CRUD operations on sources are performed via the parent Income record.
  */
 export interface IncomeSourceRecord {
   name?: string; // Child table ID
   type: string;
   income: number;
-  recur: boolean;
+  recur: true; // Always true - only recurring sources are stored here
   date_time: string;
-  recur_frequency?:
+  recur_frequency:
     | "daily"
     | "weekly"
     | "bi-weekly"
@@ -63,19 +64,23 @@ export interface LedgerEntry {
   date_time: string;
   amount: number;
   income_type: "recurring" | "one-time";
+  source_type?: string; // For direct entries without income source
+  description?: string; // For direct entries
 }
 
 // Flattened ledger entry as returned by get_income_ledger
 export interface FlattenedLedgerEntry {
   name: string; // Ledger entry name
-  income_source: string; // Source child name
+  income_source?: string; // Source child name (null for direct entries)
   income_type: "recurring" | "one-time";
   date_time: string;
   amount: number;
-  source_type: string;
-  source_recur: boolean;
-  source_income: number;
-  source_date_time: string;
+  source_type: string; // Income type name
+  description?: string; // For direct entries
+  // Source details (only for entries with income_source)
+  source_recur?: boolean;
+  source_income?: number;
+  source_date_time?: string;
   source_recur_frequency?:
     | "daily"
     | "weekly"
@@ -119,7 +124,8 @@ export interface AnalyticsSummary {
 
 // API Response interfaces (exact backend structure)
 export interface GetUserIncomeResponse {
-  income_records: IncomeRecord[];
+  recurring_sources: IncomeSourceRecord[];
+  ledger_entries: FlattenedLedgerEntry[];
   analytics: IncomeAnalytics;
 }
 
@@ -224,9 +230,9 @@ export interface LedgerFilters {
 export interface IncomeSourceFormData {
   type: string;
   income: number;
-  recur: boolean;
+  recur: true; // Always true for income sources
   date_time: string;
-  recur_frequency?:
+  recur_frequency:
     | "daily"
     | "weekly"
     | "bi-weekly"
@@ -371,13 +377,62 @@ export interface IncomeDashboardMetrics {
   end_date?: string;
 }
 
+// Ledger Entry CRUD operations
+export interface UpdateLedgerEntryPayload {
+  ledger_entry_name: string;
+  new_amount: number;
+  new_date: string;
+  new_type?: "recurring" | "one-time";
+}
+
+export interface UpdateLedgerEntryResponse {
+  status: "success";
+  message: string;
+  updated_entry: {
+    name: string;
+    amount: number;
+    date_time: string;
+    income_type: "recurring" | "one-time";
+  };
+}
+
+export interface DeleteLedgerEntryPayload {
+  ledger_entry_name: string;
+}
+
+export interface DeleteLedgerEntryResponse {
+  status: "success";
+  message: string;
+  deleted_type: "recurring" | "one-time";
+}
+
+export interface CreateLedgerEntryPayload {
+  income_source_name: string;
+  amount: number;
+  date_time: string;
+  income_type?: "recurring" | "one-time";
+}
+
+export interface CreateDirectLedgerEntryPayload {
+  income_type: string;
+  amount: number;
+  date_time: string;
+  description?: string;
+}
+
+export interface CreateLedgerEntryResponse {
+  status: "success";
+  message: string;
+  entry_name: string;
+}
+
 // Frontend UI-specific types
 export interface ProcessedIncomeItem {
   sourceId: string;
   incomeId: string;
   type: string;
   amount: number;
-  isRecurring: boolean;
+  isRecurring: true; // Always true for income sources
   dateTime: string;
   frequency: string;
   stop_date?: string;
@@ -389,8 +444,23 @@ export interface ProcessedIncomeItem {
 export interface IncomeFormUIData {
   type: string;
   amount: number;
-  isRecurring: boolean;
+  isRecurring: true; // Always true for income sources
   dateTime: string;
   frequency: string;
   stop_date?: string;
+}
+
+// UI data for direct ledger entries (one-time income)
+export interface DirectLedgerEntryFormData {
+  income_type: string;
+  amount: number;
+  date_time: string;
+  description?: string;
+}
+
+export interface LedgerEntryFormData {
+  amount: number;
+  date: string;
+  income_type: "recurring" | "one-time";
+  source_type: string;
 }

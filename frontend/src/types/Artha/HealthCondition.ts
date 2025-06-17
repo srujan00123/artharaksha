@@ -1,4 +1,5 @@
-export interface HealthCondition {
+
+export interface HealthCondition{
 	name: string
 	creation: string
 	modified: string

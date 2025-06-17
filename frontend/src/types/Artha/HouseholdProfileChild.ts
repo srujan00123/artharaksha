@@ -1,4 +1,5 @@
-export interface HouseholdProfileChild {
+
+export interface HouseholdProfileChild{
 	name: string
 	creation: string
 	modified: string

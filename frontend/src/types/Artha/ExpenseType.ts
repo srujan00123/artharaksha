@@ -1,4 +1,5 @@
-export interface ExpenseType {
+
+export interface ExpenseType{
 	name: string
 	creation: string
 	modified: string
@@ -10,19 +11,7 @@ export interface ExpenseType {
 	parenttype?: string
 	idx?: number
 	/**	Expense Type : Select	*/
-	expense_type?:
-		| "Travel"
-		| "Wage loss"
-		| "Accommodation"
-		| "Rent"
-		| "Miscellaneous"
-		| "Grocery"
-		| "Food"
-		| "School Fees"
-		| "Tuition Fees"
-		| "Entertainment"
-		| "Clothes"
-		| "Other"
+	expense_type?: "Travel" | "Wage loss" | "Accommodation" | "Rent" | "Miscellaneous" | "Grocery" | "Food" | "School Fees" | "Tuition Fees" | "Entertainment" | "Clothes" | "Other"
 	/**	Amount : Currency	*/
 	amount?: number
 	/**	Date Time : Datetime	*/

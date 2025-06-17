@@ -1,7 +1,7 @@
-import type { ExpenseType } from "./ExpenseType"
-import type { MedicalExpenseType } from "./MedicalExpenseType"
+import { MedicalExpenseType } from './MedicalExpenseType'
+import { ExpenseType } from './ExpenseType'
 
-export interface Expense {
+export interface Expense{
 	name: string
 	creation: string
 	modified: string

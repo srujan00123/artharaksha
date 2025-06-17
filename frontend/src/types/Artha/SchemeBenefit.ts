@@ -1,4 +1,5 @@
-export interface SchemeBenefit {
+
+export interface SchemeBenefit{
 	name: string
 	creation: string
 	modified: string

@@ -8,7 +8,10 @@ import { computed, ref } from "vue";
 import { incomeService } from "../services/income-service";
 import type {
   AddIncomeSourcePayload,
+  CreateDirectLedgerEntryPayload,
+  CreateLedgerEntryPayload,
   DeleteIncomeSourcePayload,
+  DeleteLedgerEntryPayload,
   FlattenedLedgerEntry,
   GetIncomeInsightsResponse,
   GetMonthlyIncomeSummaryResponse,
@@ -21,6 +24,7 @@ import type {
   IncomeDashboardMetrics,
   LedgerFilters,
   UpdateIncomeSourcePayload,
+  UpdateLedgerEntryPayload,
 } from "../types/income";
 import { safeArray } from "../types/income";
 
@@ -189,7 +193,10 @@ export const useIncomeStore = defineStore("income", () => {
           return 0;
         }
 
-        if (currentFilters.sortBy !== "type") {
+        if (
+          currentFilters.sortBy === "date" ||
+          currentFilters.sortBy === "amount"
+        ) {
           if (currentFilters.sortOrder === "desc") {
             return bValue - aValue;
           }
@@ -308,6 +315,10 @@ export const useIncomeStore = defineStore("income", () => {
 
       incomes.value = data.incomes;
       analytics.value = data.analytics;
+
+      // Store the ledger entries directly from the new API
+      ledgerEntries.value = data.ledgerEntries;
+
       lastFetch.value = Date.now();
     } catch (err: any) {
       error.value = err.message || "Failed to fetch income analytics";
@@ -424,6 +435,22 @@ export const useIncomeStore = defineStore("income", () => {
     }
   }
 
+  async function addDirectLedgerEntry(payload: CreateDirectLedgerEntryPayload) {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      await incomeService.createDirectLedgerEntry(payload);
+      await fetchIncome({ forceRefresh: true });
+    } catch (err: any) {
+      error.value = err.message || "Failed to add direct ledger entry";
+      console.error("Error adding direct ledger entry:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function updateIncomeSource(payload: UpdateIncomeSourcePayload) {
     try {
       loading.value = true;
@@ -493,6 +520,69 @@ export const useIncomeStore = defineStore("income", () => {
     } catch (err: any) {
       error.value = err.message || "Failed to update recurring ledger entries";
       console.error("Error updating recurring ledger entries:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updateLedgerEntry(payload: UpdateLedgerEntryPayload) {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const result = await incomeService.updateLedgerEntry(payload);
+
+      // Refresh data after update
+      await fetchIncome({ forceRefresh: true });
+      await fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true });
+
+      return result;
+    } catch (err: any) {
+      error.value = err.message || "Failed to update ledger entry";
+      console.error("Error updating ledger entry:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deleteLedgerEntry(payload: DeleteLedgerEntryPayload) {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const result = await incomeService.deleteLedgerEntry(payload);
+
+      // Refresh data after deletion
+      await fetchIncome({ forceRefresh: true });
+      await fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true });
+
+      return result;
+    } catch (err: any) {
+      error.value = err.message || "Failed to delete ledger entry";
+      console.error("Error deleting ledger entry:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function createLedgerEntry(payload: CreateLedgerEntryPayload) {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const result = await incomeService.createLedgerEntry(payload);
+
+      // Refresh data after creation
+      await fetchIncome({ forceRefresh: true });
+      await fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true });
+
+      return result;
+    } catch (err: any) {
+      error.value = err.message || "Failed to create ledger entry";
+      console.error("Error creating ledger entry:", err);
       throw err;
     } finally {
       loading.value = false;
@@ -585,10 +675,14 @@ export const useIncomeStore = defineStore("income", () => {
     fetchIncomeInsights,
     fetchDashboardMetrics,
     addIncomeSource,
+    addDirectLedgerEntry,
     updateIncomeSource,
     deleteIncomeSource,
     deleteIncome,
     updateRecurringLedgerEntries,
+    updateLedgerEntry,
+    deleteLedgerEntry,
+    createLedgerEntry,
     updateFilters,
     updateLedgerFilters,
     clearFilters,

@@ -1,7 +1,7 @@
-import type { IncomeLedger } from "./IncomeLedger"
-import type { IncomeSourceType } from "./IncomeSourceType"
+import { IncomeSourceType } from './IncomeSourceType'
+import { IncomeLedger } from './IncomeLedger'
 
-export interface Income {
+export interface Income{
 	name: string
 	creation: string
 	modified: string

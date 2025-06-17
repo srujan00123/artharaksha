@@ -6,8 +6,13 @@
 import { call } from "frappe-ui";
 import type {
   AddIncomeSourcePayload,
+  CreateDirectLedgerEntryPayload,
   CreateIncomeResponse,
+  CreateLedgerEntryPayload,
+  CreateLedgerEntryResponse,
   DeleteIncomeSourcePayload,
+  DeleteLedgerEntryPayload,
+  DeleteLedgerEntryResponse,
   FlattenedLedgerEntry,
   GetIncomeInsightsResponse,
   GetIncomeTypesResponse,
@@ -17,11 +22,14 @@ import type {
   IncomeFilters,
   IncomeRecord,
   IncomeServiceOptions,
+  IncomeSourceRecord,
   IncomeTypeRecord,
   IncomeDashboardMetrics,
   LedgerFilters,
   UpdateAllRecurringLedgersResponse,
   UpdateIncomeSourcePayload,
+  UpdateLedgerEntryPayload,
+  UpdateLedgerEntryResponse,
   UpdateRecurringLedgerEntriesResponse,
   ValidateIncomeDataPayload,
   ValidationResponse,
@@ -142,6 +150,8 @@ class IncomeService {
   ): Promise<{
     incomes: IncomeRecord[];
     analytics: IncomeAnalytics;
+    recurringSources: IncomeSourceRecord[];
+    ledgerEntries: FlattenedLedgerEntry[];
   }> {
     try {
       const { filters, forceRefresh = false, useCache = true } = options;
@@ -168,6 +178,8 @@ class IncomeService {
           return {
             incomes: objectToArray(cachedIncomes).map(normalizeIncomeRecord),
             analytics: cachedAnalytics,
+            recurringSources: [],
+            ledgerEntries: [],
           };
         }
       }
@@ -180,9 +192,44 @@ class IncomeService {
         },
       );
 
-      const incomes = safeArray(response.income_records).map(
-        normalizeIncomeRecord,
+      // Backend now returns recurring_sources and ledger_entries separately
+      const recurringSources = safeArray(response.recurring_sources).map(
+        (source) => ({
+          ...source,
+          recur: true as const, // All sources from this endpoint are recurring
+        }),
       );
+      const ledgerEntries = safeArray(response.ledger_entries);
+
+      // Store both for different use cases
+      // Create a legacy IncomeRecord for backward compatibility
+      const incomes: IncomeRecord[] = [];
+      if (recurringSources.length > 0 || ledgerEntries.length > 0) {
+        // Group all recurring sources into a single income record
+        const mockIncomeRecord: IncomeRecord = {
+          name: "household_income",
+          household_profile: "current_household",
+          monthly_income: recurringSources.reduce(
+            (sum, source) => sum + Number(source.income || 0),
+            0,
+          ),
+          creation: new Date().toISOString(),
+          modified: new Date().toISOString(),
+          owner: "current_user",
+          income_source: recurringSources.map((source) => ({
+            ...source,
+            ledger_entries: ledgerEntries
+              .filter((entry) => entry.income_source === source.name)
+              .map((entry) => ({
+                date_time: entry.date_time,
+                amount: entry.amount,
+                income_type: entry.income_type as "recurring" | "one-time",
+              })),
+          })) as IncomeSourceRecord[],
+        };
+        incomes.push(mockIncomeRecord);
+      }
+
       const analytics = response.analytics || {
         total_income: 0,
         recurring_income: 0,
@@ -194,6 +241,9 @@ class IncomeService {
           average_source_amount: 0,
           top_income_type: "",
         },
+        recurring_percentage: 0,
+        growth_rate: 0,
+        actual_monthly_income: 0,
       };
 
       if (useCache) {
@@ -212,7 +262,13 @@ class IncomeService {
           );
         }
       }
-      return { incomes, analytics };
+      return {
+        incomes,
+        analytics,
+        // Include raw data for direct use
+        recurringSources,
+        ledgerEntries,
+      };
     } catch (error) {
       throw new Error(`Failed to fetch income analytics: ${error.message}`);
     }
@@ -424,8 +480,8 @@ class IncomeService {
   }
 
   /**
-   * Create, update, or delete an income source (single Income record per household)
-   * Only add/update/delete IncomeSourceType, ledger is backend-only
+   * Create, update, or delete RECURRING income sources only
+   * For one-time income, use createDirectLedgerEntry instead
    */
   async createOrUpdateIncome(
     payload:
@@ -434,6 +490,19 @@ class IncomeService {
       | DeleteIncomeSourcePayload,
   ): Promise<CreateIncomeResponse> {
     try {
+      // Ensure all sources are marked as recurring
+      const sources = Array.isArray(payload.income_source)
+        ? payload.income_source
+        : [payload.income_source];
+
+      sources.forEach((source) => {
+        if (source && !source.recur) {
+          throw new Error(
+            "Only recurring income sources can be created here. Use direct ledger entry for one-time income.",
+          );
+        }
+      });
+
       const response: CreateIncomeResponse = await call(
         "artha.api.income.create_or_update_income",
         {
@@ -447,6 +516,29 @@ class IncomeService {
       return response;
     } catch (error) {
       throw new Error(`Failed to save income: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a direct ledger entry for one-time income
+   */
+  async createDirectLedgerEntry(
+    payload: CreateDirectLedgerEntryPayload,
+  ): Promise<CreateLedgerEntryResponse> {
+    try {
+      const response: CreateLedgerEntryResponse = await call(
+        "artha.api.income.create_direct_ledger_entry",
+        {
+          income_type: payload.income_type,
+          amount: payload.amount,
+          date_time: payload.date_time,
+          description: payload.description,
+        },
+      );
+      this.clearCache();
+      return response;
+    } catch (error) {
+      throw new Error(`Failed to create direct ledger entry: ${error.message}`);
     }
   }
 
@@ -510,6 +602,72 @@ class IncomeService {
       this.clearCache();
     } catch (error) {
       throw new Error(`Failed to delete Income record: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update a specific ledger entry
+   */
+  async updateLedgerEntry(
+    payload: UpdateLedgerEntryPayload,
+  ): Promise<UpdateLedgerEntryResponse> {
+    try {
+      const response: UpdateLedgerEntryResponse = await call(
+        "artha.api.income.update_ledger_entry",
+        {
+          ledger_entry_name: payload.ledger_entry_name,
+          new_amount: payload.new_amount,
+          new_date: payload.new_date,
+          new_type: payload.new_type,
+        },
+      );
+      this.clearCache();
+      return response;
+    } catch (error) {
+      throw new Error(`Failed to update ledger entry: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete a specific ledger entry
+   */
+  async deleteLedgerEntry(
+    payload: DeleteLedgerEntryPayload,
+  ): Promise<DeleteLedgerEntryResponse> {
+    try {
+      const response: DeleteLedgerEntryResponse = await call(
+        "artha.api.income.delete_ledger_entry",
+        {
+          ledger_entry_name: payload.ledger_entry_name,
+        },
+      );
+      this.clearCache();
+      return response;
+    } catch (error) {
+      throw new Error(`Failed to delete ledger entry: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a new ledger entry
+   */
+  async createLedgerEntry(
+    payload: CreateLedgerEntryPayload,
+  ): Promise<CreateLedgerEntryResponse> {
+    try {
+      const response: CreateLedgerEntryResponse = await call(
+        "artha.api.income.create_ledger_entry",
+        {
+          income_source_name: payload.income_source_name,
+          amount: payload.amount,
+          date_time: payload.date_time,
+          income_type: payload.income_type || "one-time",
+        },
+      );
+      this.clearCache();
+      return response;
+    } catch (error) {
+      throw new Error(`Failed to create ledger entry: ${error.message}`);
     }
   }
 

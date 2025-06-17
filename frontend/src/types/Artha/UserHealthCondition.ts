@@ -1,4 +1,5 @@
-export interface UserHealthCondition {
+
+export interface UserHealthCondition{
 	name: string
 	creation: string
 	modified: string

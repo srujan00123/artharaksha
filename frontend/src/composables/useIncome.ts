@@ -7,7 +7,10 @@ import { computed } from "vue";
 import { useIncomeStore } from "../stores/income-store";
 import type {
   AddIncomeSourcePayload,
+  CreateDirectLedgerEntryPayload,
+  CreateLedgerEntryPayload,
   DeleteIncomeSourcePayload,
+  DeleteLedgerEntryPayload,
   FlattenedLedgerEntry,
   IncomeAnalytics,
   IncomeFilters,
@@ -15,6 +18,7 @@ import type {
   IncomeServiceOptions,
   LedgerFilters,
   UpdateIncomeSourcePayload,
+  UpdateLedgerEntryPayload,
 } from "../types/income";
 
 // Add initialization options type
@@ -60,8 +64,97 @@ export function useIncome() {
   const oneTimeIncome = computed(() => store.oneTimeIncome);
   const totalSources = computed(() => store.totalSources);
   const allSources = computed(() => store.allSources);
-  const filteredSources = computed(() => store.filteredSources);
-  const filteredLedgerEntries = computed(() => store.filteredLedgerEntries);
+  // Recurring sources are NEVER filtered - always show all
+  const filteredSources = computed(() => store.recurringSources);
+  // Ledger entries are filtered based on store filters
+  const filteredLedgerEntries = computed(() => {
+    let entries = store.ledgerEntries;
+    const currentFilters = store.filters;
+
+    // Apply filters to ledger entries
+    if (currentFilters.type) {
+      entries = entries.filter(
+        (entry) => entry.source_type === currentFilters.type,
+      );
+    }
+
+    if (currentFilters.isRecurring !== undefined) {
+      if (currentFilters.isRecurring) {
+        entries = entries.filter((entry) => entry.income_type === "recurring");
+      } else {
+        entries = entries.filter((entry) => entry.income_type === "one-time");
+      }
+    }
+
+    if (currentFilters.dateFrom) {
+      const fromDate = new Date(currentFilters.dateFrom);
+      entries = entries.filter(
+        (entry) => new Date(entry.date_time) >= fromDate,
+      );
+    }
+
+    if (currentFilters.dateTo) {
+      const toDate = new Date(currentFilters.dateTo);
+      entries = entries.filter((entry) => new Date(entry.date_time) <= toDate);
+    }
+
+    if (currentFilters.amountMin !== undefined) {
+      entries = entries.filter(
+        (entry) => Number(entry.amount || 0) >= currentFilters.amountMin!,
+      );
+    }
+
+    if (currentFilters.amountMax !== undefined) {
+      entries = entries.filter(
+        (entry) => Number(entry.amount || 0) <= currentFilters.amountMax!,
+      );
+    }
+
+    if (currentFilters.searchTerm) {
+      const term = currentFilters.searchTerm.toLowerCase();
+      entries = entries.filter((entry) =>
+        entry.source_type?.toLowerCase().includes(term),
+      );
+    }
+
+    // Sorting
+    if (currentFilters.sortBy) {
+      entries = [...entries].sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        if (currentFilters.sortBy === "date") {
+          aValue = new Date(a.date_time || 0).getTime();
+          bValue = new Date(b.date_time || 0).getTime();
+        } else if (currentFilters.sortBy === "amount") {
+          aValue = Number(a.amount || 0);
+          bValue = Number(b.amount || 0);
+        } else if (currentFilters.sortBy === "type") {
+          aValue = (a.source_type || "").toLowerCase();
+          bValue = (b.source_type || "").toLowerCase();
+          if (currentFilters.sortOrder === "desc") {
+            return bValue.localeCompare(aValue);
+          }
+          return aValue.localeCompare(bValue);
+        } else {
+          return 0;
+        }
+
+        if (
+          currentFilters.sortBy === "date" ||
+          currentFilters.sortBy === "amount"
+        ) {
+          if (currentFilters.sortOrder === "desc") {
+            return bValue - aValue;
+          }
+          return aValue - bValue;
+        }
+        return 0;
+      });
+    }
+
+    return entries;
+  });
   const recentSources = computed(() => store.recentSources);
   const topIncomeTypes = computed(() => store.topIncomeTypes);
   const incomeByType = computed(() => store.incomeByType);
@@ -87,7 +180,12 @@ export function useIncome() {
     filters?: LedgerFilters,
     options: IncomeServiceOptions = {},
   ) => {
-    await store.fetchIncomeLedger(filters, options);
+    // Ledger entries are now fetched as part of the main API
+    // Just update the filters and refresh data
+    if (filters) {
+      updateFilters(filters);
+    }
+    await refreshData({ withAnalytics: true });
   };
 
   const fetchIncomeTypes = async (options: IncomeServiceOptions = {}) => {
@@ -115,6 +213,12 @@ export function useIncome() {
     await store.addIncomeSource(payload);
   };
 
+  const addDirectLedgerEntry = async (
+    payload: CreateDirectLedgerEntryPayload,
+  ) => {
+    await store.addDirectLedgerEntry(payload);
+  };
+
   const updateIncomeSource = async (payload: UpdateIncomeSourcePayload) => {
     await store.updateIncomeSource(payload);
   };
@@ -129,6 +233,18 @@ export function useIncome() {
 
   const updateRecurringLedgerEntries = async () => {
     return await store.updateRecurringLedgerEntries();
+  };
+
+  const updateLedgerEntry = async (payload: UpdateLedgerEntryPayload) => {
+    return await store.updateLedgerEntry(payload);
+  };
+
+  const deleteLedgerEntry = async (payload: DeleteLedgerEntryPayload) => {
+    return await store.deleteLedgerEntry(payload);
+  };
+
+  const createLedgerEntry = async (payload: CreateLedgerEntryPayload) => {
+    return await store.createLedgerEntry(payload);
   };
 
   const updateFilters = (newFilters: Partial<IncomeFilters>) => {
@@ -333,10 +449,14 @@ export function useIncome() {
     fetchIncomeInsights,
     fetchDashboardMetrics,
     addIncomeSource,
+    addDirectLedgerEntry,
     updateIncomeSource,
     deleteIncome,
     deleteIncomeSource,
     updateRecurringLedgerEntries,
+    updateLedgerEntry,
+    deleteLedgerEntry,
+    createLedgerEntry,
     updateFilters,
     updateLedgerFilters,
     clearFilters,

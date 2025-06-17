@@ -23,125 +23,80 @@ class Income(Document):
         """
         Validate the income document before saving
         """
-        # Calculate total monthly income from recurring sources
+        # Calculate total monthly income from recurring sources only
         self.calculate_monthly_income()
-        # Ensure ledger entries are synced with current sources
-        self.sync_ledger_entries()
 
     def on_update(self):
         """
-        After update, synchronize ledger entries with income sources
+        After update, create ledger entries for new recurring sources only
         """
-        # Additional sync to handle any edge cases
-        self.sync_ledger_entries()
+        # Only create ledger entries for new recurring sources
+        self.create_ledger_entries_for_new_sources()
 
     def calculate_monthly_income(self):
         """
         Calculate monthly income from recurring income sources only
+        All sources in income_source table are recurring by design
+        One-time income does not count towards monthly income
         """
         total_monthly = 0
         for source in self.income_source:
-            if source.recur:
-                total_monthly += flt(source.income)
+            # All sources in this table are recurring by design
+            total_monthly += flt(source.income)
         self.monthly_income = total_monthly
 
-    def sync_ledger_entries(self):
+    def create_ledger_entries_for_new_sources(self):
         """
-        Synchronize ledger entries with current income sources
-        - Remove ledger entries for deleted sources
-        - Create/update ledger entries for current sources
+        Create ledger entries only for new recurring sources that don't have any ledger entries yet
+        Only recurring sources (income_source table) generate automatic ledger entries
+        One-time income goes directly to ledger without creating a source
         """
         try:
-            # Get current source names
-            current_source_names = {
-                source.name for source in self.income_source}
-
-            # Get existing ledger source names
+            # Get existing ledger source names (excluding None for direct entries)
             existing_ledger_sources = {
-                entry.income_source for entry in self.income_ledger}
+                entry.income_source for entry in self.income_ledger
+                if entry.income_source  # Exclude direct entries with no source
+            }
 
-            # Remove ledger entries for deleted sources
-            sources_to_remove = existing_ledger_sources - current_source_names
-            if sources_to_remove:
-                self.income_ledger = [
-                    entry for entry in self.income_ledger
-                    if entry.income_source not in sources_to_remove
-                ]
-
-            # Process each current source
+            # Process each recurring source (all sources in income_source are recurring)
             for source in self.income_source:
-                self.ensure_ledger_entries_for_source(source)
+                if source.name not in existing_ledger_sources:
+                    # This is a new recurring source, create initial ledger entries
+                    self.create_initial_recurring_entries(source)
 
         except Exception as e:
             frappe.log_error(
-                f"Error syncing ledger entries for {self.name}: {str(e)}")
-            frappe.throw(f"Failed to sync ledger entries: {str(e)}")
+                f"Error creating ledger entries for new sources in {self.name}: {str(e)}")
+            frappe.throw(f"Failed to create ledger entries for new sources: {str(e)}")
 
-    def ensure_ledger_entries_for_source(self, source):
+    def create_initial_recurring_entries(self, source):
         """
-        Ensure correct ledger entries exist for a source
+        Create initial ledger entries for a new recurring source
+        Only creates entries from start date to today (or stop date if earlier)
         """
         try:
-            # Get existing entries for this source
-            existing_entries = [
-                entry for entry in self.income_ledger
-                if entry.income_source == source.name
-            ]
-
             amount = flt(source.income)
             start_date = getdate(source.date_time)
             today = getdate()
+            stop_date = getdate(source.stop_date) if source.stop_date else today
 
-            if source.recur:
-                # For recurring income
-                stop_date = getdate(
-                    source.stop_date) if source.stop_date else today
-                expected_dates = self.get_recurring_dates(
-                    start_date, stop_date, source.recur_frequency)
-                existing_dates = {getdate(entry.date_time)
-                                  for entry in existing_entries}
+            # Get all dates for this recurring income
+            dates = self.get_recurring_dates(start_date, min(stop_date, today), source.recur_frequency)
 
-                # Add missing entries
-                for missing_date in expected_dates - existing_dates:
-                    self.append("income_ledger", {
-                        "income_source": source.name,
-                        "income_type": "recurring",
-                        "date_time": missing_date,
-                        "amount": amount
-                    })
-
-                # Update existing entry amounts if changed
-                for entry in existing_entries:
-                    if flt(entry.amount) != amount:
-                        entry.amount = amount
-
-            else:
-                # For one-time income - should have exactly one entry
-                if not existing_entries:
-                    self.append("income_ledger", {
-                        "income_source": source.name,
-                        "income_type": "one-time",
-                        "date_time": start_date,
-                        "amount": amount
-                    })
-                elif len(existing_entries) == 1:
-                    # Update existing entry
-                    entry = existing_entries[0]
-                    entry.amount = amount
-                    entry.date_time = start_date
-                else:
-                    # Remove extra entries, keep only one
-                    for entry in existing_entries[1:]:
-                        self.income_ledger.remove(entry)
-                    # Update the remaining one
-                    existing_entries[0].amount = amount
-                    existing_entries[0].date_time = start_date
+            # Create ledger entries for each date
+            for entry_date in dates:
+                self.append("income_ledger", {
+                    "income_source": source.name,
+                    "income_type": "recurring",
+                    "date_time": entry_date,
+                    "amount": amount
+                })
 
         except Exception as e:
             frappe.log_error(
-                f"Error ensuring ledger entries for source {source.name}: {str(e)}")
+                f"Error creating initial recurring entries for source {source.name}: {str(e)}")
             frappe.throw(
-                f"Failed to ensure ledger entries for source {source.name}: {str(e)}")
+                f"Failed to create initial recurring entries for source {source.name}: {str(e)}")
 
     def get_recurring_dates(self, start_date, end_date, frequency):
         """
