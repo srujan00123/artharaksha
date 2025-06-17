@@ -13,13 +13,12 @@ import type {
   GetIncomeTypesResponse,
   GetMonthlyIncomeSummaryResponse,
   GetUserIncomeResponse,
-  Income,
   IncomeAnalytics,
   IncomeFilters,
-  IncomeLedger,
+  IncomeRecord,
   IncomeServiceOptions,
-  IncomeSourceType,
   IncomeTypeRecord,
+  IncomeDashboardMetrics,
   LedgerFilters,
   UpdateAllRecurringLedgersResponse,
   UpdateIncomeSourcePayload,
@@ -31,7 +30,7 @@ import { safeArray } from "../types/income";
 import { CACHE_KEYS, cacheService } from "./cache-service.js";
 
 // Normalize income record to ensure all fields are present and properly typed
-function normalizeIncomeRecord(record: any): Income {
+function normalizeIncomeRecord(record: any): IncomeRecord {
   if (!record) {
     throw new Error("Invalid income record: record is null or undefined");
   }
@@ -39,9 +38,10 @@ function normalizeIncomeRecord(record: any): Income {
   return {
     name: record.name || "",
     household_profile: record.household_profile || "",
-    monthly_income: String(record.monthly_income ?? 0),
+    monthly_income: Number(record.monthly_income ?? 0),
     creation: record.creation || "",
     modified: record.modified || "",
+    owner: record.owner || "",
     income_source: safeArray(record.income_source).map((src: any) => ({
       name: src.name || "",
       type: src.type || "",
@@ -51,19 +51,10 @@ function normalizeIncomeRecord(record: any): Income {
       date_time: src.date_time || "",
       stop_date: src.stop_date || undefined,
       ledger_entries: safeArray(src.ledger_entries).map((entry: any) => ({
-        name: entry.name || "",
-        income_type: entry.income_type || "one-time",
         date_time: entry.date_time || "",
         amount: Number(entry.amount || 0),
-        income_source: entry.income_source || "",
+        income_type: entry.income_type || "one-time",
       })),
-    })),
-    income_ledger: safeArray(record.income_ledger).map((ledger: any) => ({
-      name: ledger.name || "",
-      income_type: ledger.income_type || "one-time",
-      date_time: ledger.date_time || "",
-      amount: Number(ledger.amount || 0),
-      income_source: ledger.income_source || "",
     })),
   };
 }
@@ -80,24 +71,13 @@ function objectToArray(obj: any): any[] {
   return [];
 }
 
-// Helper: Extract analytics from 'filters' key if present
-function extractAnalytics(obj: any): any {
-  if (
-    obj &&
-    typeof obj === "object" &&
-    obj.filters &&
-    obj.filters.total_income !== undefined
-  ) {
-    return obj.filters;
-  }
-  return obj;
-}
-
 class IncomeService {
   /**
    * Get user income records (exact backend API response)
    */
-  async getUserIncome(options: IncomeServiceOptions = {}): Promise<Income[]> {
+  async getUserIncome(
+    options: IncomeServiceOptions = {},
+  ): Promise<IncomeRecord[]> {
     try {
       const {
         filters,
@@ -125,7 +105,7 @@ class IncomeService {
         include_analytics: include_analytics,
       });
 
-      let incomeRecords: Income[] = [];
+      let incomeRecords: IncomeRecord[] = [];
       if (include_analytics && response?.income_records) {
         incomeRecords = safeArray(response.income_records).map(
           normalizeIncomeRecord,
@@ -160,7 +140,7 @@ class IncomeService {
   async getUserIncomeWithAnalytics(
     options: IncomeServiceOptions = {},
   ): Promise<{
-    incomes: Income[];
+    incomes: IncomeRecord[];
     analytics: IncomeAnalytics;
   }> {
     try {
@@ -174,6 +154,7 @@ class IncomeService {
             filters || {},
           )
         : null;
+
       if (incomeKey && analyticsKey && !forceRefresh) {
         const cachedIncomes = cacheService.getWithFilters(
           CACHE_KEYS.USER_INCOME,
@@ -186,10 +167,11 @@ class IncomeService {
         if (cachedIncomes && cachedAnalytics) {
           return {
             incomes: objectToArray(cachedIncomes).map(normalizeIncomeRecord),
-            analytics: extractAnalytics(cachedAnalytics),
+            analytics: cachedAnalytics,
           };
         }
       }
+
       const response: GetUserIncomeResponse = await call(
         "artha.api.income.get_user_income",
         {
@@ -197,6 +179,7 @@ class IncomeService {
           include_analytics: true,
         },
       );
+
       const incomes = safeArray(response.income_records).map(
         normalizeIncomeRecord,
       );
@@ -212,6 +195,7 @@ class IncomeService {
           top_income_type: "",
         },
       };
+
       if (useCache) {
         if (incomeKey) {
           cacheService.setWithFilters(
@@ -309,21 +293,13 @@ class IncomeService {
           return cached;
         }
       }
-      const response = await call("artha.api.income.get_income_types");
 
-      // Extract income_types from response or use response directly if it's an array
-      let incomeTypes: IncomeTypeRecord[] = [];
-      if (
-        response &&
-        typeof response === "object" &&
-        "income_types" in response
-      ) {
-        incomeTypes = safeArray(response.income_types);
-      } else if (Array.isArray(response)) {
-        incomeTypes = safeArray(response);
-      } else {
-        incomeTypes = [];
-      }
+      const response: GetIncomeTypesResponse = await call(
+        "artha.api.income.get_income_types",
+      );
+
+      // Backend now returns {income_types: [...]} format consistently
+      const incomeTypes = safeArray(response.income_types);
 
       if (useCache) {
         cacheService.set(CACHE_KEYS.INCOME_TYPES, incomeTypes, {
@@ -384,6 +360,66 @@ class IncomeService {
       );
     } catch (error) {
       throw new Error(`Failed to fetch income insights: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get dashboard metrics with computed values
+   */
+  async getDashboardMetrics(
+    period: string = "this_month",
+    options: IncomeServiceOptions = {},
+  ): Promise<IncomeDashboardMetrics> {
+    try {
+      const { forceRefresh = false, useCache = true } = options;
+
+      const cacheKey = useCache
+        ? cacheService.generateFilterKey(
+            `${CACHE_KEYS.USER_INCOME_ANALYTICS}_dashboard`,
+            { period },
+          )
+        : null;
+
+      if (cacheKey && !forceRefresh) {
+        const cached = cacheService.getWithFilters(
+          `${CACHE_KEYS.USER_INCOME_ANALYTICS}_dashboard`,
+          { period },
+        );
+        if (cached) {
+          return cached;
+        }
+      }
+
+      const response: IncomeDashboardMetrics = await call(
+        "artha.api.income.get_income_dashboard_metrics",
+        { period },
+      );
+
+      const metrics = response || {
+        actual_monthly_income: 0,
+        recurring_income: 0,
+        one_time_income: 0,
+        total_sources: 0,
+        recurring_percentage: 0,
+        growth_rate: 0,
+        top_income_type: "",
+        income_by_type: {},
+        monthly_trends: [],
+        average_source_amount: 0,
+        period: period,
+      };
+
+      if (cacheKey && useCache) {
+        cacheService.setWithFilters(
+          `${CACHE_KEYS.USER_INCOME_ANALYTICS}_dashboard`,
+          metrics,
+          { period },
+        );
+      }
+
+      return metrics;
+    } catch (error) {
+      throw new Error(`Failed to fetch dashboard metrics: ${error.message}`);
     }
   }
 

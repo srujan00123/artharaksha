@@ -567,11 +567,13 @@ const {
 	filteredSources,
 	filteredLedgerEntries,
 	analytics,
+	dashboardMetrics,
 	incomeInsights,
 	fetchIncome,
 	fetchIncomeWithAnalytics,
 	fetchIncomeLedger,
 	fetchIncomeInsights,
+	fetchDashboardMetrics,
 	addIncomeSource,
 	updateIncomeSource,
 	deleteIncomeSource,
@@ -595,34 +597,17 @@ const showExportMenu = ref(false)
 const selectedItems = ref<string[]>([])
 const selectedLedgerItems = ref<string[]>([])
 
-// Enhanced computed properties
+// Use backend-provided metrics instead of local computation
 const actualMonthlyIncome = computed(() => {
-	// Calculate from analytics or fallback to totalIncome from recurring sources only
-	if (analytics.value?.recurring_income) {
-		return analytics.value.recurring_income
-	}
-	// Fallback: calculate from recurring sources
-	return safeArray(incomes.value).reduce((total, income) => {
-		const recurringAmount = safeArray(income.income_source)
-			.filter(source => source.recur === 1 || source.recur === true)
-			.reduce((subtotal, source) => subtotal + Number(source.income || 0), 0)
-		return total + recurringAmount
-	}, 0)
+	return dashboardMetrics.value?.actual_monthly_income || 0
 })
 
 const recurringPercentage = computed(() => {
-	const total = actualMonthlyIncome.value + oneTimeIncome.value
-	return total > 0 ? (recurringIncome.value / total) * 100 : 0
+	return dashboardMetrics.value?.recurring_percentage || 0
 })
 
 const growthRate = computed(() => {
-	const trends = analytics.value?.monthly_trends || []
-	if (trends.length < 2) return 0
-	
-	const recent = trends[trends.length - 1]?.total || 0
-	const previous = trends[trends.length - 2]?.total || 0
-	
-	return previous > 0 ? ((recent - previous) / previous) * 100 : 0
+	return dashboardMetrics.value?.growth_rate || 0
 })
 
 // Convert allSources to displayable format with better error handling
@@ -632,11 +617,11 @@ const displayedSources = computed(() => {
 		incomeId: "",
 		type: source.type || "Unknown",
 		amount: Number(source.income || 0),
-		isRecurring: source.recur === 1 || source.recur === true,
+		isRecurring: Boolean(source.recur),
 		dateTime: source.date_time || "",
 		frequency: source.recur_frequency || "",
 		stop_date: source.stop_date,
-		name: source.name,
+		name: source.name || `source-${index}`,
 		createdAt: "",
 		updatedAt: "",
 	}))
@@ -884,7 +869,7 @@ const handleIncomeSubmit = async (formData: IncomeFormUIData) => {
 			income: formData.amount,
 			recur: formData.isRecurring,
 			date_time: formData.dateTime,
-			recur_frequency: formData.frequency,
+			recur_frequency: formData.frequency as "daily" | "weekly" | "bi-weekly" | "monthly" | "quarterly" | "semi-annually" | "annually" | "yearly" | undefined,
 			stop_date: formData.stop_date,
 		}
 
@@ -960,6 +945,7 @@ watch(currentView, () => {
 
 onMounted(async () => {
 	await initialize({ withAnalytics: true, forceRefresh: false })
+	await fetchDashboardMetrics()
 })
 </script>
 

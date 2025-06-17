@@ -14,7 +14,7 @@ import json
 def get_income_types():
     """
     Get all available income types
-    [{'name': 'Agriculture', 'type': 'Agriculture'}, {'name': 'Business', 'type': 'Business'}, {'name': 'Freelance', 'type': 'Freelance'}, {'name': 'Salary', 'type': 'Salary'}, {'name': 'Wage', 'type': 'Wage'}]
+    Returns: {'income_types': [{'name': 'Agriculture', 'type': 'Agriculture'}, ...]}
     """
     try:
         income_types = frappe.get_all(
@@ -23,7 +23,9 @@ def get_income_types():
             order_by="type"
         )
 
-        return income_types
+        return {
+            "income_types": income_types
+        }
 
     except Exception as e:
         frappe.log_error(f"Error fetching income types: {str(e)}")
@@ -242,10 +244,10 @@ def get_user_income(filters=None, include_analytics=False):
         sort_order = filters.get('sortOrder', 'desc')
 
         order_by_field = "creation"
-        if sort_by == 'amount':
-            order_by_field = "monthly_income"
-        elif sort_by == 'date':
+        if sort_by == 'date':
             order_by_field = "creation"
+        # Note: We can't sort by amount at the database level anymore since
+        # monthly_income is calculated dynamically from filtered ledger data
 
         order_by = f"{order_by_field} {sort_order}"
 
@@ -254,8 +256,7 @@ def get_user_income(filters=None, include_analytics=False):
             "Income",
             filters=conditions,
             fields=[
-                "name", "household_profile", "monthly_income",
-                "creation", "modified", "owner"
+                "name", "household_profile", "creation", "modified", "owner"
             ],
             order_by=order_by
         )
@@ -343,19 +344,60 @@ def get_user_income(filters=None, include_analytics=False):
                     'amountMin'),
                 filters.get('amountMax'), filters.get('searchTerm')
             ]):
-                # Get ledger entries for each source
+                # Calculate monthly_income from ledger entries for this record
+                calculated_monthly_income = 0
+
+                # Get ledger entries for each source and calculate totals
                 for source in income_sources:
+                    ledger_conditions = {
+                        "parent": record.name,
+                        "income_source": source.name
+                    }
+
+                    # Apply date filters to ledger entries if specified
+                    if start_date or end_date:
+                        if start_date and end_date:
+                            ledger_conditions["date_time"] = [
+                                "between", [start_date, end_date]]
+                        elif start_date:
+                            ledger_conditions["date_time"] = [">=", start_date]
+                        elif end_date:
+                            ledger_conditions["date_time"] = ["<=", end_date]
+
                     ledger_entries = frappe.get_all(
                         "Income Ledger",
-                        filters={
-                            "parent": record.name,
-                            "income_source": source.name
-                        },
+                        filters=ledger_conditions,
                         fields=["date_time", "amount", "income_type"],
                         order_by="date_time"
                     )
+
+                    # Calculate monthly equivalent from ledger entries
+                    if ledger_entries:
+                        for entry in ledger_entries:
+                            entry_amount = flt(entry.amount)
+
+                            # For recurring income, use the amount as is (already monthly equivalent)
+                            # For one-time income, we need to convert based on the time period
+                            if entry.income_type == "recurring":
+                                calculated_monthly_income += entry_amount
+                            else:
+                                # For one-time income in a filtered period, calculate monthly equivalent
+                                if start_date and end_date:
+                                    # Calculate days in the period
+                                    period_days = (
+                                        end_date - start_date).days + 1
+                                    # Convert to monthly equivalent (assuming 30 days per month)
+                                    monthly_equivalent = (
+                                        entry_amount / period_days) * 30
+                                    calculated_monthly_income += monthly_equivalent
+                                else:
+                                    # If no date filter, treat one-time as monthly amount
+                                    calculated_monthly_income += entry_amount
+
                     source.ledger_entries = ledger_entries
 
+                # Set the calculated monthly_income for this record
+                record.monthly_income = calculated_monthly_income
                 record.income_source = income_sources
                 filtered_records.append(record)
 
@@ -370,46 +412,48 @@ def get_user_income(filters=None, include_analytics=False):
                         }
 
                     for source in income_sources:
-                        amount = flt(source.income)
+                        # Use ledger entries for analytics calculations
+                        source_monthly_recurring = 0
+                        source_monthly_one_time = 0
+
+                        for entry in source.ledger_entries:
+                            entry_amount = flt(entry.amount)
+
+                            if entry.income_type == "recurring":
+                                source_monthly_recurring += entry_amount
+                                analytics_data["recurring_income"] += entry_amount
+                                monthly_data[month_key]["recurring"] += entry_amount
+                            else:
+                                # For one-time, convert to monthly equivalent if in period
+                                if start_date and end_date:
+                                    period_days = (
+                                        end_date - start_date).days + 1
+                                    monthly_equivalent = (
+                                        entry_amount / period_days) * 30
+                                    source_monthly_one_time += monthly_equivalent
+                                    analytics_data["one_time_income"] += monthly_equivalent
+                                    monthly_data[month_key]["one_time"] += monthly_equivalent
+                                else:
+                                    source_monthly_one_time += entry_amount
+                                    analytics_data["one_time_income"] += entry_amount
+                                    monthly_data[month_key]["one_time"] += entry_amount
+
+                        source_total = source_monthly_recurring + source_monthly_one_time
+                        analytics_data["total_income"] += source_total
+                        monthly_data[month_key]["total"] += source_total
+
                         total_sources += 1
-                        total_amount += amount
-
-                        # Convert to monthly equivalent for consistent comparison
-                        monthly_amount = amount
-                        if source.recur and source.recur_frequency:
-                            conversion_factors = {
-                                'daily': 30,
-                                'weekly': 4.33,
-                                'bi-weekly': 2.17,
-                                'monthly': 1,
-                                'quarterly': 1/3,
-                                'semi-annually': 1/6,
-                                'annually': 1/12,
-                                'yearly': 1/12
-                            }
-                            factor = conversion_factors.get(
-                                source.recur_frequency.lower(), 1)
-                            monthly_amount = amount * factor
-
-                        analytics_data["total_income"] += monthly_amount
-                        monthly_data[month_key]["total"] += monthly_amount
-
-                        if source.recur:
-                            analytics_data["recurring_income"] += monthly_amount
-                            monthly_data[month_key]["recurring"] += monthly_amount
-                        else:
-                            analytics_data["one_time_income"] += amount
-                            monthly_data[month_key]["one_time"] += amount
+                        total_amount += source_total
 
                         # Group by type
                         if source.type not in analytics_data["income_by_type"]:
                             analytics_data["income_by_type"][source.type] = 0
-                        analytics_data["income_by_type"][source.type] += monthly_amount
+                        analytics_data["income_by_type"][source.type] += source_total
 
                         # Track for summary
                         if source.type not in type_amounts:
                             type_amounts[source.type] = 0
-                        type_amounts[source.type] += monthly_amount
+                        type_amounts[source.type] += source_total
 
         # Generate monthly trends and summary for analytics
         if include_analytics:
@@ -433,6 +477,37 @@ def get_user_income(filters=None, include_analytics=False):
                 top_type = max(type_amounts.items(), key=lambda x: x[1])
                 analytics_data["summary"]["top_income_type"] = top_type[0]
 
+            # Calculate additional metrics for frontend use
+            total_income_for_percentage = analytics_data["recurring_income"] + \
+                analytics_data["one_time_income"]
+            analytics_data["recurring_percentage"] = (
+                (analytics_data["recurring_income"] /
+                 total_income_for_percentage) * 100
+                if total_income_for_percentage > 0 else 0
+            )
+
+            # Calculate growth rate from monthly trends
+            trends = analytics_data["monthly_trends"]
+            if len(trends) >= 2:
+                recent = trends[-1]["total"]
+                previous = trends[-2]["total"]
+                analytics_data["growth_rate"] = (
+                    ((recent - previous) / previous) * 100
+                    if previous > 0 else 0
+                )
+            else:
+                analytics_data["growth_rate"] = 0
+
+            # Add actual monthly income (only from recurring sources)
+            analytics_data["actual_monthly_income"] = analytics_data["recurring_income"]
+
+        # Sort by amount if requested (must be done after calculations)
+        if filters.get('sortBy') == 'amount':
+            sort_order = filters.get('sortOrder', 'desc')
+            reverse_sort = sort_order == 'desc'
+            filtered_records.sort(
+                key=lambda x: x.monthly_income, reverse=reverse_sort)
+
         if include_analytics:
             return {
                 "income_records": filtered_records,
@@ -450,6 +525,7 @@ def get_user_income(filters=None, include_analytics=False):
 def get_monthly_income_summary():
     """
     Get monthly income summary for CHE analysis
+    Calculated from ledger entries to ensure consistency with filtered data
     """
     try:
         # Get user's household profile
@@ -471,7 +547,7 @@ def get_monthly_income_summary():
         income_records = frappe.get_all(
             "Income",
             filters={"household_profile": household_profile},
-            fields=["name", "monthly_income"]
+            fields=["name"]
         )
 
         if not income_records:
@@ -482,29 +558,41 @@ def get_monthly_income_summary():
                 "total_sources": 0
             }
 
-        # Calculate totals
+        # Calculate totals from ledger entries
         total_monthly_income = 0
         total_recurring_income = 0
         total_one_time_income = 0
         total_sources = 0
 
         for record in income_records:
-            total_monthly_income += flt(record.monthly_income)
-
             # Get income sources for this record
             income_sources = frappe.get_all(
                 "Income Source Type",
                 filters={"parent": record.name},
-                fields=["income", "recur"]
+                fields=["name", "type"]
             )
 
             total_sources += len(income_sources)
 
+            # Calculate from ledger entries for each source
             for source in income_sources:
-                if source.recur:
-                    total_recurring_income += flt(source.income)
-                else:
-                    total_one_time_income += flt(source.income)
+                ledger_entries = frappe.get_all(
+                    "Income Ledger",
+                    filters={
+                        "parent": record.name,
+                        "income_source": source.name
+                    },
+                    fields=["amount", "income_type"]
+                )
+
+                for entry in ledger_entries:
+                    entry_amount = flt(entry.amount)
+                    total_monthly_income += entry_amount
+
+                    if entry.income_type == "recurring":
+                        total_recurring_income += entry_amount
+                    else:
+                        total_one_time_income += entry_amount
 
         return {
             "monthly_income": total_monthly_income,
@@ -516,6 +604,63 @@ def get_monthly_income_summary():
     except Exception as e:
         frappe.log_error(f"Error calculating monthly income summary: {str(e)}")
         frappe.throw(_("Failed to calculate monthly income summary"))
+
+
+@frappe.whitelist()
+def get_income_dashboard_metrics(period="this_month"):
+    """
+    Get computed dashboard metrics for income management
+    Provides all the key metrics needed for dashboard displays
+    """
+    try:
+        # Get user's household profile
+        household_profile = frappe.db.get_value(
+            "Household Profile",
+            {"user": frappe.session.user},
+            "name"
+        )
+
+        if not household_profile:
+            return {
+                "actual_monthly_income": 0,
+                "recurring_income": 0,
+                "one_time_income": 0,
+                "total_sources": 0,
+                "recurring_percentage": 0,
+                "growth_rate": 0,
+                "top_income_type": "",
+                "income_by_type": {},
+                "monthly_trends": [],
+                "period": period
+            }
+
+        # Get analytics using existing function
+        analytics_result = get_user_income(
+            filters=json.dumps({"period": period}),
+            include_analytics=True
+        )
+
+        analytics = analytics_result.get("analytics", {})
+
+        return {
+            "actual_monthly_income": analytics.get("actual_monthly_income", 0),
+            "recurring_income": analytics.get("recurring_income", 0),
+            "one_time_income": analytics.get("one_time_income", 0),
+            "total_sources": analytics.get("summary", {}).get("total_sources", 0),
+            "recurring_percentage": analytics.get("recurring_percentage", 0),
+            "growth_rate": analytics.get("growth_rate", 0),
+            "top_income_type": analytics.get("summary", {}).get("top_income_type", ""),
+            "income_by_type": analytics.get("income_by_type", {}),
+            "monthly_trends": analytics.get("monthly_trends", []),
+            "average_source_amount": analytics.get("summary", {}).get("average_source_amount", 0),
+            "period": period,
+            "start_date": analytics.get("start_date", ""),
+            "end_date": analytics.get("end_date", "")
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error fetching income dashboard metrics: {str(e)}")
+        frappe.throw(_("Failed to fetch income dashboard metrics"))
 
 
 @frappe.whitelist()

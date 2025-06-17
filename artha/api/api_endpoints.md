@@ -39,20 +39,45 @@ Parameters:
     dateFrom?: string; // YYYY-MM-DD
     dateTo?: string; // YYYY-MM-DD
     period?: 'this_month' | 'last_month' | 'last_3_months' | 'last_6_months' | 'this_year';
-    type?: string;
-    incomeType?: string;
+    type?: string; // Primary filter name for income type
+    incomeType?: string; // Legacy support, maps to 'type'
     frequency?: 'one-time' | 'recurring' | 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
     isRecurring?: boolean;
     amountMin?: number;
     amountMax?: number;
     searchTerm?: string;
-    sortBy?: 'date' | 'amount';
+    sortBy?: 'date' | 'amount' | 'type';
     sortOrder?: 'asc' | 'desc';
   };
   include_analytics?: boolean;
 }
 
 Response:
+// When include_analytics=false (default):
+Array<{
+  name: string;
+  household_profile: string;
+  monthly_income: number;
+  creation: string;
+  modified: string;
+  owner: string;
+  income_source: Array<{
+    name?: string; // Child table ID
+    type: string;
+    income: number;
+    recur: boolean;
+    date_time: string;
+    recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
+    stop_date?: string;
+    ledger_entries: Array<{
+      date_time: string;
+      amount: number;
+      income_type: 'recurring' | 'one-time';
+    }>;
+  }>;
+}>
+
+// When include_analytics=true:
 {
   income_records: Array<{
     name: string;
@@ -62,7 +87,7 @@ Response:
     modified: string;
     owner: string;
     income_source: Array<{
-      name: string;
+      name?: string; // Child table ID
       type: string;
       income: number;
       recur: boolean;
@@ -76,7 +101,7 @@ Response:
       }>;
     }>;
   }>;
-  analytics?: {
+  analytics: {
     total_income: number;
     recurring_income: number;
     one_time_income: number;
@@ -92,9 +117,9 @@ Response:
       average_source_amount: number;
       top_income_type: string;
     };
-    period: string;
-    start_date: string;
-    end_date: string;
+    period?: string;
+    start_date?: string;
+    end_date?: string;
   };
 }
 ```
@@ -125,7 +150,7 @@ Response: Array<{
   source_date_time: string;
   source_recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
   source_stop_date?: string;
-}>;
+}>
 ```
 
 ### 4. Create or Update Income Source
@@ -135,24 +160,20 @@ POST /api/method/artha.api.income.create_or_update_income
 
 Parameters:
 {
-  income_source: {
-    type: string;
-    income: number;
-    recur: boolean;
-    date_time?: string;
-    recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
-    stop_date?: string;
-  } | Array<{
-    type: string;
-    income: number;
-    recur: boolean;
-    date_time?: string;
-    recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
-    stop_date?: string;
-  }>;
-  income_name?: string;
-  source_name?: string;
-  action?: 'delete';
+  income_source: string; // JSON stringified array of IncomeSourceFormData
+  income_name?: string; // For updates, null for new Income record
+  source_name?: string; // For updating/deleting specific source
+  action?: 'delete'; // For deleting a source
+}
+
+IncomeSourceFormData format (as JSON string):
+{
+  type: string;
+  income: number;
+  recur: boolean;
+  date_time: string;
+  recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
+  stop_date?: string;
 }
 
 Response:
@@ -183,22 +204,7 @@ POST / api / method / artha.api.income.validate_income_data;
 
 Parameters: {
   monthly_income: number;
-  income_source: Array<{
-    type: string;
-    income: number;
-    recur: boolean;
-    date_time?: string;
-    recur_frequency?:
-      | "daily"
-      | "weekly"
-      | "bi-weekly"
-      | "monthly"
-      | "quarterly"
-      | "semi-annually"
-      | "annually"
-      | "yearly";
-    stop_date?: string;
-  }>;
+  income_source: string; // JSON stringified array of IncomeSourceFormData
 }
 
 Response: {
@@ -232,7 +238,39 @@ Response: {
 }
 ```
 
-### 8. Update Recurring Ledger Entries
+### 8. Get Income Dashboard Metrics
+
+```typescript
+GET /api/method/artha.api.income.get_income_dashboard_metrics
+
+Parameters:
+{
+  period?: 'this_month' | 'last_month' | 'last_3_months' | 'last_6_months' | 'this_year';
+}
+
+Response: {
+  actual_monthly_income: number;      // Only from recurring sources
+  recurring_income: number;           // Monthly recurring income
+  one_time_income: number;            // One-time income for period
+  total_sources: number;              // Total number of income sources
+  recurring_percentage: number;       // Percentage of income that's recurring
+  growth_rate: number;                // Growth rate vs previous period (%)
+  top_income_type: string;            // Highest earning income type
+  income_by_type: Record<string, number>;  // Income grouped by type
+  monthly_trends: Array<{             // Monthly trend data
+    month: string;
+    total: number;
+    recurring: number;
+    one_time: number;
+  }>;
+  average_source_amount: number;      // Average amount per source
+  period: string;                     // Period used for calculation
+  start_date?: string;               // Period start date
+  end_date?: string;                 // Period end date
+}
+```
+
+### 9. Update Recurring Ledger Entries
 
 ```typescript
 POST / api / method / artha.api.income.update_recurring_ledger_entries;
@@ -244,7 +282,7 @@ Response: {
 }
 ```
 
-### 9. Update All Recurring Ledgers (Scheduled Job)
+### 10. Update All Recurring Ledgers (Scheduled Job)
 
 ```typescript
 POST /api/method/artha.api.income.update_all_recurring_ledgers
