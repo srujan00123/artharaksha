@@ -225,13 +225,19 @@ export function convertRecurFlag_ToBoolean(recur: 0 | 1): boolean {
   return recur === 1;
 }
 
-// Type guards
+// Utility: always return an array, never undefined
+export function safeArray<T>(arr: T[] | undefined | null): T[] {
+  return Array.isArray(arr) ? arr : [];
+}
+
+// Update type guards to use Array.isArray
 export function isIncomeRecord(obj: any): obj is IncomeRecord {
   return (
     obj &&
     typeof obj.name === "string" &&
     typeof obj.household_profile === "string" &&
-    typeof obj.monthly_income === "number"
+    typeof obj.monthly_income === "number" &&
+    Array.isArray(obj.income_source)
   );
 }
 
@@ -241,7 +247,8 @@ export function isIncomeSourceRecord(obj: any): obj is IncomeSourceRecord {
     typeof obj.type === "string" &&
     typeof obj.income === "number" &&
     typeof obj.date_time === "string" &&
-    typeof obj.recur === "boolean"
+    typeof obj.recur === "boolean" &&
+    Array.isArray(obj.ledger_entries)
   );
 }
 

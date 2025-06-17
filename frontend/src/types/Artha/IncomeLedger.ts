@@ -12,6 +12,8 @@ export interface IncomeLedger{
 	idx?: number
 	/**	Income Type : Select	*/
 	income_type?: "recurring" | "one-time"
+	/**	income Source : Link - Income Source Type	*/
+	income_source?: string
 	/**	Date Time : Datetime	*/
 	date_time?: string
 	/**	Amount : Currency	*/

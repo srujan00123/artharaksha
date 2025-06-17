@@ -18,7 +18,6 @@
             <option value="last_3_months">Last 3 Months</option>
             <option value="last_6_months">Last 6 Months</option>
             <option value="this_year">This Year</option>
-            <option value="all_time">All Time</option>
           </select>
           <button 
             @click="refreshReports"
@@ -311,20 +310,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Recurring Income Sources -->
-      <div v-if="recurringSources.length > 0" class="mb-6">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Recurring Income Sources</h3>
-        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-          <li v-for="source in recurringSources" :key="source.name" class="py-2 flex flex-col md:flex-row md:items-center md:space-x-4">
-            <span class="font-medium text-gray-800 dark:text-gray-200">{{ source.type }}</span>
-            <span class="text-gray-600 dark:text-gray-400">₹{{ source.amount?.toLocaleString('en-IN') }}</span>
-            <span class="text-gray-600 dark:text-gray-400">{{ source.frequency ? formatFrequency(source.frequency) : '' }}</span>
-            <span class="text-gray-500 dark:text-gray-400">Start: {{ source.start_date ? formatDate(source.start_date) : 'N/A' }}</span>
-            <span v-if="source.stop_date" class="text-gray-500 dark:text-gray-400">End: {{ formatDate(source.stop_date) }}</span>
-          </li>
-        </ul>
-      </div>
     </div>
   </div>
 </template>
@@ -353,12 +338,16 @@ const {
   error,
   updateFilters,
   fetchIncomesWithAnalytics,
-  initialize,
-  recurringSources
+  initialize
 } = useIncome()
 
 // Local state
-const selectedPeriod = ref('last_3_months')
+const selectedPeriod = ref<'this_month' | 'last_month' | 'last_3_months' | 'last_6_months' | 'this_year'>('last_3_months')
+
+// Utility: Safe array access
+function safeArray<T>(arr: T[] | undefined | null): T[] {
+  return Array.isArray(arr) ? arr : []
+}
 
 // Computed properties for analytics data
 const incomeByTypeData = computed(() => {
@@ -398,18 +387,16 @@ const totalSources = computed(() => {
 
 const incomeSourcesList = computed(() => {
   const sources: any[] = []
-  incomes.value.forEach(income => {
-    if (income.income_source && Array.isArray(income.income_source)) {
-      income.income_source.forEach(source => {
-        sources.push({
-          ...source,
-          incomeId: income.name,
-          sourceId: source.name || source.idx || Math.random().toString(36).substr(2, 9)
-        })
+  safeArray(incomes.value).forEach(income => {
+    safeArray(income.income_source).forEach(source => {
+      sources.push({
+        ...source,
+        incomeId: income.name,
+        sourceId: source.name || Math.random().toString(36).substr(2, 9)
       })
-    }
+    })
   })
-  return sources.sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
+  return sources.sort((a, b) => new Date(b.date_time || b.creation || 0).getTime() - new Date(a.date_time || a.creation || 0).getTime())
 })
 
 // Utility functions
@@ -442,7 +429,6 @@ const formatPeriod = (period: string) => {
     last_3_months: 'Last 3 Months',
     last_6_months: 'Last 6 Months',
     this_year: 'This Year',
-    all_time: 'All Time'
   }
   return map[period] || period
 }

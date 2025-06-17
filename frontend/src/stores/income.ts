@@ -6,7 +6,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { incomeService } from "../services/income-service";
-import type {
+import {
   IncomeAnalytics,
   IncomeFilters,
   IncomeRecord,
@@ -14,6 +14,7 @@ import type {
   AddIncomeSourcePayload,
   UpdateIncomeSourcePayload,
   DeleteIncomeSourcePayload,
+  safeArray,
 } from "../types/income";
 
 export const useIncomeStore = defineStore("income", () => {
@@ -52,7 +53,7 @@ export const useIncomeStore = defineStore("income", () => {
     return incomes.value.reduce((total, income) => {
       return (
         total +
-        income.income_source.reduce((sourceTotal, source) => {
+        safeArray(income.income_source).reduce((sourceTotal, source) => {
           return source.recur ? sourceTotal + source.income : sourceTotal;
         }, 0)
       );
@@ -63,7 +64,7 @@ export const useIncomeStore = defineStore("income", () => {
     return incomes.value.reduce((total, income) => {
       return (
         total +
-        income.income_source.reduce((sourceTotal, source) => {
+        safeArray(income.income_source).reduce((sourceTotal, source) => {
           return !source.recur ? sourceTotal + source.income : sourceTotal;
         }, 0)
       );
@@ -99,7 +100,7 @@ export const useIncomeStore = defineStore("income", () => {
 
   const totalSources = computed(() => {
     return incomes.value.reduce(
-      (total, income) => total + (income.income_source?.length || 0),
+      (total, income) => total + safeArray(income.income_source).length,
       0,
     );
   });
@@ -109,14 +110,14 @@ export const useIncomeStore = defineStore("income", () => {
     if (filters.value.searchTerm) {
       const searchTerm = filters.value.searchTerm.toLowerCase();
       filtered = filtered.filter((income) =>
-        income.income_source.some((source) =>
+        safeArray(income.income_source).some((source) =>
           source.type.toLowerCase().includes(searchTerm),
         ),
       );
     }
     if (filters.value.type) {
       filtered = filtered.filter((income) =>
-        income.income_source.some(
+        safeArray(income.income_source).some(
           (source) => source.type === filters.value.type,
         ),
       );
@@ -124,11 +125,11 @@ export const useIncomeStore = defineStore("income", () => {
     if (filters.value.frequency) {
       if (filters.value.frequency === "one-time") {
         filtered = filtered.filter((income) =>
-          income.income_source.some((source) => !source.recur),
+          safeArray(income.income_source).some((source) => !source.recur),
         );
       } else {
         filtered = filtered.filter((income) =>
-          income.income_source.some(
+          safeArray(income.income_source).some(
             (source) =>
               source.recur &&
               source.recur_frequency === filters.value.frequency,
@@ -138,7 +139,7 @@ export const useIncomeStore = defineStore("income", () => {
     }
     if (typeof filters.value.isRecurring === "boolean") {
       filtered = filtered.filter((income) =>
-        income.income_source.some(
+        safeArray(income.income_source).some(
           (source) => source.recur === filters.value.isRecurring,
         ),
       );

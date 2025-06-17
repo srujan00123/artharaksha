@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "income_type",
+  "income_source",
   "date_time",
   "amount"
  ],
@@ -28,13 +29,19 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Amount"
+  },
+  {
+   "fieldname": "income_source",
+   "fieldtype": "Link",
+   "label": "income Source",
+   "options": "Income Source Type"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-06-17 06:07:22.706431",
+ "modified": "2025-06-17 07:08:56.607481",
  "modified_by": "Administrator",
  "module": "Artha",
  "name": "Income Ledger",
