@@ -198,15 +198,11 @@ const props = withDefaults(defineProps<Props>(), {
 	filteredCount: 0,
 })
 
-// Use the expense composable
+// Use the expense composable with new system
 const {
 	filters,
-	updateFilters,
-	clearFilters: clearExpenseFilters,
-	expenses,
-	allExpenses,
-	isCacheValid,
-	invalidateAndRefresh,
+	refreshData,
+	loading,
 } = useExpense()
 
 // Local state
@@ -405,10 +401,12 @@ function formatAmountRange(): string {
 
 // Methods
 async function onFilterChange() {
-	updateFilters({ ...localFilters.value })
-	// Trigger cache refresh for immediate filter application
+	// Use cache-aware refresh for filter changes
 	try {
-		await invalidateAndRefresh()
+		await refreshData({ 
+			withAnalytics: true, 
+			useCache: true
+		})
 	} catch (error) {
 		console.error("Failed to refresh data after filter change:", error)
 	}
@@ -446,32 +444,21 @@ async function clearAllFilters() {
 		period: "this_month", // Reset to default
 	}
 	await onFilterChange()
-	clearExpenseFilters()
 }
 
-// Watchers
-watch(
-	() => filters.value,
-	(newFilters) => {
+// Sync local filters with composable filters
+watch(filters, (newFilters) => {
+	if (newFilters) {
 		localFilters.value = { ...newFilters }
-	},
-	{ immediate: true, deep: true },
-)
-
-// Initialize with default this month filter and cache validation
-onMounted(async () => {
-	// Check cache validity and refresh if needed
-	if (!isCacheValid.value) {
-		try {
-			await invalidateAndRefresh()
-		} catch (error) {
-			console.error("Failed to refresh expense data on mount:", error)
-		}
 	}
-	
-	// Apply default filter if no filters are set
-	if (!filters.value.period && !filters.value.dateFrom && !filters.value.dateTo) {
-		await applyQuickDateFilter("this_month")
+}, { deep: true })
+
+// Initialize on mount
+onMounted(async () => {
+	// Set default period on mount if not already set
+	if (!localFilters.value.period) {
+		localFilters.value.period = "this_month"
+		await onFilterChange()
 	}
 })
 </script>

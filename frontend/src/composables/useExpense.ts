@@ -77,12 +77,22 @@ export function useExpense(options: UseExpenseOptions = {}) {
     throw error instanceof Error ? error : new Error(message);
   };
 
-  // Actions with proper error handling
+  // Actions with proper error handling and cache integration
   const fetchExpenses = async (options: ExpenseServiceOptions = {}) => {
     try {
       return await expenseStore.fetchExpenses(options);
     } catch (error) {
       handleError(error, "Failed to fetch expenses");
+    }
+  };
+
+  const fetchExpensesWithAnalytics = async (
+    options: ExpenseServiceOptions = {},
+  ) => {
+    try {
+      return await expenseStore.fetchExpensesWithAnalytics(options);
+    } catch (error) {
+      handleError(error, "Failed to fetch expenses with analytics");
     }
   };
 
@@ -181,26 +191,66 @@ export function useExpense(options: UseExpenseOptions = {}) {
   const refreshData = async (
     options: {
       withAnalytics?: boolean;
-      forceRefresh?: boolean;
+      withDashboard?: boolean;
+      useCache?: boolean;
     } = {},
   ) => {
-    const { withAnalytics = false, forceRefresh = true } = options;
+    const {
+      withAnalytics = true,
+      withDashboard = true,
+      useCache = false,
+    } = options;
 
     try {
-      await fetchExpenses({
-        forceRefresh,
-        include_analytics: withAnalytics,
-      });
+      const forceRefresh = !useCache;
+
+      // Always refresh expense types first (but respect cache if useCache is true)
+      await fetchExpenseTypes({ forceRefresh, useCache });
+
+      // Fetch expense data with proper error handling
+      if (withAnalytics) {
+        await fetchExpensesWithAnalytics({ forceRefresh, useCache });
+      } else {
+        await fetchExpenses({ forceRefresh, useCache });
+      }
+
+      // Optionally fetch dashboard metrics
+      if (withDashboard) {
+        await fetchDashboardMetrics("this_month", { forceRefresh, useCache });
+      }
     } catch (error) {
       handleError(error, "Failed to refresh expense data");
     }
   };
 
-  // Initialization helper with better error handling
-  const initialize = async (options: { forceRefresh?: boolean } = {}) => {
-    const { forceRefresh = false } = options;
+  // Initialization helper with better error handling and options
+  const initialize = async (
+    options: {
+      withAnalytics?: boolean;
+      forceRefresh?: boolean;
+      period?:
+        | "this_month"
+        | "last_month"
+        | "last_3_months"
+        | "last_6_months"
+        | "this_year";
+    } = {},
+  ) => {
+    const { withAnalytics = false, forceRefresh = false, period } = options;
     try {
-      await expenseStore.fetchExpenses({ forceRefresh });
+      // Set default period to this_month if no period is provided
+      const defaultPeriod = period || "this_month";
+      expenseStore.updateFilters({ period: defaultPeriod });
+
+      // Always fetch expense types first
+      await expenseStore.fetchExpenseTypes({ forceRefresh });
+
+      // Fetch expense data with analytics by default for better UX
+      if (withAnalytics) {
+        await expenseStore.fetchExpensesWithAnalytics({ forceRefresh });
+      } else {
+        await expenseStore.fetchExpenses({ forceRefresh });
+      }
     } catch (error) {
       handleError(error, "Failed to initialize expense data");
     }
@@ -276,6 +326,7 @@ export function useExpense(options: UseExpenseOptions = {}) {
 
     // Actions
     fetchExpenses,
+    fetchExpensesWithAnalytics,
     fetchExpenseTypes,
     fetchDashboardMetrics,
     refreshExpenses,

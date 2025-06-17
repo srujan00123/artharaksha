@@ -10,10 +10,10 @@
         <div class="flex items-center space-x-3">
           <button 
             @click="handleRefresh"
-            :disabled="refreshing"
+            :disabled="loading || refreshing"
             class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 bg-white dark:bg-gray-800 dark:bg-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 disabled:opacity-50 transition-colors"
           >
-            <RefreshCw :class="{ 'animate-spin': refreshing }" class="w-4 h-4 mr-2" />
+            <RefreshCw :class="{ 'animate-spin': loading || refreshing }" class="w-4 h-4 mr-2" />
             Refresh All
           </button>
         </div>
@@ -33,40 +33,37 @@
 
 <script setup lang="ts">
 import { RefreshCw } from "lucide-vue-next"
-import { computed, onMounted, provide, ref } from "vue"
+import { onMounted, provide, ref } from "vue"
 
-// Data-flow integration
+// Use the new expense composable system
 import { useExpense } from "../../composables/useExpense"
-import { expenseService } from "../../services/expense-service.js"
 
 // State
 const refreshing = ref(false)
-const loading = ref(false)
-const error = ref("")
 
-// Initialize expense composable for data management
-const { loadExpenses, refreshExpenses, clearCache } = useExpense({
-	enableAdvancedAnalysis: false,
-})
+// Initialize expense composable with analytics
+const { 
+  loading, 
+  error, 
+  initialize, 
+  refreshData 
+} = useExpense()
 
 // Event handlers
 const handleRefresh = async () => {
-	refreshing.value = true
-	try {
-		// Clear cache and refresh all data
-		clearCache()
-		expenseService.clearCache()
-
-		// Refresh expenses data
-		await refreshExpenses()
-
-		console.log("Analytics data refreshed successfully")
-	} catch (err) {
-		error.value = err.message || "Failed to refresh analytics data"
-		console.error("Failed to refresh analytics:", err)
-	} finally {
-		refreshing.value = false
-	}
+  refreshing.value = true
+  try {
+    // Force refresh bypassing cache for analytics
+    await refreshData({ 
+      withAnalytics: true, 
+      useCache: false 
+    })
+    console.log("Analytics data refreshed successfully")
+  } catch (err) {
+    console.error("Failed to refresh analytics:", err)
+  } finally {
+    refreshing.value = false
+  }
 }
 
 // Provide shared refresh function to child components
@@ -74,19 +71,11 @@ provide("analyticsRefresh", handleRefresh)
 
 // Lifecycle
 onMounted(async () => {
-	// Initialize analytics section
-	console.log("Expense Analytics initialized")
-
-	// Load initial data
-	try {
-		loading.value = true
-		await loadExpenses({ useCache: true })
-	} catch (err) {
-		error.value = err.message || "Failed to load initial analytics data"
-		console.error("Failed to load initial analytics data:", err)
-	} finally {
-		loading.value = false
-	}
+  // Initialize analytics with comprehensive data
+  await initialize({ 
+    withAnalytics: true, 
+    period: "this_month" 
+  })
 })
 </script>
 

@@ -24,6 +24,9 @@ class Income(Document):
         """
         Validate the income document before saving
         """
+        # Validate that all income sources are marked as recurring
+        self.validate_income_sources()
+
         # Calculate total monthly income from recurring sources only
         self.calculate_monthly_income()
 
@@ -33,6 +36,22 @@ class Income(Document):
         """
         # Only create ledger entries for new recurring sources
         self.create_ledger_entries_for_new_sources()
+
+    def validate_income_sources(self) -> None:
+        """
+        Validate that all income sources are properly configured for recurring income
+        One-time income should not be in income_source table
+        """
+        for source in self.income_source:
+            if not source.recur:
+                frappe.throw(
+                    f"Income source '{source.type}' must be recurring. "
+                    "One-time income should be added directly to ledger using API."
+                )
+            if not source.recur_frequency:
+                frappe.throw(
+                    f"Recurring income source '{source.type}' must have a frequency specified."
+                )
 
     def calculate_monthly_income(self) -> None:
         """
@@ -45,6 +64,32 @@ class Income(Document):
             # All sources in this table are recurring by design
             total_monthly += flt(source.income)
         self.monthly_income = total_monthly
+
+    def add_direct_ledger_entry(self, income_type: str, amount: float, date_time: str, description: str = "") -> str:
+        """
+        Add a direct ledger entry for one-time income without creating an income source
+        This method is called by the API for one-time income
+        """
+        try:
+            entry = self.append("income_ledger", {
+                "income_source": None,  # No source for direct entries
+                "income_type": "one-time",
+                "date_time": date_time,
+                "amount": flt(amount),
+                "source_type": income_type,
+                "description": description or f"One-time {income_type} income"
+            })
+
+            # Save the document to persist the new entry
+            self.save()
+
+            return entry.name
+
+        except Exception as e:
+            frappe.log_error(
+                f"Error adding direct ledger entry to {self.name}: {str(e)}")
+            frappe.throw(
+                f"Failed to add direct ledger entry: {str(e)}")
 
     def create_ledger_entries_for_new_sources(self) -> None:
         """
@@ -93,7 +138,9 @@ class Income(Document):
                     "income_source": source.name,
                     "income_type": "recurring",
                     "date_time": entry_date,
-                    "amount": amount
+                    "amount": amount,
+                    "source_type": source.type,
+                    "description": f"Recurring {source.type} income"
                 })
 
         except Exception as e:
@@ -171,14 +218,16 @@ class Income(Document):
                                 "income_source": source.name,
                                 "income_type": "recurring",
                                 "date_time": next_date,
-                                "amount": flt(source.income)
+                                "amount": flt(source.income),
+                                "source_type": source.type,
+                                "description": f"Recurring {source.type} income"
                             })
                             updated = True
                             next_date = self.get_next_occurrence(
                                 next_date, source.recur_frequency)
                     else:
                         # No entries exist, create from start
-                        self.ensure_ledger_entries_for_source(source)
+                        self.create_initial_recurring_entries(source)
                         updated = True
 
             if updated:

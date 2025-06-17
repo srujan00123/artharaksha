@@ -169,6 +169,7 @@ class IncomeService {
         growth_rate: 0,
         actual_monthly_income: 0,
         monthly_recurring_income: 0,
+        expected_monthly_income: 0,
         period_recurring_income: 0,
         period_one_time_income: 0,
         period_total_income: 0,
@@ -289,7 +290,7 @@ class IncomeService {
   ): Promise<GetMonthlyIncomeSummaryResponse> {
     try {
       return await apiService.execute(
-        call("artha.api.income.get_monthly_income_summary"),
+        call(API_ENDPOINTS.INCOME.MONTHLY_SUMMARY),
       );
     } catch (error: any) {
       console.error("Failed to fetch monthly income summary:", error);
@@ -306,9 +307,7 @@ class IncomeService {
     options: IncomeServiceOptions = {},
   ): Promise<GetIncomeInsightsResponse> {
     try {
-      return await apiService.execute(
-        call("artha.api.income.get_income_insights"),
-      );
+      return await apiService.execute(call(API_ENDPOINTS.INCOME.INSIGHTS));
     } catch (error: any) {
       console.error("Failed to fetch income insights:", error);
       throw new Error(
@@ -336,7 +335,7 @@ class IncomeService {
 
     try {
       const result = await apiService.execute(
-        call("artha.api.income.get_income_dashboard_metrics", { period }),
+        call(API_ENDPOINTS.INCOME.DASHBOARD_METRICS, { period }),
       );
 
       if (useCache) {
@@ -386,7 +385,7 @@ class IncomeService {
   ): Promise<CreateLedgerEntryResponse> {
     try {
       const result = await apiService.execute(
-        call("artha.api.income.create_direct_ledger_entry", payload),
+        call(API_ENDPOINTS.INCOME.CREATE_DIRECT_LEDGER, payload),
       );
 
       // Invalidate caches
@@ -409,7 +408,7 @@ class IncomeService {
   ): Promise<UpdateLedgerEntryResponse> {
     try {
       const result = await apiService.execute(
-        call("artha.api.income.update_ledger_entry", payload),
+        call(API_ENDPOINTS.INCOME.UPDATE_LEDGER_ENTRY, payload),
       );
 
       // Invalidate caches
@@ -432,7 +431,7 @@ class IncomeService {
   ): Promise<DeleteLedgerEntryResponse> {
     try {
       const result = await apiService.execute(
-        call("artha.api.income.delete_ledger_entry", payload),
+        call(API_ENDPOINTS.INCOME.DELETE_LEDGER_ENTRY, payload),
       );
 
       // Invalidate caches
@@ -441,6 +440,22 @@ class IncomeService {
       return result;
     } catch (error: any) {
       console.error("Failed to delete ledger entry:", error);
+
+      // If the entry was not found, it might already be deleted
+      // Invalidate caches to refresh the data and show current state
+      if (
+        error.message?.includes("not found") ||
+        error.message?.includes("DoesNotExistError")
+      ) {
+        this.invalidateIncomeCaches();
+        // Return a success response since the entry is effectively deleted
+        return {
+          status: "success",
+          message: "Ledger entry was already deleted",
+          deleted_type: "one-time", // Default to one-time since we don't know the actual type
+        };
+      }
+
       throw new Error(
         `Failed to delete ledger entry: ${error.message || "Unknown error"}`,
       );
@@ -455,7 +470,7 @@ class IncomeService {
   ): Promise<CreateLedgerEntryResponse> {
     try {
       const result = await apiService.execute(
-        call("artha.api.income.create_ledger_entry", payload),
+        call(API_ENDPOINTS.INCOME.CREATE_LEDGER_ENTRY, payload),
       );
 
       // Invalidate caches
@@ -476,7 +491,7 @@ class IncomeService {
   async updateRecurringLedgerEntries(): Promise<UpdateRecurringLedgerEntriesResponse> {
     try {
       const result = await apiService.execute(
-        call("artha.api.income.update_recurring_ledger_entries"),
+        call(API_ENDPOINTS.INCOME.UPDATE_RECURRING_LEDGER),
       );
 
       // Invalidate caches

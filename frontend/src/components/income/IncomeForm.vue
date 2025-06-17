@@ -14,7 +14,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            {{ isEditing ? 'Edit Income Source' : 'Add Income Source' }}
+            {{ getFormTitle() }}
           </h2>
           <Button 
             variant="ghost" 
@@ -74,8 +74,8 @@
             <p v-if="validationErrors.amount" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ validationErrors.amount }}</p>
           </div>
 
-          <!-- Recurring Toggle -->
-          <div>
+          <!-- Recurring Toggle - Only show for source mode -->
+          <div v-if="mode === 'source'">
             <label class="flex items-center space-x-3 cursor-pointer">
               <input
                 v-model="formData.isRecurring"
@@ -86,6 +86,17 @@
             </label>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-200 dark:text-gray-500">
               Check this if this income repeats regularly (salary, rent, etc.)
+            </p>
+          </div>
+          
+          <!-- Info for direct mode -->
+          <div v-if="mode === 'direct'" class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+            <div class="flex items-center space-x-2">
+              <Calendar class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <span class="text-sm font-medium text-blue-900 dark:text-blue-200">One-time Income Entry</span>
+            </div>
+            <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">
+              This income will be recorded directly in your ledger without creating a recurring source.
             </p>
           </div>
 
@@ -184,7 +195,7 @@
 
 <script setup lang="ts">
 import { Button } from "frappe-ui"
-import { Calculator, Save, X } from "lucide-vue-next"
+import { Calculator, Calendar, Save, X } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
 import { useIncome } from "../../composables/useIncome"
 import type {
@@ -199,11 +210,13 @@ import type {
 interface Props {
 	isOpen: boolean
 	editingSource?: ProcessedIncomeItem | null
+	mode?: 'source' | 'direct'
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	isOpen: false,
 	editingSource: null,
+	mode: 'source',
 })
 
 // Emits
@@ -311,6 +324,11 @@ const validateForm = (): IncomeValidationResult => {
 		errors.frequency = "Frequency is required for recurring income"
 	}
 
+	// For source mode, isRecurring must be true
+	if (props.mode === 'source' && !formData.value.isRecurring) {
+		errors.isRecurring = "Income sources must be recurring"
+	}
+
 	// Validate frequency is from supported list
 	if (formData.value.frequency) {
 		const supportedFrequencies = frequencyOptions.map((f) => f.value)
@@ -330,7 +348,7 @@ const resetForm = () => {
 	formData.value = {
 		type: "",
 		amount: 0,
-		isRecurring: false,
+		isRecurring: props.mode === 'source', // Default to true for source mode, false for direct
 		dateTime: "",
 		frequency: undefined,
 		stop_date: undefined,
@@ -382,6 +400,13 @@ const closeForm = () => {
 
 const handleOverlayClick = () => {
 	closeForm()
+}
+
+const getFormTitle = () => {
+	if (isEditing.value) {
+		return props.mode === 'direct' ? 'Edit Income Entry' : 'Edit Income Source'
+	}
+	return props.mode === 'direct' ? 'Add Income Entry' : 'Add Income Source'
 }
 
 const loadIncomeTypes = async () => {

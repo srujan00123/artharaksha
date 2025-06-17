@@ -477,14 +477,19 @@ def create_expense(expense_data: Union[str, Dict]) -> Dict[str, Any]:
 def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[str, Any]:
     """
     Update an existing expense entry in child table
+    Enhanced with better error handling and existence checking
     """
     try:
         # Parse expense_data if it's a string
         if isinstance(expense_data, str):
             expense_data = json.loads(expense_data)
 
-        # Get the child table document directly
+        # Check if the expense entry exists first
+        child_doc = None
         if expense_data.get("type") == "medical":
+            if not frappe.db.exists("Medical Expense Type", expense_name):
+                frappe.throw(
+                    _("Medical expense entry not found: {0}").format(expense_name))
             child_doc = frappe.get_doc("Medical Expense Type", expense_name)
             child_doc.medical_expense_type = expense_data.get("category")
             child_doc.amount = flt(expense_data.get("amount"))
@@ -493,6 +498,9 @@ def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[st
             child_doc.proof_of_payment = expense_data.get("proof_of_payment")
             child_doc.is_direct = expense_data.get("is_direct", True)
         else:
+            if not frappe.db.exists("Expense Type", expense_name):
+                frappe.throw(
+                    _("Expense entry not found: {0}").format(expense_name))
             child_doc = frappe.get_doc("Expense Type", expense_name)
             child_doc.expense_type = expense_data.get("category")
             child_doc.amount = flt(expense_data.get("amount"))
@@ -518,19 +526,42 @@ def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[st
 def delete_expense(expense_name: str, expense_id: str) -> Dict[str, Any]:
     """
     Delete an expense entry from child table
+    Enhanced with better error handling and existence checking
     """
     try:
-        # Delete the child table document
-        frappe.delete_doc("Medical Expense Type",
-                          expense_id, ignore_missing=True)
-        frappe.delete_doc("Expense Type", expense_id, ignore_missing=True)
+        # Check if it's a medical expense first
+        medical_exists = frappe.db.exists("Medical Expense Type", expense_id)
+        if medical_exists:
+            frappe.delete_doc("Medical Expense Type",
+                              expense_id, ignore_missing=True)
+            return {
+                "status": "success",
+                "message": "Medical expense deleted successfully"
+            }
 
+        # Check if it's an other expense
+        other_exists = frappe.db.exists("Expense Type", expense_id)
+        if other_exists:
+            frappe.delete_doc("Expense Type", expense_id, ignore_missing=True)
+            return {
+                "status": "success",
+                "message": "Expense deleted successfully"
+            }
+
+        # If neither exists, return success (already deleted)
         return {
             "status": "success",
-            "message": "Expense deleted successfully"
+            "message": "Expense entry not found (may have been already deleted)"
         }
+
     except Exception as e:
         frappe.log_error(f"Error deleting expense: {str(e)}")
+        # Don't throw error for "not found" cases - return success
+        if "not found" in str(e).lower():
+            return {
+                "status": "success",
+                "message": "Expense entry not found (may have been already deleted)"
+            }
         frappe.throw(_("Failed to delete expense record: {0}").format(str(e)))
 
 

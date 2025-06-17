@@ -108,7 +108,8 @@ export interface IncomeAnalytics {
   growth_rate: number;
   actual_monthly_income: number;
   // New fields for better metrics display
-  monthly_recurring_income: number; // Monthly income from recurring sources only
+  monthly_recurring_income: number; // Actual monthly income from current month's ledger entries
+  expected_monthly_income: number; // Expected monthly income from recurring sources
   period_recurring_income: number; // Actual recurring income for the filtered period
   period_one_time_income: number; // Actual one-time income for the filtered period
   period_total_income: number; // Total income for the filtered period
@@ -371,7 +372,8 @@ export type IncomeLedger = LedgerEntry;
 
 // Dashboard metrics response interface
 export interface IncomeDashboardMetrics {
-  actual_monthly_income: number;
+  actual_monthly_income: number; // Actual income from current month's ledger entries
+  expected_monthly_income: number; // Expected income from recurring sources
   recurring_income: number;
   one_time_income: number;
   total_sources: number;
@@ -476,4 +478,10 @@ export interface LedgerEntryFormData {
   date: string;
   income_type: "recurring" | "one-time";
   source_type: string;
+}
+
+// Form validation result
+export interface IncomeValidationResult {
+  isValid: boolean;
+  errors: Record<string, string>;
 }

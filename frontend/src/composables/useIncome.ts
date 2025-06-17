@@ -316,6 +316,7 @@ export function useIncome() {
       withSummary?: boolean;
       withInsights?: boolean;
       withDashboard?: boolean;
+      useCache?: boolean;
     } = {},
   ) => {
     const {
@@ -324,17 +325,20 @@ export function useIncome() {
       withSummary = false,
       withInsights = false,
       withDashboard = true,
+      useCache = false,
     } = options;
 
     try {
-      // Always refresh income types first
-      await fetchIncomeTypes({ forceRefresh: true });
+      const forceRefresh = !useCache;
+
+      // Always refresh income types first (but respect cache if useCache is true)
+      await fetchIncomeTypes({ forceRefresh, useCache });
 
       // Fetch income data with proper error handling
       if (withAnalytics) {
-        await fetchIncomeWithAnalytics({ forceRefresh: true });
+        await fetchIncomeWithAnalytics({ forceRefresh, useCache });
       } else {
-        await fetchIncome({ forceRefresh: true });
+        await fetchIncome({ forceRefresh, useCache });
       }
 
       // Optionally fetch additional data in parallel when possible
@@ -342,23 +346,23 @@ export function useIncome() {
 
       if (withLedger) {
         additionalFetches.push(
-          fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true }),
+          fetchIncomeLedger(ledgerFilters.value, { forceRefresh, useCache }),
         );
       }
 
       if (withSummary) {
         additionalFetches.push(
-          fetchMonthlyIncomeSummary({ forceRefresh: true }),
+          fetchMonthlyIncomeSummary({ forceRefresh, useCache }),
         );
       }
 
       if (withInsights) {
-        additionalFetches.push(fetchIncomeInsights({ forceRefresh: true }));
+        additionalFetches.push(fetchIncomeInsights({ forceRefresh, useCache }));
       }
 
       if (withDashboard) {
         additionalFetches.push(
-          fetchDashboardMetrics("this_month", { forceRefresh: true }),
+          fetchDashboardMetrics("this_month", { forceRefresh, useCache }),
         );
       }
 
@@ -375,10 +379,14 @@ export function useIncome() {
   const initialize = async (options: InitializeOptions = {}) => {
     const { withAnalytics = false, forceRefresh = false, period } = options;
     try {
-      if (period) {
-        store.updateFilters({ period });
-      }
+      // Set default period to this_month if no period is provided
+      const defaultPeriod = period || "this_month";
+      store.updateFilters({ period: defaultPeriod });
+
+      // Always fetch income types first
       await store.fetchIncomeTypes({ forceRefresh });
+
+      // Fetch income data with analytics by default for better UX
       if (withAnalytics) {
         await store.fetchIncomeWithAnalytics({ forceRefresh });
       } else {

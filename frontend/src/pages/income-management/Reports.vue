@@ -1,3 +1,8 @@
+/**
+ * Income Reports Page - Robust & Redundancy-Free
+ * Uses new architecture with proper analytics and caching
+ */
+
 <template>
   <div class="reports-dashboard">
     <!-- Header Section -->
@@ -33,7 +38,7 @@
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             <Download class="w-4 h-4 mr-2" />
-            Export
+            Export Report
           </button>
         </div>
       </div>
@@ -83,7 +88,7 @@
               </div>
               <div class="ml-3">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Income</p>
-                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(analytics?.total_income || 0) }}</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(totalIncome) }}</p>
               </div>
             </div>
           </div>
@@ -97,7 +102,7 @@
               </div>
               <div class="ml-3">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Recurring Income</p>
-                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(analytics?.recurring_income || 0) }}</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(recurringIncome) }}</p>
               </div>
             </div>
           </div>
@@ -111,7 +116,7 @@
               </div>
               <div class="ml-3">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400">One-time Income</p>
-                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(analytics?.one_time_income || 0) }}</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(oneTimeIncome) }}</p>
               </div>
             </div>
           </div>
@@ -125,7 +130,7 @@
               </div>
               <div class="ml-3">
                 <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Income Sources</p>
-                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ analytics?.summary?.total_sources || 0 }}</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ totalSources }}</p>
               </div>
             </div>
           </div>
@@ -169,11 +174,11 @@
             <div class="space-y-4">
               <div class="flex justify-between">
                 <span class="text-sm text-gray-600 dark:text-gray-400">Average per Source</span>
-                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">₹{{ formatCurrency(analytics?.summary?.average_source_amount || 0) }}</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">₹{{ formatCurrency(averagePerSource) }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm text-gray-600 dark:text-gray-400">Top Income Type</span>
-                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ analytics?.summary?.top_income_type || 'N/A' }}</span>
+                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ topIncomeType }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm text-gray-600 dark:text-gray-400">Recurring Percentage</span>
@@ -265,7 +270,7 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border">
           <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <p class="text-sm text-gray-600 dark:text-gray-400">
-              Showing {{ totalSources }} income sources for {{ formatPeriod(selectedPeriod) }}
+              Showing {{ incomeSourcesList.length }} income sources for {{ formatPeriod(selectedPeriod) }}
             </p>
           </div>
           
@@ -325,41 +330,43 @@ import {
 	Repeat,
 } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
-import type {
-	AddIncomeSourcePayload,
-	DeleteIncomeSourcePayload,
-	UpdateIncomeSourcePayload,
-} from "../../types/income"
 
-// Composables
+// Composables - Using new robust architecture
 import { useIncome } from "../../composables/useIncome"
 
-// Initialize income composable
+// Initialize income composable with new architecture
 const {
+	// State
 	incomes,
 	analytics,
 	loading,
 	error,
+	
+	// Computed values
+	totalIncome,
+	recurringIncome,
+	oneTimeIncome,
+	totalSources,
+	incomeByType,
+	filteredSources,
+	
+	// Actions
 	updateFilters,
 	fetchIncomeWithAnalytics,
 	initialize,
+	setPeriod,
 } = useIncome()
 
-// Local state
+// Local state - Default to this_month for consistency
 const selectedPeriod = ref<
-	"this_month" | "last_month" | "last_3_months" | "last_6_months" | "this_year"
->("last_3_months")
+  "this_month" | "last_month" | "last_3_months" | "last_6_months" | "this_year"
+>("this_month")
 
-// Utility: Safe array access
-function safeArray<T>(arr: T[] | undefined | null): T[] {
-	return Array.isArray(arr) ? arr : []
-}
-
-// Computed properties for analytics data
+// Computed properties for analytics data using new architecture
 const incomeByTypeData = computed(() => {
-	if (!analytics.value?.income_by_type) return []
+	if (!incomeByType.value || Object.keys(incomeByType.value).length === 0) return []
 
-	const total = analytics.value.total_income || 1
+	const total = totalIncome.value || 1
 	const colors = [
 		"#3B82F6",
 		"#10B981",
@@ -373,7 +380,7 @@ const incomeByTypeData = computed(() => {
 		"#6366F1",
 	]
 
-	return Object.entries(analytics.value.income_by_type)
+	return Object.entries(incomeByType.value)
 		.map(([type, amount], index) => ({
 			type,
 			amount: Number(amount),
@@ -393,22 +400,24 @@ const maxTrendValue = computed(() => {
 })
 
 const recurringPercentage = computed(() => {
-	if (!analytics.value?.total_income || analytics.value.total_income === 0)
-		return 0
-	return (
-		(analytics.value.recurring_income / analytics.value.total_income) *
-		100
-	).toFixed(1)
+	if (!totalIncome.value || totalIncome.value === 0) return 0
+	return ((recurringIncome.value / totalIncome.value) * 100).toFixed(1)
 })
 
-const totalSources = computed(() => {
-	return analytics.value?.summary?.total_sources || 0
+const averagePerSource = computed(() => {
+	if (!totalSources.value || totalSources.value === 0) return 0
+	return totalIncome.value / totalSources.value
+})
+
+const topIncomeType = computed(() => {
+	if (incomeByTypeData.value.length === 0) return "N/A"
+	return incomeByTypeData.value[0].type
 })
 
 const incomeSourcesList = computed(() => {
 	const sources: any[] = []
-	safeArray(incomes.value).forEach((income) => {
-		safeArray(income.income_source).forEach((source) => {
+	incomes.value.forEach((income) => {
+		income.income_source.forEach((source) => {
 			sources.push({
 				...source,
 				incomeId: income.name,
@@ -457,11 +466,10 @@ const formatPeriod = (period: string) => {
 	return map[period] || period
 }
 
-// Event handlers
+// Event handlers using new architecture
 const updatePeriodFilter = async () => {
 	try {
-		await updateFilters({ period: selectedPeriod.value })
-		await fetchIncomeWithAnalytics({ forceRefresh: true })
+		await setPeriod(selectedPeriod.value)
 	} catch (error) {
 		console.error("Failed to update period filter:", error)
 	}
@@ -492,8 +500,8 @@ const generateCSVData = () => {
 	let csv = "Income Type,Amount,Percentage,Is Recurring,Date\n"
 
 	incomeSourcesList.value.forEach((source) => {
-		const percentage = analytics.value?.total_income
-			? ((source.income / analytics.value.total_income) * 100).toFixed(1)
+		const percentage = totalIncome.value
+			? ((source.income / totalIncome.value) * 100).toFixed(1)
 			: "0"
 
 		csv += `"${source.type}",${source.income},${percentage}%,"${source.recur ? "Yes" : "No"}","${formatDate(source.date_time)}"\n`
@@ -502,7 +510,7 @@ const generateCSVData = () => {
 	return csv
 }
 
-// Lifecycle
+// Lifecycle using new architecture
 onMounted(async () => {
 	try {
 		// Initialize with analytics and set default period

@@ -113,15 +113,14 @@ export const useIncomeStore = defineStore("income", () => {
       loading.value = true;
       error.value = null;
 
-      const { forceRefresh = false } = options;
+      const { forceRefresh = false, useCache = true } = options;
 
-      if (!forceRefresh && isCacheValid.value && hasData.value) {
-        return;
-      }
-
+      // Let the service handle caching - don't duplicate cache logic here
       const data = await incomeService.getUserIncome({
         ...options,
-        useCache: !forceRefresh,
+        filters: filters.value,
+        useCache: useCache && !forceRefresh,
+        forceRefresh,
       });
 
       incomes.value = data;
@@ -141,21 +140,14 @@ export const useIncomeStore = defineStore("income", () => {
       loading.value = true;
       error.value = null;
 
-      const { forceRefresh = false } = options;
+      const { forceRefresh = false, useCache = true } = options;
 
-      if (
-        !forceRefresh &&
-        isCacheValid.value &&
-        hasData.value &&
-        analytics.value
-      ) {
-        return;
-      }
-
+      // Let the service handle caching - don't duplicate cache logic here
       const data = await incomeService.getUserIncomeWithAnalytics({
         ...options,
         filters: filters.value,
-        useCache: !forceRefresh,
+        useCache: useCache && !forceRefresh,
+        forceRefresh,
       });
 
       incomes.value = data.incomes;

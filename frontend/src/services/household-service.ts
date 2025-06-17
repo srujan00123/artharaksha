@@ -4,6 +4,7 @@
  * Handles household profile management with TypeScript support
  */
 
+import { createListResource, call } from "frappe-ui";
 import { session } from "../data/session.js";
 import { API_ENDPOINTS, apiService } from "./api-service.js";
 import { CACHE_KEYS, cacheService } from "./cache-service.js";
@@ -40,24 +41,23 @@ export class HouseholdService {
     try {
       // Check cache first
       if (useCache && !forceReload) {
-        const cached = cacheService.get(CACHE_KEYS.HOUSEHOLD_PROFILE, {
-          userId: session.user,
-        });
+        const cached = cacheService.get(CACHE_KEYS.HOUSEHOLD_PROFILE);
         if (cached) {
           this.currentProfile = cached;
           return cached;
         }
       }
 
-      // Get profile from API
-      const resource = apiService.createListResource({
-        doctype: "Household Profile",
-        fields: ["*"],
-        filters: { user: session.user },
-      });
+      // Get profile from API using frappe-ui call
+      const result = await apiService.execute(
+        call("frappe.client.get_list", {
+          doctype: "Household Profile",
+          fields: ["*"],
+          filters: { user: session.user },
+        }),
+      );
 
-      await apiService.execute(resource.reload);
-      const profiles = resource.data || [];
+      const profiles = result || [];
       const profile = profiles.length > 0 ? profiles[0] : null;
 
       // If no profile found, return null
@@ -71,9 +71,7 @@ export class HouseholdService {
 
       // Cache the result
       if (useCache && profile) {
-        cacheService.set(CACHE_KEYS.HOUSEHOLD_PROFILE, profile, {
-          userId: session.user,
-        });
+        cacheService.set(CACHE_KEYS.HOUSEHOLD_PROFILE, profile);
       }
 
       this.currentProfile = profile;
@@ -93,16 +91,15 @@ export class HouseholdService {
    */
   async createProfile(profileData: ProfileData): Promise<HouseholdProfile> {
     try {
-      const resource = apiService.createResource({
-        url: API_ENDPOINTS.HOUSEHOLD.CREATE,
-        params: {
-          doctype: "Household Profile",
-          user: session.user,
-          ...profileData,
-        },
-      });
-
-      const result = await apiService.execute(resource.submit);
+      const result = await apiService.execute(
+        call("frappe.client.insert", {
+          doc: {
+            doctype: "Household Profile",
+            user: session.user,
+            ...profileData,
+          },
+        }),
+      );
 
       // Clear cache to force reload
       this.clearCache();
@@ -125,16 +122,13 @@ export class HouseholdService {
     updates: Partial<ProfileData>,
   ): Promise<HouseholdProfile> {
     try {
-      const resource = apiService.createResource({
-        url: API_ENDPOINTS.HOUSEHOLD.UPDATE,
-        params: {
+      const result = await apiService.execute(
+        call("frappe.client.set_value", {
           doctype: "Household Profile",
           name: profileName,
-          ...updates,
-        },
-      });
-
-      const result = await apiService.execute(resource.submit);
+          fieldname: updates,
+        }),
+      );
 
       // Clear cache to force reload
       this.clearCache();
@@ -152,10 +146,8 @@ export class HouseholdService {
   /**
    * Clear cache
    */
-  clearCache(userId: string | null = null): void {
-    cacheService.delete(CACHE_KEYS.HOUSEHOLD_PROFILE, {
-      userId: userId || session.user,
-    });
+  clearCache(): void {
+    cacheService.delete(CACHE_KEYS.HOUSEHOLD_PROFILE);
   }
 
   /**

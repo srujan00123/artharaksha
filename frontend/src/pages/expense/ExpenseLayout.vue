@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, provide } from "vue"
+import { onMounted, provide, ref } from "vue"
 
 // Components
 import { ExpenseForm } from "../../components"
@@ -29,42 +29,76 @@ import { ExpenseForm } from "../../components"
 // Composables
 import { useExpense } from "../../composables/useExpense"
 
-// Initialize expense composable
+// Initialize expense composable with new system
 const {
 	expenses,
 	loading,
 	error,
-	fetchExpenses,
+	initialize,
+	refreshData,
 } = useExpense()
 
-// Computed properties for child components
-const showExpenseForm = computed(() => state.showExpenseForm)
-const editingExpense = computed(() => state.editingExpense)
+// Local state for form management
+const showExpenseForm = ref(false)
+const editingExpense = ref(null)
 
 // Provide state and actions to child components
-provide("expenseState", state)
-provide("expenseActions", actions)
+provide("expenseState", {
+  expenses,
+  loading,
+  error,
+  showExpenseForm,
+  editingExpense,
+})
+
+provide("expenseActions", {
+  refreshData,
+  openExpenseForm: () => {
+    editingExpense.value = null
+    showExpenseForm.value = true
+  },
+  closeExpenseForm: () => {
+    showExpenseForm.value = false
+    editingExpense.value = null
+  },
+  editExpense: (expense: any) => {
+    editingExpense.value = expense
+    showExpenseForm.value = true
+  },
+})
 
 // Event Handlers
 const handleRefresh = async () => {
 	try {
-		await actions.refreshExpenses()
+		// Force refresh bypassing cache
+		await refreshData({ 
+			withAnalytics: true, 
+			useCache: false 
+		})
 	} catch (error) {
 		console.error("Failed to refresh expenses:", error)
 	}
 }
 
 const handleAddExpense = () => {
-	actions.openExpenseForm()
+	editingExpense.value = null
+	showExpenseForm.value = true
 }
 
 const handleCloseExpenseForm = () => {
-	actions.closeExpenseForm()
+	showExpenseForm.value = false
+	editingExpense.value = null
 }
 
 const handleExpenseFormSuccess = async () => {
 	try {
-		await actions.loadExpenses()
+		// Refresh data after successful form submission
+		await refreshData({ 
+			withAnalytics: true, 
+			useCache: false 
+		})
+		// Close form
+		handleCloseExpenseForm()
 	} catch (error) {
 		console.error("Failed to reload expenses after form success:", error)
 	}
@@ -72,11 +106,11 @@ const handleExpenseFormSuccess = async () => {
 
 // Lifecycle
 onMounted(async () => {
-	try {
-		await actions.initialize()
-	} catch (error) {
-		console.error("ExpenseLayout: Initialization failed:", error)
-	}
+	// Initialize with analytics and default period
+	await initialize({ 
+		withAnalytics: true, 
+		period: "this_month" 
+	})
 })
 </script>
 

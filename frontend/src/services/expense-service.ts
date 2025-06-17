@@ -53,27 +53,29 @@ class ExpenseService {
   }
 
   /**
-   * Get user expenses with optional analytics (primary method)
+   * Get user expenses with analytics (primary unified method)
+   * Returns complete expense data with optional analytics
    */
-  async getUserExpenses(
+  async getUserExpensesWithAnalytics(
     options: ExpenseServiceOptions = {},
-  ): Promise<GetUserExpensesResponse> {
-    const {
-      filters,
-      include_analytics = false,
-      forceRefresh = false,
-      useCache = true,
-    } = options;
+  ): Promise<{
+    expenses: FlattenedExpenseEntry[];
+    analytics: ExpenseAnalytics;
+  }> {
+    const { filters, forceRefresh = false, useCache = true } = options;
 
-    // Generate cache key
+    // Generate cache keys
     const cacheKey = useCache
-      ? cacheService.generateFilterKey(CACHE_KEYS.USER_EXPENSES, filters || {})
+      ? cacheService.generateFilterKey(
+          CACHE_KEYS.USER_EXPENSES_ANALYTICS,
+          filters || {},
+        )
       : null;
 
     // Check cache first
     if (cacheKey && !forceRefresh) {
       const cached = cacheService.getWithFilters(
-        CACHE_KEYS.USER_EXPENSES,
+        CACHE_KEYS.USER_EXPENSES_ANALYTICS,
         filters || {},
       );
       if (cached) {
@@ -82,27 +84,45 @@ class ExpenseService {
     }
 
     try {
-      const response = await apiService.execute(
+      const response: GetUserExpensesResponse = await apiService.execute(
         call(API_ENDPOINTS.EXPENSE.USER_EXPENSES, {
-          filters: filters || {},
-          include_analytics,
+          filters: filters ? JSON.stringify(filters) : null,
+          include_analytics: true,
         }),
       );
 
-      // Normalize expenses
-      const expenses = safeArray(response.expenses || []).map(
+      // Process response data
+      const expenses = safeArray(response.expenses).map(
         this.normalizeExpenseEntry,
       );
 
-      const result: GetUserExpensesResponse = {
+      const analytics = response.analytics || {
+        total_expenses: 0,
+        medical_expenses: 0,
+        other_expenses: 0,
+        direct_medical: 0,
+        indirect_medical: 0,
+        expense_by_category: {},
+        monthly_trends: [],
+        summary: {
+          total_count: 0,
+          average_expense: 0,
+          top_category: "",
+        },
+        period: "this_month",
+        start_date: "",
+        end_date: "",
+      };
+
+      const result = {
         expenses,
-        analytics: response.analytics || undefined,
+        analytics,
       };
 
       // Cache the result
       if (cacheKey && useCache) {
         cacheService.setWithFilters(
-          CACHE_KEYS.USER_EXPENSES,
+          CACHE_KEYS.USER_EXPENSES_ANALYTICS,
           result,
           filters || {},
           { maxAge: this.cacheExpiry },
@@ -111,11 +131,27 @@ class ExpenseService {
 
       return result;
     } catch (error: any) {
-      console.error("Failed to fetch user expenses:", error);
+      console.error("Failed to fetch expenses with analytics:", error);
       throw new Error(
-        `Failed to load expenses: ${error.message || "Unknown error"}`,
+        `Failed to load expense data: ${error.message || "Unknown error"}`,
       );
     }
+  }
+
+  /**
+   * Get user expenses (basic method without analytics)
+   */
+  async getUserExpenses(
+    options: ExpenseServiceOptions = {},
+  ): Promise<GetUserExpensesResponse> {
+    const result = await this.getUserExpensesWithAnalytics({
+      ...options,
+      include_analytics: false,
+    });
+    return {
+      expenses: result.expenses,
+      analytics: undefined,
+    };
   }
 
   /**
@@ -286,13 +322,14 @@ class ExpenseService {
 
   /**
    * Delete an expense
+   * Enhanced with graceful handling of "not found" errors and cache invalidation
    */
   async deleteExpense(
     expenseName: string,
     expenseId: string,
   ): Promise<boolean> {
     try {
-      await apiService.execute(
+      const result = await apiService.execute(
         call(API_ENDPOINTS.EXPENSE.DELETE, {
           expense_name: expenseName,
           expense_id: expenseId,
@@ -305,6 +342,22 @@ class ExpenseService {
       return true;
     } catch (error: any) {
       console.error("Failed to delete expense:", error);
+
+      // Handle "not found" errors gracefully - consider as success
+      if (
+        error.message &&
+        (error.message.includes("not found") ||
+          error.message.includes("does not exist") ||
+          error.message.includes("already deleted"))
+      ) {
+        console.warn(
+          `Expense ${expenseId} not found, treating as successful deletion`,
+        );
+        // Still invalidate cache to ensure data consistency
+        this.invalidateExpenseCaches();
+        return true;
+      }
+
       throw new Error(
         `Failed to delete expense: ${error.message || "Unknown error"}`,
       );

@@ -422,9 +422,9 @@ async function onFilterChange() {
 	// Update filters directly in the store
 	updateFilters({ ...localFilters.value })
 	
-	// Directly trigger cache invalidation and data refresh
+	// Let the cache service handle whether to fetch fresh data or use cache
 	try {
-		await refreshData({ withAnalytics: true })
+		await refreshData({ withAnalytics: true, useCache: true })
 	} catch (error) {
 		console.error("Failed to refresh data after filter change:", error)
 	}
@@ -481,28 +481,21 @@ watch(
 
 // Initialize with cache validation and default filter
 onMounted(async () => {
-	// Check cache validity and refresh if needed
-	if (!isCacheValid.value) {
-		try {
-			clearCache()
-			await refreshData({ withAnalytics: true })
-		} catch (error) {
-			console.error("Failed to refresh income data on mount:", error)
-		}
-	}
-	
 	// Sync with store filters first
 	if (filters.value) {
 		localFilters.value = { ...filters.value }
 	}
 	
-	// Set default period to this month if no filters are set
-	if (
-		!localFilters.value.period &&
-		!localFilters.value.dateFrom &&
-		!localFilters.value.dateTo
-	) {
-		await applyQuickDateFilter("this_month")
+	// Set default period to this month if no period is set
+	if (!localFilters.value.period) {
+		localFilters.value.period = "this_month"
+		localFilters.value.dateFrom = getMonthStart()
+		localFilters.value.dateTo = getClientDateString()
+		activePeriod.value = "this_month"
+		
+		// Apply the filter without triggering a separate API call
+		// since the parent component will handle the initial data loading
+		updateFilters({ ...localFilters.value })
 	}
 })
 </script>

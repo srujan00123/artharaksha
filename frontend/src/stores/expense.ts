@@ -281,16 +281,14 @@ export const useExpenseStore = defineStore("expense", () => {
       loading.value = true;
       error.value = null;
 
-      const { forceRefresh = false } = options;
+      const { forceRefresh = false, useCache = true } = options;
 
-      if (!forceRefresh && isCacheValid.value && hasData.value) {
-        return expenses.value;
-      }
-
+      // Let the service handle caching - don't duplicate cache logic here
       const data = await expenseService.getUserExpenses({
         ...options,
         filters: filters.value,
-        useCache: !forceRefresh,
+        useCache: useCache && !forceRefresh,
+        forceRefresh,
       });
 
       expenses.value = data.expenses;
@@ -300,6 +298,38 @@ export const useExpenseStore = defineStore("expense", () => {
     } catch (err: any) {
       error.value = err.message || "Failed to fetch expenses";
       console.error("Error fetching expenses:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchExpensesWithAnalytics(
+    options: ExpenseServiceOptions = {},
+  ) {
+    if (loading.value) return;
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const { forceRefresh = false, useCache = true } = options;
+
+      // Let the service handle caching - don't duplicate cache logic here
+      const data = await expenseService.getUserExpensesWithAnalytics({
+        ...options,
+        filters: filters.value,
+        useCache: useCache && !forceRefresh,
+        forceRefresh,
+      });
+
+      expenses.value = data.expenses;
+      analytics.value = data.analytics;
+
+      lastFetch.value = Date.now();
+    } catch (err: any) {
+      error.value = err.message || "Failed to fetch expense analytics";
+      console.error("Error fetching expense analytics:", err);
       throw err;
     } finally {
       loading.value = false;
@@ -472,6 +502,7 @@ export const useExpenseStore = defineStore("expense", () => {
 
     // Actions
     fetchExpenses,
+    fetchExpensesWithAnalytics,
     fetchExpenseTypes,
     fetchDashboardMetrics,
     refreshExpenses,

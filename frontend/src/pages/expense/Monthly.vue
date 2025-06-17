@@ -201,26 +201,24 @@ import {
 	TrendingDown,
 	TrendingUp,
 } from "lucide-vue-next"
-import { computed, onMounted } from "vue"
-import type { ProcessedExpenseItem } from "../../types/expense"
+import { computed, onMounted, ref } from "vue"
+import type { FlattenedExpenseEntry } from "../../types/expense"
 
 // Composables
 import { useExpense } from "../../composables/useExpense"
 
-// Initialize composables
+// Initialize composables with new system
 const {
 	expenses,
+	analytics,
 	loading,
 	error,
-	medicalExpenses,
-	otherExpenses,
-	totalAmount,
-	medicalAmount,
-	otherAmount,
-	expensesByDate,
-	fetchExpenses,
-	updateFilters,
+	initialize,
+	refreshData,
 } = useExpense()
+
+// Local state
+const refreshing = ref(false)
 
 // Monthly analysis computed property
 const monthlyAnalysis = computed(() => {
@@ -230,8 +228,8 @@ const monthlyAnalysis = computed(() => {
 
 	// Calculate current month expenses
 	const currentMonthExpenses = expenses.value.filter(
-		(expense: ProcessedExpenseItem) => {
-			const expenseDate = new Date(expense.date)
+		(expense: FlattenedExpenseEntry) => {
+			const expenseDate = new Date(expense.date_time)
 			return (
 				expenseDate.getMonth() === currentMonth &&
 				expenseDate.getFullYear() === currentYear
@@ -243,8 +241,8 @@ const monthlyAnalysis = computed(() => {
 	const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1
 	const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
 	const lastMonthExpenses = expenses.value.filter(
-		(expense: ProcessedExpenseItem) => {
-			const expenseDate = new Date(expense.date)
+		(expense: FlattenedExpenseEntry) => {
+			const expenseDate = new Date(expense.date_time)
 			return (
 				expenseDate.getMonth() === lastMonth &&
 				expenseDate.getFullYear() === lastMonthYear
@@ -253,11 +251,11 @@ const monthlyAnalysis = computed(() => {
 	)
 
 	const currentMonthTotal = currentMonthExpenses.reduce(
-		(sum: number, expense: ProcessedExpenseItem) => sum + expense.amount,
+		(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
 		0,
 	)
 	const lastMonthTotal = lastMonthExpenses.reduce(
-		(sum: number, expense: ProcessedExpenseItem) => sum + expense.amount,
+		(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
 		0,
 	)
 
@@ -336,8 +334,8 @@ const monthlyBreakdown = computed(() => {
 	for (let i = 5; i >= 0; i--) {
 		const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
 		const monthExpenses = expenses.value.filter(
-			(expense: ProcessedExpenseItem) => {
-				const expenseDate = new Date(expense.date)
+			(expense: FlattenedExpenseEntry) => {
+				const expenseDate = new Date(expense.date_time)
 				return (
 					expenseDate.getMonth() === date.getMonth() &&
 					expenseDate.getFullYear() === date.getFullYear()
@@ -346,7 +344,7 @@ const monthlyBreakdown = computed(() => {
 		)
 
 		const total = monthExpenses.reduce(
-			(sum: number, expense: ProcessedExpenseItem) => sum + expense.amount,
+			(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
 			0,
 		)
 		const count = monthExpenses.length
@@ -354,8 +352,8 @@ const monthlyBreakdown = computed(() => {
 		// Calculate change from previous month
 		const prevDate = new Date(date.getFullYear(), date.getMonth() - 1, 1)
 		const prevMonthExpenses = expenses.value.filter(
-			(expense: ProcessedExpenseItem) => {
-				const expenseDate = new Date(expense.date)
+			(expense: FlattenedExpenseEntry) => {
+				const expenseDate = new Date(expense.date_time)
 				return (
 					expenseDate.getMonth() === prevDate.getMonth() &&
 					expenseDate.getFullYear() === prevDate.getFullYear()
@@ -363,7 +361,7 @@ const monthlyBreakdown = computed(() => {
 			},
 		)
 		const prevTotal = prevMonthExpenses.reduce(
-			(sum: number, expense: ProcessedExpenseItem) => sum + expense.amount,
+			(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
 			0,
 		)
 		const change = total - prevTotal
@@ -407,8 +405,8 @@ const currentMonthCategories = computed(() => {
 	const currentYear = now.getFullYear()
 
 	const currentMonthExpenses = expenses.value.filter(
-		(expense: ProcessedExpenseItem) => {
-			const expenseDate = new Date(expense.date)
+		(expense: FlattenedExpenseEntry) => {
+			const expenseDate = new Date(expense.date_time)
 			return (
 				expenseDate.getMonth() === currentMonth &&
 				expenseDate.getFullYear() === currentYear
@@ -418,7 +416,7 @@ const currentMonthCategories = computed(() => {
 
 	// Group by category
 	const categoryMap = new Map()
-	currentMonthExpenses.forEach((expense: ProcessedExpenseItem) => {
+	currentMonthExpenses.forEach((expense: FlattenedExpenseEntry) => {
 		const existing = categoryMap.get(expense.category) || {
 			amount: 0,
 			count: 0,
@@ -430,7 +428,7 @@ const currentMonthCategories = computed(() => {
 	})
 
 	const totalAmount = currentMonthExpenses.reduce(
-		(sum: number, expense: ProcessedExpenseItem) => sum + expense.amount,
+		(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
 		0,
 	)
 
@@ -453,60 +451,67 @@ const recentExpenses = computed(() => {
 	const currentYear = now.getFullYear()
 
 	return expenses.value
-		.filter((expense: ProcessedExpenseItem) => {
-			const expenseDate = new Date(expense.date)
+		.filter((expense: FlattenedExpenseEntry) => {
+			const expenseDate = new Date(expense.date_time)
 			return (
 				expenseDate.getMonth() === currentMonth &&
 				expenseDate.getFullYear() === currentYear
 			)
 		})
-		.sort(
-			(a: ProcessedExpenseItem, b: ProcessedExpenseItem) =>
-				new Date(b.date).getTime() - new Date(a.date).getTime(),
-		)
+		.sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
 		.slice(0, 5)
 })
 
-// Utility functions
-const formatDate = (dateString: string) => {
-	return new Date(dateString).toLocaleDateString("en-IN", {
+// Helper functions
+function getCategoryColor(category: string): string {
+	const colors = [
+		"bg-blue-500",
+		"bg-green-500",
+		"bg-yellow-500",
+		"bg-red-500",
+		"bg-purple-500",
+		"bg-pink-500",
+		"bg-indigo-500",
+		"bg-gray-500",
+	]
+	const hash = category
+		.split("")
+		.reduce((acc, char) => acc + char.charCodeAt(0), 0)
+	return colors[hash % colors.length]
+}
+
+function formatDate(dateString: string): string {
+	const date = new Date(dateString)
+	return date.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
 	})
 }
 
-const getCategoryColor = (category: string) => {
-	const colors: Record<string, string> = {
-		Therapy: "bg-blue-500",
-		Consultation: "bg-green-500",
-		Medicine: "bg-purple-500",
-		Equipment: "bg-yellow-500",
-		Transportation: "bg-pink-500",
-		Accommodation: "bg-indigo-500",
-		Other: "bg-gray-500",
-	}
-	return colors[category] || "bg-gray-500"
-}
-
 // Event handlers
-const handleRefresh = async () => {
+async function handleRefresh() {
+	refreshing.value = true
 	try {
-		// Clear cache and refresh
-		fetchExpenses()
-	} catch (error) {
-		console.error("Failed to refresh expenses:", error)
+		// Force refresh bypassing cache
+		await refreshData({ 
+			withAnalytics: true, 
+			useCache: false 
+		})
+		console.log("Monthly expense data refreshed successfully")
+	} catch (err) {
+		console.error("Failed to refresh monthly expense data:", err)
+	} finally {
+		refreshing.value = false
 	}
 }
 
 // Lifecycle
 onMounted(async () => {
-	try {
-		console.log("Monthly Analysis: Initializing...")
-		await fetchExpenses()
-		console.log("Monthly Analysis: Initialization complete")
-	} catch (error) {
-		console.error("Monthly Analysis: Initialization failed:", error)
-	}
+	// Initialize with analytics and this month period
+	await initialize({ 
+		withAnalytics: true, 
+		period: "this_month" 
+	})
 })
 </script>
 
