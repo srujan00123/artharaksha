@@ -1,6 +1,6 @@
 /**
- * Income Service - Exact Backend API Alignment
- * No backward compatibility - works directly with backend API structure
+ * Income Service - Updated for new backend API and types
+ * Only add/update/delete IncomeSourceType, ledger is backend-only
  */
 
 import { call } from "frappe-ui";
@@ -9,7 +9,6 @@ import type {
   GetUserIncomeResponse,
   IncomeAnalytics,
   IncomeFilters,
-  IncomeFormData,
   IncomeRecord,
   IncomeServiceOptions,
   IncomeTypeRecord,
@@ -17,7 +16,6 @@ import type {
   AddIncomeSourcePayload,
   UpdateIncomeSourcePayload,
   DeleteIncomeSourcePayload,
-  convertIncomeAmount,
 } from "../types/income";
 import { CACHE_KEYS, cacheService } from "./cache-service.js";
 
@@ -36,44 +34,34 @@ class IncomeService {
         useCache = true,
       } = options;
 
-      // Generate cache key based on filters
       const cacheKey = useCache
         ? cacheService.generateFilterKey(CACHE_KEYS.USER_INCOME, filters || {})
         : null;
 
-      // Check cache first (unless force refresh)
       if (cacheKey && !forceRefresh) {
         const cached = cacheService.getWithFilters(
           CACHE_KEYS.USER_INCOME,
           filters || {},
         );
         if (cached) {
-          console.log("Income Service: Returning cached data");
           return cached;
         }
       }
 
-      console.log("Income Service: Fetching from API with filters:", filters);
-
-      // Call backend API exactly as defined in income.py
       const response = await call("artha.api.income.get_user_income", {
         filters: filters ? JSON.stringify(filters) : null,
         include_analytics: include_analytics,
       });
 
       let incomeRecords: IncomeRecord[] = [];
-
-      // Handle response format from backend
       if (include_analytics && response?.income_records) {
         incomeRecords = response.income_records;
       } else if (Array.isArray(response)) {
         incomeRecords = response;
       } else {
-        console.warn("Income Service: Unexpected response format:", response);
         return [];
       }
 
-      // Cache the result if caching is enabled
       if (cacheKey && useCache) {
         cacheService.setWithFilters(
           CACHE_KEYS.USER_INCOME,
@@ -81,13 +69,8 @@ class IncomeService {
           incomeRecords,
         );
       }
-
-      console.log(
-        `Income Service: Fetched ${incomeRecords.length} income records`,
-      );
       return incomeRecords;
     } catch (error) {
-      console.error("Income Service: Error fetching user income:", error);
       throw new Error(`Failed to fetch income data: ${error.message}`);
     }
   }
@@ -100,12 +83,9 @@ class IncomeService {
   ): Promise<{
     incomes: IncomeRecord[];
     analytics: IncomeAnalytics;
-    recurring_sources: any[];
   }> {
     try {
       const { filters, forceRefresh = false, useCache = true } = options;
-
-      // Generate cache keys
       const incomeKey = useCache
         ? cacheService.generateFilterKey(CACHE_KEYS.USER_INCOME, filters || {})
         : null;
@@ -115,8 +95,6 @@ class IncomeService {
             filters || {},
           )
         : null;
-
-      // Check cache first (unless force refresh)
       if (incomeKey && analyticsKey && !forceRefresh) {
         const cachedIncomes = cacheService.getWithFilters(
           CACHE_KEYS.USER_INCOME,
@@ -126,20 +104,13 @@ class IncomeService {
           CACHE_KEYS.USER_INCOME_ANALYTICS,
           filters || {},
         );
-
         if (cachedIncomes && cachedAnalytics) {
-          console.log("Income Service: Returning cached income and analytics");
           return {
             incomes: cachedIncomes,
             analytics: cachedAnalytics,
-            recurring_sources: [],
           };
         }
       }
-
-      console.log("Income Service: Fetching income with analytics from API");
-
-      // Call backend API with analytics
       const response: GetUserIncomeResponse = await call(
         "artha.api.income.get_user_income",
         {
@@ -147,8 +118,6 @@ class IncomeService {
           include_analytics: true,
         },
       );
-
-      // Use exact backend response structure
       const incomes = response.income_records || [];
       const analytics = response.analytics || {
         total_income: 0,
@@ -162,9 +131,6 @@ class IncomeService {
           top_income_type: "",
         },
       };
-      const recurring_sources = response.recurring_sources || [];
-
-      // Cache the results if caching is enabled
       if (useCache) {
         if (incomeKey) {
           cacheService.setWithFilters(
@@ -181,16 +147,8 @@ class IncomeService {
           );
         }
       }
-
-      console.log(
-        `Income Service: Processed ${incomes.length} incomes with analytics`,
-      );
-      return { incomes, analytics, recurring_sources };
+      return { incomes, analytics };
     } catch (error) {
-      console.error(
-        "Income Service: Error fetching income with analytics:",
-        error,
-      );
       throw new Error(`Failed to fetch income analytics: ${error.message}`);
     }
   }
@@ -203,45 +161,30 @@ class IncomeService {
   ): Promise<IncomeTypeRecord[]> {
     try {
       const { forceRefresh = false, useCache = true } = options;
-
-      // Check cache first
       if (useCache && !forceRefresh) {
         const cached = cacheService.get(CACHE_KEYS.INCOME_TYPES);
         if (cached) {
-          console.log("Income Service: Returning cached income types");
           return cached;
         }
       }
-
-      console.log("Income Service: Fetching income types from API");
-
       const response = await call("artha.api.income.get_income_types");
       const incomeTypes: IncomeTypeRecord[] = response || [];
-
-      // Cache the result
       if (useCache) {
         cacheService.set(
           CACHE_KEYS.INCOME_TYPES,
           incomeTypes,
           24 * 60 * 60 * 1000,
-        ); // 24 hours
+        );
       }
-
-      console.log(`Income Service: Fetched ${incomeTypes.length} income types`);
       return incomeTypes;
     } catch (error) {
-      console.error("Income Service: Error fetching income types:", error);
       throw new Error(`Failed to fetch income types: ${error.message}`);
     }
   }
 
   /**
    * Create, update, or delete an income source (single Income record per household)
-   * - To add: pass new source in income_source array
-   * - To update: pass source_name and updated data in income_source
-   * - To delete: pass action='delete' and source_name
-   *
-   * NOTE: monthly_income is never sent from the client; it is always computed by the backend.
+   * Only add/update/delete IncomeSourceType, ledger is backend-only
    */
   async createOrUpdateIncome(
     payload:
@@ -250,8 +193,6 @@ class IncomeService {
       | DeleteIncomeSourcePayload,
   ): Promise<CreateIncomeResponse> {
     try {
-      console.log("Income Service: Creating/updating income:", payload);
-
       const response: CreateIncomeResponse = await call(
         "artha.api.income.create_or_update_income",
         {
@@ -261,91 +202,49 @@ class IncomeService {
           source_name: (payload as any).source_name || null,
         },
       );
-
       this.clearCache();
-      console.log("Income Service: Successfully created/updated income");
       return response;
     } catch (error) {
-      console.error("Income Service: Error creating/updating income:", error);
       throw new Error(`Failed to save income: ${error.message}`);
     }
   }
 
-  /**
-   * Delete an income source (not the whole Income record)
-   * - Pass action='delete' and source_name to backend
-   *
-   * NOTE: monthly_income is never sent from the client; it is always computed by the backend.
-   */
-  async deleteIncomeSource(
-    incomeId: string,
-    sourceName: string,
-  ): Promise<void> {
-    try {
-      console.log("Income Service: Deleting income source:", sourceName);
-
-      await this.createOrUpdateIncome({
-        income_source: [],
-        income_name: incomeId,
-        action: "delete",
-        source_name: sourceName,
-      } as DeleteIncomeSourcePayload);
-
-      this.clearCache();
-      console.log("Income Service: Successfully deleted income source");
-    } catch (error) {
-      console.error("Income Service: Error deleting income source:", error);
-      throw new Error(`Failed to delete income source: ${error.message}`);
-    }
-  }
-
-  /**
-   * Delete the entire Income record (should only be used for admin or profile deletion)
-   */
   async deleteIncome(incomeId: string): Promise<void> {
     try {
-      console.log("Income Service: Deleting entire Income record:", incomeId);
-
       await call("frappe.client.delete", {
         doctype: "Income",
         name: incomeId,
       });
-
       this.clearCache();
-      console.log("Income Service: Successfully deleted Income record");
     } catch (error) {
-      console.error("Income Service: Error deleting Income record:", error);
       throw new Error(`Failed to delete Income record: ${error.message}`);
     }
   }
 
-  /**
-   * Get income analytics for a specific period (exact backend API)
-   */
   async getIncomeAnalytics(
-    period = "last_3_months",
+    period:
+      | "this_month"
+      | "last_month"
+      | "last_3_months"
+      | "last_6_months"
+      | "this_year" = "last_3_months",
     filters?: IncomeFilters,
   ): Promise<IncomeAnalytics> {
     try {
       const analyticsFilters = { ...filters, period };
-
-      // Use the unified endpoint
       const result = await this.getUserIncomeWithAnalytics({
         filters: analyticsFilters,
       });
       return result.analytics;
     } catch (error) {
-      console.error("Income Service: Error fetching analytics:", error);
       throw new Error(`Failed to fetch income analytics: ${error.message}`);
     }
   }
 
-  /**
-   * Validate income data before saving (exact backend API)
-   */
-  async validateIncomeData(
-    incomeData: IncomeFormData,
-  ): Promise<ValidationResponse> {
+  async validateIncomeData(incomeData: {
+    monthly_income: number;
+    income_source: any[];
+  }): Promise<ValidationResponse> {
     try {
       const response: ValidationResponse = await call(
         "artha.api.income.validate_income_data",
@@ -354,7 +253,6 @@ class IncomeService {
           income_source: JSON.stringify(incomeData.income_source),
         },
       );
-
       return (
         response || {
           is_valid: false,
@@ -362,7 +260,6 @@ class IncomeService {
         }
       );
     } catch (error) {
-      console.error("Income Service: Error validating income data:", error);
       return {
         is_valid: false,
         errors: { general: `Validation error: ${error.message}` },
@@ -370,20 +267,13 @@ class IncomeService {
     }
   }
 
-  /**
-   * Clear all income-related caches
-   */
   clearCache(): void {
-    console.log("Income Service: Clearing all caches");
     cacheService.delete(CACHE_KEYS.USER_INCOME);
     cacheService.delete(CACHE_KEYS.USER_INCOME_ANALYTICS);
     cacheService.delete(CACHE_KEYS.INCOME_TYPES);
-
-    // Clear filter-specific caches using clearKey method
     cacheService.clearKey(CACHE_KEYS.USER_INCOME);
     cacheService.clearKey(CACHE_KEYS.USER_INCOME_ANALYTICS);
   }
 }
 
-// Export singleton instance
 export const incomeService = new IncomeService();

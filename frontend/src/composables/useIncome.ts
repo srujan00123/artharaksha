@@ -1,16 +1,13 @@
 /**
- * Income Composable - Exact Backend API Alignment
- * No backward compatibility - provides clean interface to exact backend data
+ * Income Composable - Updated for new backend API and types
+ * Only add/update/delete IncomeSourceType, ledger is backend-only
  */
 
 import { computed } from "vue";
 import { useIncomeStore } from "../stores/income";
 import type {
-  IncomeAnalytics,
   IncomeFilters,
   IncomeFormData,
-  IncomeRecord,
-  IncomeTypeRecord,
   AddIncomeSourcePayload,
   UpdateIncomeSourcePayload,
   DeleteIncomeSourcePayload,
@@ -19,16 +16,15 @@ import type {
 export function useIncome() {
   const store = useIncomeStore();
 
-  // Reactive state from store (exact backend types)
+  // Reactive state from store
   const incomes = computed(() => store.incomes);
   const incomeTypes = computed(() => store.incomeTypes);
   const analytics = computed(() => store.analytics);
   const loading = computed(() => store.loading);
   const error = computed(() => store.error);
   const filters = computed(() => store.filters);
-  const recurringSources = computed(() => store.recurringSources);
 
-  // Computed totals (exact backend calculations)
+  // Computed totals
   const totalMonthlyIncome = computed(() => store.totalMonthlyIncome);
   const totalRecurringIncome = computed(() => store.totalRecurringIncome);
   const totalOneTimeIncome = computed(() => store.totalOneTimeIncome);
@@ -51,7 +47,7 @@ export function useIncome() {
     await store.fetchMonthlyAnalytics(forceRefresh);
   };
 
-  // Actions (exact backend API calls)
+  // Actions
   const fetchIncomes = async (forceRefresh = false) => {
     await store.fetchIncomes(forceRefresh);
   };
@@ -97,34 +93,25 @@ export function useIncome() {
     options: { withAnalytics?: boolean; forceRefresh?: boolean } = {},
   ) => {
     const { withAnalytics = false, forceRefresh = false } = options;
-
     try {
-      // Load income types first (they're needed for forms)
       await fetchIncomeTypes(forceRefresh);
-
-      // Load incomes with or without analytics
       if (withAnalytics) {
         await fetchIncomesWithAnalytics(forceRefresh);
       } else {
         await fetchIncomes(forceRefresh);
       }
     } catch (error) {
-      console.error("Income Composable: Initialization failed:", error);
       throw error;
     }
   };
 
   return {
-    // State (exact backend types)
     incomes,
     incomeTypes,
     analytics,
     loading,
     error,
     filters,
-    recurringSources,
-
-    // Computed (exact backend calculations)
     totalMonthlyIncome,
     totalRecurringIncome,
     totalOneTimeIncome,
@@ -133,8 +120,6 @@ export function useIncome() {
     canonicalTotalMonthlyIncome,
     canonicalTotalRecurringIncome,
     canonicalTotalOneTimeIncome,
-
-    // Actions (exact backend API)
     fetchIncomes,
     fetchIncomesWithAnalytics,
     fetchIncomeTypes,

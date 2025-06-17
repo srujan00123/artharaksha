@@ -1,6 +1,6 @@
 /**
- * Income Store - Exact Backend API Alignment
- * No backward compatibility - uses exact backend structure
+ * Income Store - Updated for new backend API and types
+ * Only add/update/delete IncomeSourceType, ledger is backend-only
  */
 
 import { defineStore } from "pinia";
@@ -9,82 +9,67 @@ import { incomeService } from "../services/income-service";
 import type {
   IncomeAnalytics,
   IncomeFilters,
-  IncomeFormData,
   IncomeRecord,
   IncomeTypeRecord,
   AddIncomeSourcePayload,
   UpdateIncomeSourcePayload,
   DeleteIncomeSourcePayload,
 } from "../types/income";
-import {
-  convertIncomeAmount,
-  convertRecurFlag_ToBoolean,
-} from "../types/income";
 
 export const useIncomeStore = defineStore("income", () => {
-  // State - using exact backend types
+  // State
   const incomes = ref<IncomeRecord[]>([]);
   const incomeTypes = ref<IncomeTypeRecord[]>([]);
   const analytics = ref<IncomeAnalytics | null>(null);
   const loading = ref(false);
   const error = ref("");
   const lastFetch = ref<number | null>(null);
-  const recurringSources = ref<any[]>([]);
 
-  // Filters state - exact backend filter structure
+  // Filters state - use correct types
   const filters = ref<IncomeFilters>({
     searchTerm: "",
     dateFrom: "",
     dateTo: "",
-    amountMin: "",
-    amountMax: "",
+    amountMin: undefined,
+    amountMax: undefined,
     type: "",
-    frequency: "",
-    isRecurring: null,
+    frequency: undefined,
+    isRecurring: undefined,
     sortBy: "date",
     sortOrder: "desc",
+    period: undefined,
   });
 
-  // Computed properties - working with exact backend data
+  // Computed properties
   const totalMonthlyIncome = computed(() => {
-    const total = incomes.value.reduce((total, income) => {
-      const amount = convertIncomeAmount(income.monthly_income);
-      return total + amount;
-    }, 0);
-    return total;
+    return incomes.value.reduce(
+      (total, income) => total + (income.monthly_income || 0),
+      0,
+    );
   });
 
   const totalRecurringIncome = computed(() => {
-    const total = incomes.value.reduce((total, income) => {
-      if (!income.income_source) return total;
+    return incomes.value.reduce((total, income) => {
       return (
         total +
         income.income_source.reduce((sourceTotal, source) => {
-          const isRecurring = convertRecurFlag_ToBoolean(source.recur);
-          const amount = isRecurring ? source.income : 0;
-          return sourceTotal + amount;
+          return source.recur ? sourceTotal + source.income : sourceTotal;
         }, 0)
       );
     }, 0);
-    return total;
   });
 
   const totalOneTimeIncome = computed(() => {
-    const total = incomes.value.reduce((total, income) => {
-      if (!income.income_source) return total;
+    return incomes.value.reduce((total, income) => {
       return (
         total +
         income.income_source.reduce((sourceTotal, source) => {
-          const isRecurring = convertRecurFlag_ToBoolean(source.recur);
-          const amount = !isRecurring ? source.income : 0;
-          return sourceTotal + amount;
+          return !source.recur ? sourceTotal + source.income : sourceTotal;
         }, 0)
       );
     }, 0);
-    return total;
   });
 
-  // Canonical computed properties: prefer backend analytics if available
   const canonicalTotalMonthlyIncome = computed(() => {
     if (analytics.value && typeof analytics.value.total_income === "number") {
       return analytics.value.total_income;
@@ -113,143 +98,110 @@ export const useIncomeStore = defineStore("income", () => {
   });
 
   const totalSources = computed(() => {
-    const total = incomes.value.reduce((total, income) => {
-      const sourceCount = income.income_source?.length || 0;
-      return total + sourceCount;
-    }, 0);
-    return total;
+    return incomes.value.reduce(
+      (total, income) => total + (income.income_source?.length || 0),
+      0,
+    );
   });
 
   const filteredIncomes = computed(() => {
     let filtered = [...incomes.value];
-
-    // Apply search filter
     if (filters.value.searchTerm) {
       const searchTerm = filters.value.searchTerm.toLowerCase();
       filtered = filtered.filter((income) =>
-        income.income_source?.some((source) =>
+        income.income_source.some((source) =>
           source.type.toLowerCase().includes(searchTerm),
         ),
       );
     }
-
-    // Apply type filter
     if (filters.value.type) {
       filtered = filtered.filter((income) =>
-        income.income_source?.some(
+        income.income_source.some(
           (source) => source.type === filters.value.type,
         ),
       );
     }
-
-    // Apply frequency filter
     if (filters.value.frequency) {
       if (filters.value.frequency === "one-time") {
         filtered = filtered.filter((income) =>
-          income.income_source?.some(
-            (source) => !convertRecurFlag_ToBoolean(source.recur),
-          ),
+          income.income_source.some((source) => !source.recur),
         );
       } else {
         filtered = filtered.filter((income) =>
-          income.income_source?.some(
+          income.income_source.some(
             (source) =>
-              convertRecurFlag_ToBoolean(source.recur) &&
+              source.recur &&
               source.recur_frequency === filters.value.frequency,
           ),
         );
       }
     }
-
-    // Apply recurring filter
-    if (filters.value.isRecurring !== null) {
+    if (typeof filters.value.isRecurring === "boolean") {
       filtered = filtered.filter((income) =>
-        income.income_source?.some(
-          (source) =>
-            convertRecurFlag_ToBoolean(source.recur) ===
-            filters.value.isRecurring,
+        income.income_source.some(
+          (source) => source.recur === filters.value.isRecurring,
         ),
       );
     }
-
-    // Apply amount filters
-    if (filters.value.amountMin) {
-      const minAmount = Number.parseFloat(filters.value.amountMin);
+    if (typeof filters.value.amountMin === "number") {
       filtered = filtered.filter(
-        (income) => convertIncomeAmount(income.monthly_income) >= minAmount,
+        (income) => income.monthly_income >= filters.value.amountMin!,
       );
     }
-
-    if (filters.value.amountMax) {
-      const maxAmount = Number.parseFloat(filters.value.amountMax);
+    if (typeof filters.value.amountMax === "number") {
       filtered = filtered.filter(
-        (income) => convertIncomeAmount(income.monthly_income) <= maxAmount,
+        (income) => income.monthly_income <= filters.value.amountMax!,
       );
     }
-
-    // Apply date filters
     if (filters.value.dateFrom) {
       const fromDate = new Date(filters.value.dateFrom);
       filtered = filtered.filter(
         (income) => new Date(income.creation) >= fromDate,
       );
     }
-
     if (filters.value.dateTo) {
       const toDate = new Date(filters.value.dateTo);
       filtered = filtered.filter(
         (income) => new Date(income.creation) <= toDate,
       );
     }
-
-    // Apply sorting
     filtered.sort((a, b) => {
       let aValue: any, bValue: any;
-
       switch (filters.value.sortBy) {
         case "amount":
-          aValue = convertIncomeAmount(a.monthly_income);
-          bValue = convertIncomeAmount(b.monthly_income);
+          aValue = a.monthly_income;
+          bValue = b.monthly_income;
           break;
         case "date":
-          aValue = new Date(a.creation);
-          bValue = new Date(b.creation);
-          break;
         default:
           aValue = new Date(a.creation);
           bValue = new Date(b.creation);
       }
-
       if (filters.value.sortOrder === "asc") {
         return aValue > bValue ? 1 : -1;
       } else {
         return aValue < bValue ? 1 : -1;
       }
     });
-
     return filtered;
   });
 
-  // Actions - using exact backend API
+  // Actions
   async function fetchIncomes(forceRefresh = false) {
     if (loading.value) return;
-
     try {
       loading.value = true;
       error.value = "";
-
       const result = await incomeService.getUserIncome({
         filters: filters.value,
         forceRefresh,
         useCache: !forceRefresh,
       });
-
       incomes.value = result;
       lastFetch.value = Date.now();
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to fetch incomes";
-      console.error("Store: Error fetching incomes:", err);
     } finally {
       loading.value = false;
     }
@@ -257,25 +209,20 @@ export const useIncomeStore = defineStore("income", () => {
 
   async function fetchIncomesWithAnalytics(forceRefresh = false) {
     if (loading.value) return;
-
     try {
       loading.value = true;
       error.value = "";
-
       const result = await incomeService.getUserIncomeWithAnalytics({
         filters: filters.value,
         forceRefresh,
         useCache: !forceRefresh,
       });
-
       incomes.value = result.incomes;
       analytics.value = result.analytics;
-      recurringSources.value = result.recurring_sources || [];
       lastFetch.value = Date.now();
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to fetch income analytics";
-      console.error("Store: Error fetching income analytics:", err);
     } finally {
       loading.value = false;
     }
@@ -287,12 +234,10 @@ export const useIncomeStore = defineStore("income", () => {
         forceRefresh,
         useCache: !forceRefresh,
       });
-
       incomeTypes.value = result;
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to fetch income types";
-      console.error("Store: Error fetching income types:", err);
     }
   }
 
@@ -300,15 +245,11 @@ export const useIncomeStore = defineStore("income", () => {
     try {
       loading.value = true;
       error.value = "";
-
       await incomeService.createOrUpdateIncome(payload);
-
-      // Refresh data after creation
       await fetchIncomes(true);
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to create income";
-      console.error("Store: Error creating income:", err);
       throw err;
     } finally {
       loading.value = false;
@@ -319,15 +260,11 @@ export const useIncomeStore = defineStore("income", () => {
     try {
       loading.value = true;
       error.value = "";
-
       await incomeService.createOrUpdateIncome(payload);
-
-      // Refresh data after update
       await fetchIncomes(true);
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to update income";
-      console.error("Store: Error updating income:", err);
       throw err;
     } finally {
       loading.value = false;
@@ -338,17 +275,13 @@ export const useIncomeStore = defineStore("income", () => {
     try {
       loading.value = true;
       error.value = "";
-
       await incomeService.deleteIncome(incomeId);
-
-      // Remove from local state
       incomes.value = incomes.value.filter(
         (income) => income.name !== incomeId,
       );
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to delete income";
-      console.error("Store: Error deleting income:", err);
       throw err;
     } finally {
       loading.value = false;
@@ -359,15 +292,11 @@ export const useIncomeStore = defineStore("income", () => {
     try {
       loading.value = true;
       error.value = "";
-
       await incomeService.createOrUpdateIncome(payload);
-
-      // Refresh data after deletion
       await fetchIncomes(true);
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Failed to delete income source";
-      console.error("Store: Error deleting income source:", err);
       throw err;
     } finally {
       loading.value = false;
@@ -383,13 +312,14 @@ export const useIncomeStore = defineStore("income", () => {
       searchTerm: "",
       dateFrom: "",
       dateTo: "",
-      amountMin: "",
-      amountMax: "",
+      amountMin: undefined,
+      amountMax: undefined,
       type: "",
-      frequency: "",
-      isRecurring: null,
+      frequency: undefined,
+      isRecurring: undefined,
       sortBy: "date",
       sortOrder: "desc",
+      period: undefined,
     };
   }
 
@@ -398,13 +328,11 @@ export const useIncomeStore = defineStore("income", () => {
     lastFetch.value = null;
   }
 
-  // Helper to always fetch analytics for this month
   async function fetchMonthlyAnalytics(forceRefresh = false) {
     await fetchIncomesWithAnalytics(forceRefresh);
   }
 
   return {
-    // State
     incomes,
     incomeTypes,
     analytics,
@@ -412,9 +340,6 @@ export const useIncomeStore = defineStore("income", () => {
     error,
     filters,
     lastFetch,
-    recurringSources,
-
-    // Computed
     totalMonthlyIncome,
     totalRecurringIncome,
     totalOneTimeIncome,
@@ -423,8 +348,6 @@ export const useIncomeStore = defineStore("income", () => {
     canonicalTotalMonthlyIncome,
     canonicalTotalRecurringIncome,
     canonicalTotalOneTimeIncome,
-
-    // Actions
     fetchIncomes,
     fetchIncomesWithAnalytics,
     fetchIncomeTypes,

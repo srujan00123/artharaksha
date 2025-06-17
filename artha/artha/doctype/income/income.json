@@ -7,7 +7,8 @@
  "field_order": [
   "household_profile",
   "monthly_income",
-  "income_source"
+  "income_source",
+  "income_ledger"
  ],
  "fields": [
   {
@@ -29,12 +30,19 @@
    "fieldtype": "Table",
    "label": "Income Sources",
    "options": "Income Source Type"
+  },
+  {
+   "default": "income eldger",
+   "fieldname": "income_ledger",
+   "fieldtype": "Table",
+   "label": "Income Ledger",
+   "options": "Income Ledger"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-06-16 02:41:48.761171",
+ "modified": "2025-06-17 06:09:22.358445",
  "modified_by": "Administrator",
  "module": "Artha",
  "name": "Income",

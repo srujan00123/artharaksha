@@ -1,0 +1,47 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-06-17 06:01:04.191779",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "income_type",
+  "date_time",
+  "amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "income_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Income Type",
+   "options": "recurring\none-time"
+  },
+  {
+   "fieldname": "date_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Date Time"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-06-17 06:07:22.706431",
+ "modified_by": "Administrator",
+ "module": "Artha",
+ "name": "Income Ledger",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
