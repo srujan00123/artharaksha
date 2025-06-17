@@ -378,9 +378,9 @@
 	height: auto !important;
 }
 
-.Card>*,
-.dashboard-card>*,
-.frappe-card>* {
+.Card > *,
+.dashboard-card > *,
+.frappe-card > * {
 	overflow: visible !important;
 	max-height: none !important;
 	height: auto !important;

@@ -10,8 +10,18 @@
 
       <div v-if="activeFilterCount > 0" class="flex items-center gap-2">
         <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ filteredCount }} of {{ totalCount }} income sources</span>
-        <Button variant="ghost" size="sm" @click="clearAllFilters" class="text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300">
-          Clear All
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          @click="clearAllFilters" 
+          :disabled="loading"
+          class="text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300 disabled:opacity-50"
+        >
+          <span v-if="loading" class="flex items-center">
+            <div class="animate-spin rounded-full h-3 w-3 border-b border-current mr-1"></div>
+            Clearing...
+          </span>
+          <span v-else>Clear All</span>
         </Button>
       </div>
     </div>
@@ -179,6 +189,7 @@ import {
 import { computed, onMounted, ref, watch } from "vue"
 import type { IncomeFilters, IncomeTypeRecord } from "../../types/income"
 import { getClientDateString, getClientTime } from "../../utils/date"
+import { useIncome } from "../../composables/useIncome"
 
 // Quick date filter interface
 interface QuickDateFilter {
@@ -197,7 +208,6 @@ interface ActiveFilter {
 
 // Props
 interface Props {
-	filters: IncomeFilters
 	totalCount: number
 	filteredCount: number
 	incomeTypes: IncomeTypeRecord[]
@@ -209,26 +219,30 @@ const props = withDefaults(defineProps<Props>(), {
 	incomeTypes: () => [],
 })
 
-// Emits
-const emit = defineEmits<{
-	"update:filters": [filters: IncomeFilters]
-}>()
+// Use income composable for complete self-contained filtering
+const {
+	updateFilters,
+	refreshData,
+	invalidateCache,
+	loading,
+	filters
+} = useIncome()
 
 // Local state
 const showFilters = ref(false)
 
-// Local filters matching IncomeFilters interface
+// Use filters from store directly, with local reactive copy for UI
 const localFilters = ref<IncomeFilters>({
 	searchTerm: "",
 	dateFrom: "",
 	dateTo: "",
-	amountMin: "",
-	amountMax: "",
+	amountMin: undefined,
+	amountMax: undefined,
 	incomeType: "",
-	isRecurring: null,
+	isRecurring: undefined,
 	sortBy: "date",
 	sortOrder: "desc",
-	period: "",
+	period: undefined,
 })
 
 // Quick date filter options
@@ -400,20 +414,34 @@ function formatAmountRange(): string {
 }
 
 // Methods
-function onFilterChange() {
-	// Backend handles all filtering - just emit the filter update
-	emit("update:filters", { ...localFilters.value })
+async function onFilterChange() {
+	// Update filters directly in the store
+	updateFilters({ ...localFilters.value })
+	
+	// Directly trigger cache invalidation and data refresh
+	try {
+		await refreshData({ withAnalytics: true })
+	} catch (error) {
+		console.error("Failed to refresh data after filter change:", error)
+	}
 }
 
-function applyQuickDateFilter(period: string) {
+async function applyQuickDateFilter(period: string) {
 	const filter = quickDateFilters.find((f) => f.value === period)
 	if (filter) {
 		localFilters.value.dateFrom = filter.dateFrom
 		localFilters.value.dateTo = filter.dateTo
-		localFilters.value.period = period
+		// Map period values to match IncomeFilters type
+		const periodMapping: Record<string, IncomeFilters['period']> = {
+			'this-month': 'this_month',
+			'last-month': 'last_month',
+			'last-3-months': 'last_3_months',
+			'this-year': 'this_year'
+		}
+		localFilters.value.period = periodMapping[period] || undefined
 		activePeriod.value = period
-		// Backend handles filtering - just emit the update
-		onFilterChange()
+		// Directly apply the filter with cache invalidation
+		await onFilterChange()
 	}
 }
 
@@ -421,40 +449,47 @@ function isActiveDateFilter(period: string): boolean {
 	return activePeriod.value === period
 }
 
-function clearAllFilters() {
+async function clearAllFilters() {
 	localFilters.value = {
 		searchTerm: "",
 		dateFrom: "",
 		dateTo: "",
-		amountMin: "",
-		amountMax: "",
+		amountMin: undefined,
+		amountMax: undefined,
 		incomeType: "",
-		isRecurring: null,
+		isRecurring: undefined,
 		sortBy: "date",
 		sortOrder: "desc",
-		period: "",
+		period: undefined,
 	}
 	activePeriod.value = ""
-	// Backend handles filtering - just emit the reset
-	onFilterChange()
+	// Directly apply the filter reset with cache invalidation
+	await onFilterChange()
 }
 
-// Watchers
+// Watchers - sync with store filters
 watch(
-	() => props.filters,
+	() => filters.value,
 	(newFilters) => {
-		localFilters.value = { ...newFilters }
+		if (newFilters) {
+			localFilters.value = { ...newFilters }
+		}
 	},
 	{ immediate: true, deep: true },
 )
 
 // Initialize
 onMounted(() => {
-	// Set default period to this month if no filters are set (matching expense pattern)
+	// Sync with store filters first
+	if (filters.value) {
+		localFilters.value = { ...filters.value }
+	}
+	
+	// Set default period to this month if no filters are set
 	if (
-		!props.filters.period &&
-		!props.filters.dateFrom &&
-		!props.filters.dateTo
+		!localFilters.value.period &&
+		!localFilters.value.dateFrom &&
+		!localFilters.value.dateTo
 	) {
 		applyQuickDateFilter("this-month")
 	}

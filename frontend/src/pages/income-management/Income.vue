@@ -38,7 +38,7 @@
             </div>
             <div class="ml-3">
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Monthly Income</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ canonicalTotalMonthlyIncome.toLocaleString('en-IN') }}</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ totalIncome.toLocaleString('en-IN') }}</p>
             </div>
           </div>
         </div>
@@ -52,7 +52,7 @@
             </div>
             <div class="ml-3">
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Recurring Income</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ canonicalTotalRecurringIncome.toLocaleString('en-IN') }}</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ recurringIncome.toLocaleString('en-IN') }}</p>
             </div>
           </div>
         </div>
@@ -66,7 +66,7 @@
             </div>
             <div class="ml-3">
               <p class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">One-time Income</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ canonicalTotalOneTimeIncome.toLocaleString('en-IN') }}</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ oneTimeIncome.toLocaleString('en-IN') }}</p>
             </div>
           </div>
         </div>
@@ -89,11 +89,9 @@
 
     <!-- Filter Section -->
     <IncomeFilter 
-      :filters="currentFilters"
-      :total-count="totalSources.value"
-      :filtered-count="filteredIncomes.value.length"
+      :total-count="totalSources"
+      :filtered-count="displayedSources.length"
       :income-types="incomeTypes"
-      @update:filters="handleFilterChange"
       class="mb-6"
     />
 
@@ -131,18 +129,18 @@
     <!-- Content Section -->
     <div v-else class="income-content">
       <!-- Empty State -->
-      <div v-if="filteredIncomes.value.length === 0" class="empty-state">
+      <div v-if="displayedSources.length === 0" class="empty-state">
         <div class="text-center py-12 bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
           <DollarSign class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
           <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-            {{ totalSources.value === 0 ? 'No income sources found' : 'No income sources match your filters' }}
+            {{ totalSources === 0 ? 'No income sources found' : 'No income sources match your filters' }}
           </h3>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
-            {{ totalSources.value === 0 ? 'Get started by adding your first income source.' : 'Try adjusting your filters or add a new income source.' }}
+            {{ totalSources === 0 ? 'Get started by adding your first income source.' : 'Try adjusting your filters or add a new income source.' }}
           </p>
           <div class="mt-6">
             <button 
-              v-if="totalSources.value === 0"
+              v-if="totalSources === 0"
               @click="openIncomeForm"
               class="inline-flex items-center px-4 py-2 border border-transparent shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 text-sm font-medium rounded-lg text-white dark:text-black bg-blue-600 hover:bg-blue-700 transition-colors"
             >
@@ -160,26 +158,12 @@
         </div>
       </div>
 
-      <!-- Recurring Income Sources -->
-      <div v-if="recurringSources.length > 0" class="mb-6">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">Recurring Income Sources</h3>
-        <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-          <li v-for="source in recurringSources" :key="source.name" class="py-2 flex flex-col md:flex-row md:items-center md:space-x-4">
-            <span class="font-medium text-gray-800 dark:text-gray-200">{{ source.type }}</span>
-            <span class="text-gray-600 dark:text-gray-400">₹{{ source.amount?.toLocaleString('en-IN') }}</span>
-            <span class="text-gray-600 dark:text-gray-400">{{ source.frequency ? formatFrequency(source.frequency) : '' }}</span>
-            <span class="text-gray-500 dark:text-gray-400">Start: {{ source.start_date ? formatDate(source.start_date) : 'N/A' }}</span>
-            <span v-if="source.stop_date" class="text-gray-500 dark:text-gray-400">End: {{ formatDate(source.stop_date) }}</span>
-          </li>
-        </ul>
-      </div>
-
       <!-- Income Sources List -->
       <div v-else class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-sm dark:shadow dark:shadow-gray-900/20-gray-900/20 border">
         <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <h3 class="text-base font-medium text-gray-900 dark:text-gray-100">Income Sources</h3>
           <p class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
-            Showing {{ filteredIncomes.value.length }} of {{ totalSources.value }} source{{ totalSources.value !== 1 ? 's' : '' }} • ₹{{ canonicalTotalMonthlyIncome.toLocaleString('en-IN') }} monthly
+            Showing {{ displayedSources.length }} of {{ totalSources }} source{{ totalSources !== 1 ? 's' : '' }} • ₹{{ totalIncome.toLocaleString('en-IN') }} monthly
           </p>
         </div>
         
@@ -196,7 +180,7 @@
         <!-- Table Rows -->
         <div class="divide-y divide-gray-100 dark:divide-gray-700">
           <div 
-            v-for="source in filteredIncomes.value" 
+            v-for="source in displayedSources" 
             :key="source.sourceId"
             class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 transition-colors"
           >
@@ -321,297 +305,208 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { 
-  RefreshCw, 
-  AlertCircle, 
-  Plus,
-  DollarSign,
-  Repeat,
-  Calendar,
-  Hash,
-  Edit2,
-  Trash2
-} from 'lucide-vue-next'
+import {
+	AlertCircle,
+	Calendar,
+	DollarSign,
+	Edit2,
+	Hash,
+	Plus,
+	RefreshCw,
+	Repeat,
+	Trash2,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
 
 // Components
-import { IncomeForm, IncomeFilter } from '../../components/income'
+import { IncomeFilter, IncomeForm } from "../../components/income"
 
 // Composables
-import { useIncome } from '../../composables/useIncome'
-import type { 
-  IncomeFilters, 
-  IncomeFormUIData,
-  AddIncomeSourcePayload,
-  UpdateIncomeSourcePayload,
-  DeleteIncomeSourcePayload
-} from '../../types/income'
+import { useIncome } from "../../composables/useIncome"
+import type {
+	AddIncomeSourcePayload,
+	DeleteIncomeSourcePayload,
+	IncomeFormUIData,
+	IncomeSourceFormData,
+	ProcessedIncomeItem,
+	UpdateIncomeSourcePayload,
+} from "../../types/income"
+import { convertRecurFlag, safeArray } from "../../types/income"
 
 const {
-  incomes,
-  incomeTypes,
-  loading,
-  error,
-  canonicalTotalMonthlyIncome,
-  canonicalTotalRecurringIncome,
-  canonicalTotalOneTimeIncome,
-  totalSources,
-  filteredIncomes,
-  fetchIncomes,
-  createIncome,
-  updateIncome,
-  deleteIncomeSource,
-  updateFilters,
-  resetFilters,
-  initialize,
-  fetchMonthlyAnalytics,
-  ...rest
+	incomes,
+	incomeTypes,
+	loading,
+	error,
+	totalIncome,
+	recurringIncome,
+	oneTimeIncome,
+	totalSources,
+	allSources,
+	filteredSources,
+	fetchIncome,
+	fetchIncomeWithAnalytics,
+	addIncomeSource,
+	updateIncomeSource,
+	deleteIncomeSource,
+	updateFilters,
+	clearFilters,
+	refreshData,
+	invalidateCache,
+	initialize,
 } = useIncome()
 
 const showIncomeForm = ref(false)
-const editingSource = ref<any>(null)
-const editingLedger = ref<any>(null)
-
-const currentFilters = ref<IncomeFilters>({
-  searchTerm: '',
-  dateFrom: '',
-  dateTo: '',
-  amountMin: undefined,
-  amountMax: undefined,
-  type: '',
-  frequency: undefined,
-  isRecurring: undefined,
-  sortBy: 'date',
-  sortOrder: 'desc',
-  period: undefined,
-})
+const editingSource = ref<ProcessedIncomeItem | null>(null)
 
 const incomeCount = computed(() => totalSources.value)
 
-const recurringSources = computed(() => {
-  const sources: any[] = []
-  incomes.value.forEach(income => {
-    if (income.income_source && Array.isArray(income.income_source)) {
-      income.income_source.forEach(source => {
-        if (source.recur) {
-          sources.push({
-            ...source,
-            sourceId: `${income.name}-${source.name}`,
-            incomeId: income.name,
-            createdAt: income.creation,
-            updatedAt: income.modified,
-            amount: source.income,
-            isRecurring: source.recur,
-            dateTime: source.date_time,
-            frequency: source.recur_frequency
-          })
-        }
-      })
-    }
-  })
-  return sources.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+// Convert allSources to displayable format
+const displayedSources = computed(() => {
+	return safeArray(allSources.value).map((source, index) => ({
+		sourceId: source.name || `source-${index}`,
+		incomeId: '',
+		type: source.type,
+		amount: Number(source.income || 0),
+		isRecurring: source.recur === 1 || source.recur === true,
+		dateTime: source.date_time,
+		frequency: source.recur_frequency,
+		stop_date: source.stop_date,
+		name: source.name,
+		createdAt: '',
+		updatedAt: '',
+	}))
 })
-
-// Flatten all ledger entries from all sources, attach source info
-const ledgerEntries = computed(() => {
-  const entries: any[] = []
-  incomes.value.forEach(income => {
-    if (income.income_source && Array.isArray(income.income_source)) {
-      income.income_source.forEach(source => {
-        if (Array.isArray(source.ledger_entries)) {
-          source.ledger_entries.forEach(entry => {
-            entries.push({
-              ...entry,
-              source_type: source.type,
-              source_recur: source.recur,
-              source_income: source.income,
-              source_date_time: source.date_time,
-              source_recur_frequency: source.recur_frequency,
-              source_stop_date: source.stop_date,
-              incomeId: income.name,
-              sourceId: source.name,
-            })
-          })
-        }
-      })
-    }
-  })
-  return entries.sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
-})
-
-const oneTimeLedgerEntries = computed(() => ledgerEntries.value.filter(e => e.income_type === 'one-time'))
 
 const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  try {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  } catch {
-    return 'N/A'
-  }
+	if (!dateString) return "N/A"
+	try {
+		return new Date(dateString).toLocaleDateString("en-IN", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		})
+	} catch {
+		return "N/A"
+	}
 }
 
-const formatFrequency = (frequency: string) => {
-  if (!frequency) return 'Monthly'
-  return frequency.charAt(0).toUpperCase() + frequency.slice(1)
+const formatFrequency = (frequency?: string) => {
+	if (!frequency) return "Monthly"
+	
+	const frequencyMap: Record<string, string> = {
+		"daily": "Daily",
+		"weekly": "Weekly", 
+		"bi-weekly": "Bi-weekly",
+		"monthly": "Monthly",
+		"quarterly": "Quarterly",
+		"semi-annually": "Semi-annually", 
+		"annually": "Annually",
+		"yearly": "Yearly"
+	}
+	
+	return frequencyMap[frequency] || frequency.charAt(0).toUpperCase() + frequency.slice(1)
 }
 
 const handleRefresh = async () => {
-  await fetchIncomes(true)
+	await refreshData({ withAnalytics: true })
 }
 
-const handleFilterChange = async (filters: IncomeFilters) => {
-  currentFilters.value = { ...filters }
-  updateFilters(filters)
-  await fetchIncomes(true)
-}
-
-const clearFilters = async () => {
-  const defaultFilters: IncomeFilters = {
-    searchTerm: '',
-    dateFrom: '',
-    dateTo: '',
-    amountMin: undefined,
-    amountMax: undefined,
-    type: '',
-    frequency: undefined,
-    isRecurring: undefined,
-    sortBy: 'date',
-    sortOrder: 'desc',
-    period: undefined,
-  }
-  currentFilters.value = defaultFilters
-  resetFilters()
-  await fetchIncomes(true)
-}
+// IncomeFilter is now completely self-contained - no need for filter handling
 
 const openIncomeForm = () => {
-  editingSource.value = null
-  showIncomeForm.value = true
+	editingSource.value = null
+	showIncomeForm.value = true
 }
 
 const closeIncomeForm = () => {
-  showIncomeForm.value = false
-  editingSource.value = null
-  editingLedger.value = null
+	showIncomeForm.value = false
+	editingSource.value = null
 }
 
-const editIncomeSource = (source: any) => {
-  editingSource.value = {
-    ...source,
-    isRecurring: source.isRecurring || false,
-    frequency: source.frequency || ''
-  }
-  showIncomeForm.value = true
-}
-
-const editLedgerEntry = (entry: any) => {
-  editingLedger.value = entry
-  editingSource.value = {
-    type: entry.source_type,
-    amount: entry.source_income,
-    isRecurring: false,
-    dateTime: entry.source_date_time,
-    frequency: undefined,
-    stop_date: undefined
-  }
-  showIncomeForm.value = true
+const editIncomeSource = (source: ProcessedIncomeItem) => {
+	editingSource.value = {
+		...source,
+		isRecurring: source.isRecurring || false,
+		frequency: source.frequency || "",
+	}
+	showIncomeForm.value = true
 }
 
 const handleIncomeSubmit = async (formData: IncomeFormUIData) => {
-  try {
-    if (editingLedger.value) {
-      // Update one-time income source via ledger entry
-      const payload: UpdateIncomeSourcePayload = {
-        income_source: [{
-          type: formData.type,
-          income: formData.amount,
-          recur: false,
-          date_time: formData.dateTime,
-        }],
-        income_name: editingLedger.value.incomeId,
-        source_name: editingLedger.value.sourceId
-      }
-      await updateIncome(payload)
-    } else if (editingSource.value) {
-      // Update recurring source
-      const payload: UpdateIncomeSourcePayload = {
-        income_source: [{
-          type: formData.type,
-          income: formData.amount,
-          recur: formData.isRecurring,
-          date_time: formData.dateTime,
-          recur_frequency: formData.frequency,
-          stop_date: formData.stop_date
-        }],
-        income_name: editingSource.value.incomeId,
-        source_name: editingSource.value.name || editingSource.value.sourceId
-      }
-      await updateIncome(payload)
-    } else {
-      // Add new source
-      const payload: AddIncomeSourcePayload = {
-        income_source: [{
-          type: formData.type,
-          income: formData.amount,
-          recur: formData.isRecurring,
-          date_time: formData.dateTime,
-          recur_frequency: formData.frequency,
-          stop_date: formData.stop_date
-        }],
-        income_name: incomes.value[0]?.name
-      }
-      await createIncome(payload)
-    }
-    await fetchIncomes(true)
-    closeIncomeForm()
-  } catch (error) {
-    alert('Failed to save income. Please try again.')
-    throw error
-  }
+	try {
+		// Find the main income record (there should be only one per household)
+		const mainIncomeRecord = incomes.value[0]
+		if (!mainIncomeRecord) {
+			throw new Error("No income record found for household")
+		}
+
+		// Prepare income source data in correct format
+		const sourceData: IncomeSourceFormData = {
+			type: formData.type,
+			income: formData.amount,
+			recur: formData.isRecurring,
+			date_time: formData.dateTime,
+			recur_frequency: formData.frequency,
+			stop_date: formData.stop_date,
+		}
+
+		if (editingSource.value) {
+			// Update existing source
+			const payload: UpdateIncomeSourcePayload = {
+				income_source: [sourceData],
+				income_name: mainIncomeRecord.name,
+				source_name: editingSource.value.sourceId,
+			}
+			await updateIncomeSource(payload)
+		} else {
+			// Add new source
+			const payload: AddIncomeSourcePayload = {
+				income_source: [sourceData],
+				income_name: mainIncomeRecord.name,
+			}
+			await addIncomeSource(payload)
+		}
+		
+		await invalidateCache({ incomeData: true, analytics: true })
+		closeIncomeForm()
+	} catch (error) {
+		console.error("Failed to save income:", error)
+		alert("Failed to save income. Please try again.")
+		throw error
+	}
 }
 
-const deleteIncomeSourceHandler = async (source: any) => {
-  if (confirm(`Are you sure you want to delete the ${source.type} income source (₹${source.amount.toLocaleString('en-IN')})?`)) {
-    try {
-      const payload: DeleteIncomeSourcePayload = {
-        income_source: [],
-        income_name: source.incomeId,
-        action: 'delete',
-        source_name: source.name || source.sourceId || ''
-      }
-      await deleteIncomeSource(payload)
-      await fetchIncomes(true)
-    } catch (error) {
-      alert('Failed to delete income source. Please try again.')
-    }
-  }
-}
+const deleteIncomeSourceHandler = async (source: ProcessedIncomeItem) => {
+	if (
+		confirm(
+			`Are you sure you want to delete the ${source.type} income source (₹${source.amount.toLocaleString("en-IN")})?`,
+		)
+	) {
+		try {
+			// Find the main income record
+			const mainIncomeRecord = incomes.value[0]
+			if (!mainIncomeRecord) {
+				throw new Error("No income record found for household")
+			}
 
-const deleteLedgerEntryHandler = async (entry: any) => {
-  if (entry.income_type !== 'one-time') return
-  if (confirm(`Are you sure you want to delete this one-time income entry (₹${entry.amount.toLocaleString('en-IN')})?`)) {
-    try {
-      const payload: DeleteIncomeSourcePayload = {
-        income_source: [],
-        income_name: entry.incomeId,
-        action: 'delete',
-        source_name: entry.sourceId
-      }
-      await deleteIncomeSource(payload)
-      await fetchIncomes(true)
-    } catch (error) {
-      alert('Failed to delete income entry. Please try again.')
-    }
-  }
+			const payload: DeleteIncomeSourcePayload = {
+				income_source: [],
+				income_name: mainIncomeRecord.name,
+				action: "delete",
+				source_name: source.sourceId,
+			}
+			await deleteIncomeSource(payload)
+			await invalidateCache({ incomeData: true, analytics: true })
+		} catch (error) {
+			console.error("Failed to delete income source:", error)
+			alert("Failed to delete income source. Please try again.")
+		}
+	}
 }
 
 onMounted(async () => {
-  await initialize({ withAnalytics: true, forceRefresh: false })
-  await fetchMonthlyAnalytics(false)
+	await initialize({ withAnalytics: true, forceRefresh: false })
 })
 </script>
 

@@ -39,7 +39,15 @@ export interface IncomeSourceRecord {
   income: number;
   recur: boolean;
   date_time: string;
-  recur_frequency?: "daily" | "weekly" | "monthly" | "yearly";
+  recur_frequency?:
+    | "daily"
+    | "weekly"
+    | "bi-weekly"
+    | "monthly"
+    | "quarterly"
+    | "semi-annually"
+    | "annually"
+    | "yearly";
   stop_date?: string;
   ledger_entries: LedgerEntry[];
 }
@@ -117,7 +125,11 @@ export interface IncomeFilters {
     | "recurring"
     | "daily"
     | "weekly"
+    | "bi-weekly"
     | "monthly"
+    | "quarterly"
+    | "semi-annually"
+    | "annually"
     | "yearly";
   isRecurring?: boolean;
   amountMin?: number;
@@ -125,6 +137,13 @@ export interface IncomeFilters {
   searchTerm?: string;
   sortBy?: "date" | "amount";
   sortOrder?: "asc" | "desc";
+}
+
+// Ledger-specific filters
+export interface LedgerFilters {
+  income_type?: "recurring" | "one-time";
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 // Form data for creating/updating income (matches backend API parameters)
@@ -139,7 +158,15 @@ export interface IncomeSourceFormData {
   income: number;
   recur: boolean;
   date_time: string;
-  recur_frequency?: "daily" | "weekly" | "monthly" | "yearly";
+  recur_frequency?:
+    | "daily"
+    | "weekly"
+    | "bi-weekly"
+    | "monthly"
+    | "quarterly"
+    | "semi-annually"
+    | "annually"
+    | "yearly";
   stop_date?: string; // End date for recurring income (optional)
 }
 
@@ -149,7 +176,15 @@ export interface IncomeFormUIData {
   amount: number;
   isRecurring: boolean;
   dateTime: string;
-  frequency?: "daily" | "weekly" | "monthly" | "yearly";
+  frequency?:
+    | "daily"
+    | "weekly"
+    | "bi-weekly"
+    | "monthly"
+    | "quarterly"
+    | "semi-annually"
+    | "annually"
+    | "yearly";
   stop_date?: string; // End date for recurring income (optional)
 }
 
@@ -204,7 +239,11 @@ export interface IncomeStoreState {
 export const RECUR_FREQUENCY_OPTIONS = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
+  { value: "bi-weekly", label: "Bi-weekly" },
   { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "semi-annually", label: "Semi-annually" },
+  { value: "annually", label: "Annually" },
   { value: "yearly", label: "Yearly" },
 ] as const;
 
@@ -212,9 +251,7 @@ export type RecurFrequency = (typeof RECUR_FREQUENCY_OPTIONS)[number]["value"];
 
 // Utility functions for data conversion
 export function convertIncomeAmount(amount: string | number): number {
-  return typeof amount === "string"
-    ? Number.parseFloat(amount) || 0
-    : amount || 0;
+  return typeof amount === "string" ? parseFloat(amount) || 0 : amount || 0;
 }
 
 export function convertRecurFlag(isRecurring: boolean): 0 | 1 {
@@ -292,6 +329,29 @@ export interface LedgerEntry {
   income_type: "recurring" | "one-time";
 }
 
+// Flattened ledger entry as returned by get_income_ledger
+export interface FlattenedLedgerEntry {
+  name: string; // Ledger entry name
+  income_source: string; // Source child name
+  income_type: "recurring" | "one-time";
+  date_time: string;
+  amount: number;
+  source_type: string;
+  source_recur: boolean;
+  source_income: number;
+  source_date_time: string;
+  source_recur_frequency?:
+    | "daily"
+    | "weekly"
+    | "bi-weekly"
+    | "monthly"
+    | "quarterly"
+    | "semi-annually"
+    | "annually"
+    | "yearly";
+  source_stop_date?: string;
+}
+
 export interface GetIncomeTypesResponse {
   income_types: Array<{
     name: string;
@@ -328,6 +388,13 @@ export interface GetIncomeInsightsResponse {
 export interface UpdateRecurringLedgerEntriesResponse {
   status: "success";
   message: string;
+  updated_count: number;
+}
+
+export interface UpdateAllRecurringLedgersResponse {
+  status: "success" | "error";
+  message: string;
+  updated_count?: number;
 }
 
 // --- API Request Types ---
@@ -337,4 +404,51 @@ export interface CreateOrUpdateIncomePayload {
   income_name?: string;
   source_name?: string;
   action?: "delete";
+}
+
+export interface ValidateIncomeDataPayload {
+  monthly_income: number;
+  income_source: IncomeSourceFormData[];
+}
+
+// --- Frappe Doctype-aligned Types ---
+
+// Income Source Type (child table)
+export interface IncomeSourceType {
+  name?: string; // Frappe child table rows have a name
+  type: string; // Link to Income Type
+  income: number;
+  recur: number | boolean; // Frappe Check is 0/1, but we may want boolean in frontend
+  recur_frequency?:
+    | "daily"
+    | "weekly"
+    | "bi-weekly"
+    | "monthly"
+    | "quarterly"
+    | "semi-annually"
+    | "annually"
+    | "yearly";
+  date_time: string;
+  stop_date?: string;
+  ledger_entries?: IncomeLedger[]; // Optional, for robust access
+}
+
+// Income Ledger (child table)
+export interface IncomeLedger {
+  name?: string;
+  income_type: "recurring" | "one-time";
+  date_time: string;
+  amount: number;
+  income_source: string; // Link to Income Source Type
+}
+
+// Income (parent)
+export interface Income {
+  name: string;
+  household_profile: string;
+  monthly_income: string; // Frappe Data, but should be number in frontend
+  creation: string;
+  modified: string;
+  income_source: IncomeSourceType[];
+  income_ledger: IncomeLedger[];
 }

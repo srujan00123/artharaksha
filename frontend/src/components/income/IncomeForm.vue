@@ -231,11 +231,15 @@ const formData = ref<IncomeFormUIData>({
 // Validation errors
 const validationErrors = ref<Record<string, string>>({})
 
-// Constants from types
+// Updated frequency options with all supported frequencies
 const frequencyOptions = [
 	{ value: "daily", label: "Daily" },
 	{ value: "weekly", label: "Weekly" },
+	{ value: "bi-weekly", label: "Bi-weekly" },
 	{ value: "monthly", label: "Monthly" },
+	{ value: "quarterly", label: "Quarterly" },
+	{ value: "semi-annually", label: "Semi-annually" },
+	{ value: "annually", label: "Annually" },
 	{ value: "yearly", label: "Yearly" },
 ] as const
 
@@ -261,10 +265,17 @@ const monthlyEquivalent = computed(() => {
 			return amount * 30 // Approximate monthly
 		case "weekly":
 			return amount * 4.33 // Approximate monthly
+		case "bi-weekly":
+			return amount * 2.17 // Approximate monthly
 		case "monthly":
 			return amount
+		case "quarterly":
+			return amount / 3 // Quarterly to monthly
+		case "semi-annually":
+			return amount / 6 // Semi-annually to monthly
+		case "annually":
 		case "yearly":
-			return amount / 12
+			return amount / 12 // Yearly to monthly
 		default:
 			return amount
 	}
@@ -300,6 +311,14 @@ const validateForm = (): IncomeValidationResult => {
 		errors.frequency = "Frequency is required for recurring income"
 	}
 
+	// Validate frequency is from supported list
+	if (formData.value.frequency) {
+		const supportedFrequencies = frequencyOptions.map(f => f.value)
+		if (!supportedFrequencies.includes(formData.value.frequency as any)) {
+			errors.frequency = "Invalid frequency selected"
+		}
+	}
+
 	validationErrors.value = errors
 	return {
 		isValid: Object.keys(errors).length === 0,
@@ -328,7 +347,11 @@ const populateForm = (source: ProcessedIncomeItem) => {
 		frequency: source.frequency as
 			| "daily"
 			| "weekly"
+			| "bi-weekly"
 			| "monthly"
+			| "quarterly"
+			| "semi-annually"
+			| "annually"
 			| "yearly"
 			| undefined,
 		stop_date: source.stop_date ? source.stop_date.split("T")[0] : undefined,

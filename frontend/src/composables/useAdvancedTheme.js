@@ -1,40 +1,40 @@
 import { computed, onMounted, ref } from "vue"
 
 export function useAdvancedTheme() {
-	const currentTheme = ref('light')
+	const currentTheme = ref("light")
 
 	// Define multiple theme variants
 	const themes = {
 		// Light themes
 		light: {
-			name: 'light',
-			label: 'Light',
-			category: 'light',
+			name: "light",
+			label: "Light",
+			category: "light",
 			colors: {
-				primary: 'blue',
-				surface: 'white',
-				background: 'gray-50'
-			}
+				primary: "blue",
+				surface: "white",
+				background: "gray-50",
+			},
 		},
-		'light-warm': {
-			name: 'light-warm',
-			label: 'Light Warm',
-			category: 'light',
+		"light-warm": {
+			name: "light-warm",
+			label: "Light Warm",
+			category: "light",
 			colors: {
-				primary: 'orange',
-				surface: 'orange-50',
-				background: 'orange-25'
-			}
+				primary: "orange",
+				surface: "orange-50",
+				background: "orange-25",
+			},
 		},
-		'light-cool': {
-			name: 'light-cool',
-			label: 'Light Cool',
-			category: 'light',
+		"light-cool": {
+			name: "light-cool",
+			label: "Light Cool",
+			category: "light",
 			colors: {
-				primary: 'cyan',
-				surface: 'cyan-50',
-				background: 'cyan-25'
-			}
+				primary: "cyan",
+				surface: "cyan-50",
+				background: "cyan-25",
+			},
 		},
 
 		// Dark themes
@@ -92,35 +92,35 @@ export function useAdvancedTheme() {
 		currentTheme.value = themeName
 
 		// Set data attributes for CSS
-		document.documentElement.setAttribute('data-theme', theme.category)
-		document.documentElement.setAttribute('data-theme-variant', themeName)
+		document.documentElement.setAttribute("data-theme", theme.category)
+		document.documentElement.setAttribute("data-theme-variant", themeName)
 
 		// Set class for Tailwind dark mode
-		if (theme.category === 'dark') {
-			document.documentElement.classList.add('dark')
+		if (theme.category === "dark") {
+			document.documentElement.classList.add("dark")
 		} else {
-			document.documentElement.classList.remove('dark')
+			document.documentElement.classList.remove("dark")
 		}
 
 		// Store preference
-		localStorage.setItem('theme', themeName)
+		localStorage.setItem("theme", themeName)
 	}
 
 	// Initialize theme
 	const initializeTheme = () => {
-		const stored = localStorage.getItem('theme')
+		const stored = localStorage.getItem("theme")
 		if (stored && themes[stored]) {
 			setTheme(stored)
 		} else {
 			// Default to light theme
-			setTheme('light')
+			setTheme("light")
 		}
 	}
 
 	// Toggle between light and dark (keeps variant)
 	const toggleLightDark = () => {
 		const currentCategory = themes[currentTheme.value].category
-		const newCategory = currentCategory === 'light' ? 'dark' : 'light'
+		const newCategory = currentCategory === "light" ? "dark" : "light"
 
 		// Find equivalent theme in opposite category
 		const equivalentTheme = Object.values(themes).find(
@@ -129,7 +129,9 @@ export function useAdvancedTheme() {
 				t.colors.primary === themes[currentTheme.value].colors.primary,
 		)
 
-		setTheme(equivalentTheme?.name || (newCategory === 'dark' ? 'dark' : 'light'))
+		setTheme(
+			equivalentTheme?.name || (newCategory === "dark" ? "dark" : "light"),
+		)
 	}
 
 	onMounted(() => {
@@ -143,6 +145,6 @@ export function useAdvancedTheme() {
 		isDark,
 		setTheme,
 		toggleLightDark,
-		initializeTheme
+		initializeTheme,
 	}
-} 
+}

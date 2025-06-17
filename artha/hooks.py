@@ -12,21 +12,21 @@ app_license = "unlicense"
 
 # Each item in the list will be shown as an app in the apps page
 add_to_apps_screen = [
-	{
-		"name": "artha",
-		"logo": "/assets/artha/logo.svg",
-		"title": "Artha",
-		"route": "/app/artha",
-		# "has_permission": "artha.api.permission.has_app_permission"
-	}
+    {
+        "name": "artha",
+        "logo": "/assets/artha/logo.svg",
+                "title": "Artha",
+                "route": "/app/artha",
+                # "has_permission": "artha.api.permission.has_app_permission"
+    }
 ]
 
 fixtures = [
-	"Welfare Scheme",
-	"Insurance Scheme",
-	"Support Pathway",
-	"Target Groups",
-	"Income Type"
+    "Welfare Scheme",
+    "Insurance Scheme",
+    "Support Pathway",
+    "Target Groups",
+    "Income Type"
 ]
 
 # Includes in <head>
@@ -129,17 +129,17 @@ fixtures = [
 # Permissions evaluated in scripted ways
 
 permission_query_conditions = {
-	"Expense": "artha.artha.doctype.expense.expense.get_permission_query_conditions_for_expense",
-	"Income": "artha.artha.doctype.income.income.get_permission_query_conditions_for_income",
-	"Household Profile": "artha.artha.doctype.household_profile.household_profile.get_permission_query_conditions_for_household_profile",
-	"User": "artha.api.auth.get_permission_query_conditions_for_user",
+    "Expense": "artha.artha.doctype.expense.expense.get_permission_query_conditions_for_expense",
+    "Income": "artha.artha.doctype.income.income.get_permission_query_conditions_for_income",
+    "Household Profile": "artha.artha.doctype.household_profile.household_profile.get_permission_query_conditions_for_household_profile",
+    "User": "artha.api.auth.get_permission_query_conditions_for_user",
 }
 
 has_permission = {
-	"Expense": "artha.artha.doctype.expense.expense.has_permission",
-	"Income": "artha.artha.doctype.income.income.has_permission",
-	"Household Profile": "artha.artha.doctype.household_profile.household_profile.has_permission",
-	"User": "artha.api.auth.has_permission_for_user",
+    "Expense": "artha.artha.doctype.expense.expense.has_permission",
+    "Income": "artha.artha.doctype.income.income.has_permission",
+    "Household Profile": "artha.artha.doctype.household_profile.household_profile.has_permission",
+    "User": "artha.api.auth.has_permission_for_user",
 }
 
 # Document Events
@@ -251,4 +251,5 @@ has_permission = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
-website_route_rules = [{'from_route': '/frontend/<path:app_path>', 'to_route': 'frontend'},]
+website_route_rules = [
+    {'from_route': '/frontend/<path:app_path>', 'to_route': 'frontend'},]

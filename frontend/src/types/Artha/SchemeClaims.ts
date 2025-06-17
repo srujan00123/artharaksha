@@ -1,6 +1,6 @@
-import { SchemeDocument } from './SchemeDocument'
+import type { SchemeDocument } from "./SchemeDocument"
 
-export interface SchemeClaims{
+export interface SchemeClaims {
 	name: string
 	creation: string
 	modified: string

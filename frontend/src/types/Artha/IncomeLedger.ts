@@ -1,5 +1,4 @@
-
-export interface IncomeLedger{
+export interface IncomeLedger {
 	name: string
 	creation: string
 	modified: string

@@ -10,9 +10,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
-import { Sun, Moon, ChevronDown, Check, Monitor } from 'lucide-vue-next'
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { Check, ChevronDown, Monitor, Moon, Sun } from "lucide-vue-next"
+import { ref } from "vue"
 
 defineProps({
 	showDropdown: {

@@ -315,178 +315,202 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { 
-  RefreshCw, 
-  Download, 
-  AlertCircle, 
-  DollarSign,
-  Repeat,
-  Calendar,
-  Hash
-} from 'lucide-vue-next'
-import type { AddIncomeSourcePayload, UpdateIncomeSourcePayload, DeleteIncomeSourcePayload } from '../../types/income'
+import {
+	AlertCircle,
+	Calendar,
+	DollarSign,
+	Download,
+	Hash,
+	RefreshCw,
+	Repeat,
+} from "lucide-vue-next"
+import { computed, onMounted, ref } from "vue"
+import type {
+	AddIncomeSourcePayload,
+	DeleteIncomeSourcePayload,
+	UpdateIncomeSourcePayload,
+} from "../../types/income"
 
 // Composables
-import { useIncome } from '../../composables/useIncome'
+import { useIncome } from "../../composables/useIncome"
 
 // Initialize income composable
 const {
-  incomes,
-  analytics,
-  loading,
-  error,
-  updateFilters,
-  fetchIncomesWithAnalytics,
-  initialize
+	incomes,
+	analytics,
+	loading,
+	error,
+	updateFilters,
+	fetchIncomeWithAnalytics,
+	initialize,
 } = useIncome()
 
 // Local state
-const selectedPeriod = ref<'this_month' | 'last_month' | 'last_3_months' | 'last_6_months' | 'this_year'>('last_3_months')
+const selectedPeriod = ref<
+	"this_month" | "last_month" | "last_3_months" | "last_6_months" | "this_year"
+>("last_3_months")
 
 // Utility: Safe array access
 function safeArray<T>(arr: T[] | undefined | null): T[] {
-  return Array.isArray(arr) ? arr : []
+	return Array.isArray(arr) ? arr : []
 }
 
 // Computed properties for analytics data
 const incomeByTypeData = computed(() => {
-  if (!analytics.value?.income_by_type) return []
-  
-  const total = analytics.value.total_income || 1
-  const colors = [
-    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', 
-    '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
-  ]
-  
-  return Object.entries(analytics.value.income_by_type).map(([type, amount], index) => ({
-    type,
-    amount: Number(amount),
-    percentage: ((Number(amount) / total) * 100).toFixed(1),
-    color: colors[index % colors.length]
-  })).sort((a, b) => b.amount - a.amount)
+	if (!analytics.value?.income_by_type) return []
+
+	const total = analytics.value.total_income || 1
+	const colors = [
+		"#3B82F6",
+		"#10B981",
+		"#F59E0B",
+		"#EF4444",
+		"#8B5CF6",
+		"#06B6D4",
+		"#84CC16",
+		"#F97316",
+		"#EC4899",
+		"#6366F1",
+	]
+
+	return Object.entries(analytics.value.income_by_type)
+		.map(([type, amount], index) => ({
+			type,
+			amount: Number(amount),
+			percentage: ((Number(amount) / total) * 100).toFixed(1),
+			color: colors[index % colors.length],
+		}))
+		.sort((a, b) => b.amount - a.amount)
 })
 
 const monthlyTrends = computed(() => {
-  return analytics.value?.monthly_trends || []
+	return analytics.value?.monthly_trends || []
 })
 
 const maxTrendValue = computed(() => {
-  if (monthlyTrends.value.length === 0) return 1
-  return Math.max(...monthlyTrends.value.map(t => t.total))
+	if (monthlyTrends.value.length === 0) return 1
+	return Math.max(...monthlyTrends.value.map((t) => t.total))
 })
 
 const recurringPercentage = computed(() => {
-  if (!analytics.value?.total_income || analytics.value.total_income === 0) return 0
-  return ((analytics.value.recurring_income / analytics.value.total_income) * 100).toFixed(1)
+	if (!analytics.value?.total_income || analytics.value.total_income === 0)
+		return 0
+	return (
+		(analytics.value.recurring_income / analytics.value.total_income) *
+		100
+	).toFixed(1)
 })
 
 const totalSources = computed(() => {
-  return analytics.value?.summary?.total_sources || 0
+	return analytics.value?.summary?.total_sources || 0
 })
 
 const incomeSourcesList = computed(() => {
-  const sources: any[] = []
-  safeArray(incomes.value).forEach(income => {
-    safeArray(income.income_source).forEach(source => {
-      sources.push({
-        ...source,
-        incomeId: income.name,
-        sourceId: source.name || Math.random().toString(36).substr(2, 9)
-      })
-    })
-  })
-  return sources.sort((a, b) => new Date(b.date_time || b.creation || 0).getTime() - new Date(a.date_time || a.creation || 0).getTime())
+	const sources: any[] = []
+	safeArray(incomes.value).forEach((income) => {
+		safeArray(income.income_source).forEach((source) => {
+			sources.push({
+				...source,
+				incomeId: income.name,
+				sourceId: source.name || Math.random().toString(36).substr(2, 9),
+			})
+		})
+	})
+	return sources.sort(
+		(a, b) =>
+			new Date(b.date_time || b.creation || 0).getTime() -
+			new Date(a.date_time || a.creation || 0).getTime(),
+	)
 })
 
 // Utility functions
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-IN').format(amount)
+	return new Intl.NumberFormat("en-IN").format(amount)
 }
 
 const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  try {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  } catch {
-    return 'N/A'
-  }
+	if (!dateString) return "N/A"
+	try {
+		return new Date(dateString).toLocaleDateString("en-IN", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		})
+	} catch {
+		return "N/A"
+	}
 }
 
 const formatFrequency = (frequency: string) => {
-  if (!frequency) return 'Monthly'
-  return frequency.charAt(0).toUpperCase() + frequency.slice(1)
+	if (!frequency) return "Monthly"
+	return frequency.charAt(0).toUpperCase() + frequency.slice(1)
 }
 
 const formatPeriod = (period: string) => {
-  const map = {
-    this_month: 'This Month',
-    last_month: 'Last Month',
-    last_3_months: 'Last 3 Months',
-    last_6_months: 'Last 6 Months',
-    this_year: 'This Year',
-  }
-  return map[period] || period
+	const map = {
+		this_month: "This Month",
+		last_month: "Last Month",
+		last_3_months: "Last 3 Months",
+		last_6_months: "Last 6 Months",
+		this_year: "This Year",
+	}
+	return map[period] || period
 }
 
 // Event handlers
 const updatePeriodFilter = async () => {
-  try {
-    await updateFilters({ period: selectedPeriod.value })
-    await fetchIncomesWithAnalytics(true)
-  } catch (error) {
-    console.error('Failed to update period filter:', error)
-  }
+	try {
+		await updateFilters({ period: selectedPeriod.value })
+		await fetchIncomeWithAnalytics({ forceRefresh: true })
+	} catch (error) {
+		console.error("Failed to update period filter:", error)
+	}
 }
 
 const refreshReports = async () => {
-  try {
-    await fetchIncomesWithAnalytics(true)
-  } catch (error) {
-    console.error('Failed to refresh reports:', error)
-  }
+	try {
+		await fetchIncomeWithAnalytics({ forceRefresh: true })
+	} catch (error) {
+		console.error("Failed to refresh reports:", error)
+	}
 }
 
 const exportReport = () => {
-  const csvData = generateCSVData()
-  const blob = new Blob([csvData], { type: 'text/csv' })
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `income-report-${selectedPeriod.value}-${new Date().toISOString().split('T')[0]}.csv`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  window.URL.revokeObjectURL(url)
+	const csvData = generateCSVData()
+	const blob = new Blob([csvData], { type: "text/csv" })
+	const url = window.URL.createObjectURL(blob)
+	const link = document.createElement("a")
+	link.href = url
+	link.download = `income-report-${selectedPeriod.value}-${new Date().toISOString().split("T")[0]}.csv`
+	document.body.appendChild(link)
+	link.click()
+	document.body.removeChild(link)
+	window.URL.revokeObjectURL(url)
 }
 
 const generateCSVData = () => {
-  let csv = 'Income Type,Amount,Percentage,Is Recurring,Date\n'
-  
-  incomeSourcesList.value.forEach(source => {
-    const percentage = analytics.value?.total_income 
-      ? ((source.income / analytics.value.total_income) * 100).toFixed(1)
-      : '0'
-    
-    csv += `"${source.type}",${source.income},${percentage}%,"${source.recur ? 'Yes' : 'No'}","${formatDate(source.date_time)}"\n`
-  })
-  
-  return csv
+	let csv = "Income Type,Amount,Percentage,Is Recurring,Date\n"
+
+	incomeSourcesList.value.forEach((source) => {
+		const percentage = analytics.value?.total_income
+			? ((source.income / analytics.value.total_income) * 100).toFixed(1)
+			: "0"
+
+		csv += `"${source.type}",${source.income},${percentage}%,"${source.recur ? "Yes" : "No"}","${formatDate(source.date_time)}"\n`
+	})
+
+	return csv
 }
 
 // Lifecycle
 onMounted(async () => {
-  try {
-    // Initialize with analytics and set default period
-    await initialize({ withAnalytics: true, forceRefresh: false })
-    await updatePeriodFilter()
-  } catch (error) {
-    console.error('Reports: Failed to initialize:', error)
-  }
+	try {
+		// Initialize with analytics and set default period
+		await initialize({ withAnalytics: true, forceRefresh: false })
+		await updatePeriodFilter()
+	} catch (error) {
+		console.error("Reports: Failed to initialize:", error)
+	}
 })
 </script>
 

@@ -60,7 +60,7 @@
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Dashboard Filters</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Filter data by date range</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Filter data by date range or period</p>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
                         <div class="flex items-center space-x-2">
@@ -80,6 +80,18 @@
                                 class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
                                 @change="handleDateFilterChange"
                             />
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">Period:</label>
+                            <select
+                                v-model="selectedPeriod"
+                                @change="handlePeriodChange"
+                                class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-transparent"
+                            >
+                                <option v-for="option in periodOptions" :key="option.value" :value="option.value">
+                                    {{ option.label }}
+                                </option>
+                            </select>
                         </div>
                         <div class="flex space-x-2">
                             <Button variant="outline" size="sm" @click="resetDateFilters">
@@ -104,12 +116,12 @@
                         <div class="min-w-0 flex-1">
                             <p class="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Monthly Income</p>
                             <p class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                                ₹{{ formatCurrency(totalMonthlyIncome) }}
+                                ₹{{ analytics?.totalIncome ?? 0 }}
                             </p>
                             <div class="flex items-center space-x-2 mt-1">
                                 <p class="text-xs text-green-600 dark:text-green-400">{{ recurringIncomeCount }} recurring</p>
                                 <span class="text-xs text-gray-400 dark:text-gray-500">•</span>
-                                <p class="text-xs text-blue-600 dark:text-blue-400">₹{{ formatCurrency(totalRecurringIncome) }} total</p>
+                                <p class="text-xs text-blue-600 dark:text-blue-400">₹{{ analytics?.recurringIncome ?? 0 }} total</p>
                             </div>
                         </div>
                         <div class="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0 ml-3">
@@ -560,7 +572,7 @@ const supportStore = useSupportStore()
 
 // Use composables
 const income = useIncome()
-const { canonicalTotalMonthlyIncome, canonicalTotalRecurringIncome, canonicalTotalOneTimeIncome, fetchMonthlyAnalytics } = income
+const { initialize, getAnalytics, setPeriod } = income
 const expenseComposable = useExpense()
 const supportComposable = useSupport()
 
@@ -572,9 +584,9 @@ const lastUpdated = ref("")
 
 // 1. Add a ref for dashboardFilters
 const dashboardFilters = ref({
-  dateFrom: '',
-  dateTo: '',
-  // Add other filter fields as needed
+	dateFrom: "",
+	dateTo: "",
+	// Add other filter fields as needed
 })
 
 // Static data
@@ -592,9 +604,13 @@ const currentDate = computed(() =>
 const userDisplayName = computed(() => userStore.userDisplayName || "User")
 
 // Income data from composable
-const totalMonthlyIncome = computed(() => canonicalTotalMonthlyIncome.value)
-const totalRecurringIncome = computed(() => canonicalTotalRecurringIncome.value)
-const totalOneTimeIncome = computed(() => canonicalTotalOneTimeIncome.value)
+const totalMonthlyIncome = computed(() => getAnalytics.value?.totalIncome ?? 0)
+const totalRecurringIncome = computed(
+	() => getAnalytics.value?.recurringIncome ?? 0,
+)
+const totalOneTimeIncome = computed(
+	() => getAnalytics.value?.oneTimeIncome ?? 0,
+)
 const recurringIncomeCount = computed(() => {
 	const incomes = income.incomes
 	const incomeArray =
@@ -862,35 +878,36 @@ function navigateToClaimDetail(claimId) {
 
 // 2. Update handleDateFilterChange to use dashboardFilters
 const handleDateFilterChange = async () => {
-  try {
-    const filters = {
-      dateFrom: dashboardFilters.value.dateFrom,
-      dateTo: dashboardFilters.value.dateTo,
-    }
-    await Promise.all([
-      income.updateFilters(filters),
-      expenseComposable.updateFilters(filters),
-      supportComposable.updateFilters && supportComposable.updateFilters(filters),
-    ])
-    lastUpdated.value = new Date().toLocaleTimeString()
-  } catch (error) {
-    console.error("Error applying date filters:", error)
-  }
+	try {
+		const filters = {
+			dateFrom: dashboardFilters.value.dateFrom,
+			dateTo: dashboardFilters.value.dateTo,
+		}
+		await Promise.all([
+			income.updateFilters(filters),
+			expenseComposable.updateFilters(filters),
+			supportComposable.updateFilters &&
+				supportComposable.updateFilters(filters),
+		])
+		lastUpdated.value = new Date().toLocaleTimeString()
+	} catch (error) {
+		console.error("Error applying date filters:", error)
+	}
 }
 
 // 3. Update resetDateFilters and applyCurrentMonthFilter to update dashboardFilters
 const resetDateFilters = async () => {
-  const initial = initializeDateFilters()
-  dashboardFilters.value.dateFrom = initial.dateFrom
-  dashboardFilters.value.dateTo = initial.dateTo
-  await handleDateFilterChange()
+	const initial = initializeDateFilters()
+	dashboardFilters.value.dateFrom = initial.dateFrom
+	dashboardFilters.value.dateTo = initial.dateTo
+	await handleDateFilterChange()
 }
 
 const applyCurrentMonthFilter = async () => {
-  const initial = initializeDateFilters()
-  dashboardFilters.value.dateFrom = initial.dateFrom
-  dashboardFilters.value.dateTo = initial.dateTo
-  await handleDateFilterChange()
+	const initial = initializeDateFilters()
+	dashboardFilters.value.dateFrom = initial.dateFrom
+	dashboardFilters.value.dateTo = initial.dateTo
+	await handleDateFilterChange()
 }
 
 // 4. If you use a filter component, pass the props and event:
@@ -898,18 +915,24 @@ const applyCurrentMonthFilter = async () => {
 
 // 5. Add a handler for filter updates
 function handleDashboardFiltersUpdate(newFilters) {
-  dashboardFilters.value = { ...newFilters }
-  // Optionally reload dashboard data here
-  handleDateFilterChange()
+	dashboardFilters.value = { ...newFilters }
+	// Optionally reload dashboard data here
+	handleDateFilterChange()
 }
 
 // Function to load all dashboard data in parallel
 async function loadDashboardData() {
-  await Promise.all([
-    income.initialize({ withAnalytics: false, forceRefresh: true }),
-    expenseComposable.initialize ? expenseComposable.initialize({ forceRefresh: true }) : expenseComposable.fetchExpenses ? expenseComposable.fetchExpenses(true) : Promise.resolve(),
-    supportComposable.initialize ? supportComposable.initialize({ forceRefresh: true }) : Promise.resolve(),
-  ])
+	await Promise.all([
+		income.initialize({ withAnalytics: true, period: selectedPeriod.value }),
+		expenseComposable.initialize
+			? expenseComposable.initialize({ forceRefresh: true })
+			: expenseComposable.fetchExpenses
+				? expenseComposable.fetchExpenses(true)
+				: Promise.resolve(),
+		supportComposable.initialize
+			? supportComposable.initialize({ forceRefresh: true })
+			: Promise.resolve(),
+	])
 }
 
 // Lifecycle
@@ -917,7 +940,6 @@ onMounted(async () => {
 	try {
 		await loadDashboardData()
 		lastUpdated.value = new Date().toLocaleTimeString()
-		await fetchMonthlyAnalytics(false)
 	} catch (error) {
 		hasError.value = true
 		errorMessage.value = error.message || "Failed to load dashboard"
@@ -963,4 +985,47 @@ const getThemeTextClass = (intensity = "600") => {
 	}
 	return intensityMap[intensity] || intensityMap["600"]
 }
+
+// Period filter state
+const periodOptions = [
+	{ value: "this_month", label: "This Month" },
+	{ value: "last_month", label: "Last Month" },
+	{ value: "last_3_months", label: "Last 3 Months" },
+	{ value: "last_6_months", label: "Last 6 Months" },
+	{ value: "this_year", label: "This Year" },
+]
+const selectedPeriod = ref("this_month")
+const analyticsLoading = ref(false)
+const analyticsError = ref(null)
+
+// Use canonical analytics from store
+const analytics = computed(() => getAnalytics.value)
+
+// Update period filter handler
+const handlePeriodChange = async () => {
+	try {
+		analyticsLoading.value = true
+		analyticsError.value = null
+		await setPeriod(selectedPeriod.value)
+	} catch (err) {
+		analyticsError.value =
+			err instanceof Error ? err.message : "Failed to update period"
+	} finally {
+		analyticsLoading.value = false
+	}
+}
+
+// On mount, initialize dashboard with analytics and selected period
+onMounted(async () => {
+	try {
+		analyticsLoading.value = true
+		analyticsError.value = null
+		await initialize({ withAnalytics: true, period: selectedPeriod.value })
+	} catch (err) {
+		analyticsError.value =
+			err instanceof Error ? err.message : "Failed to load analytics"
+	} finally {
+		analyticsLoading.value = false
+	}
+})
 </script>

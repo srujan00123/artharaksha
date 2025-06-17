@@ -1,0 +1,557 @@
+/**
+ * Income Store - Pinia store for income management
+ * Updated for new backend API and types
+ */
+
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
+import { incomeService } from "../services/income-service";
+import type {
+  AddIncomeSourcePayload,
+  DeleteIncomeSourcePayload,
+  FlattenedLedgerEntry,
+  Income,
+  IncomeAnalytics,
+  IncomeFilters,
+  IncomeServiceOptions,
+  IncomeSourceType,
+  IncomeStoreState,
+  IncomeTypeRecord,
+  LedgerFilters,
+  UpdateIncomeSourcePayload,
+  GetMonthlyIncomeSummaryResponse,
+  GetIncomeInsightsResponse,
+} from "../types/income";
+import { safeArray } from "../types/income";
+
+export const useIncomeStore = defineStore("income", () => {
+  // State
+  const incomes = ref<Income[]>([]);
+  const incomeTypes = ref<IncomeTypeRecord[]>([]);
+  const ledgerEntries = ref<FlattenedLedgerEntry[]>([]);
+  const analytics = ref<IncomeAnalytics | null>(null);
+  const monthlyIncomeSummary = ref<GetMonthlyIncomeSummaryResponse | null>(
+    null,
+  );
+  const incomeInsights = ref<GetIncomeInsightsResponse | null>(null);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
+  const filters = ref<IncomeFilters>({});
+  const ledgerFilters = ref<LedgerFilters>({});
+  const lastFetch = ref<number | null>(null);
+  const cacheExpiry = ref(300000); // 5 minutes
+
+  // Getters (computed properties)
+  const hasData = computed(() => safeArray(incomes.value).length > 0);
+
+  const totalIncome = computed(() =>
+    safeArray(incomes.value).reduce(
+      (total, income) => total + Number(income.monthly_income || 0),
+      0,
+    ),
+  );
+
+  const totalSources = computed(() =>
+    safeArray(incomes.value).reduce(
+      (total, income) => total + safeArray(income.income_source).length,
+      0,
+    ),
+  );
+
+  const recurringSources = computed(() =>
+    safeArray(incomes.value).flatMap((income) =>
+      safeArray(income.income_source).filter(
+        (source) => source.recur === 1 || source.recur === true,
+      ),
+    ),
+  );
+
+  const recurringIncome = computed(() =>
+    recurringSources.value.reduce(
+      (total, source) => total + Number(source.income || 0),
+      0,
+    ),
+  );
+
+  const oneTimeIncome = computed(() =>
+    safeArray(incomes.value)
+      .flatMap((income) =>
+        safeArray(income.income_source).filter(
+          (source) => source.recur === 0 || source.recur === false,
+        ),
+      )
+      .reduce((total, source) => total + Number(source.income || 0), 0),
+  );
+
+  const incomeByType = computed(() => {
+    const typeMap: Record<string, number> = {};
+    safeArray(incomes.value).forEach((income) => {
+      safeArray(income.income_source).forEach((source) => {
+        if (source.type) {
+          typeMap[source.type] =
+            (typeMap[source.type] || 0) + Number(source.income || 0);
+        }
+      });
+    });
+    return typeMap;
+  });
+
+  const allSources = computed(() =>
+    safeArray(incomes.value).flatMap((income) =>
+      safeArray(income.income_source),
+    ),
+  );
+
+  const filteredSources = computed(() => {
+    let sources = allSources.value;
+    const currentFilters = filters.value;
+
+    if (currentFilters.type) {
+      sources = sources.filter((source) => source.type === currentFilters.type);
+    }
+
+    if (currentFilters.frequency) {
+      if (currentFilters.frequency === "recurring") {
+        sources = sources.filter(
+          (source) => source.recur === 1 || source.recur === true,
+        );
+      } else if (currentFilters.frequency === "one-time") {
+        sources = sources.filter(
+          (source) => source.recur === 0 || source.recur === false,
+        );
+      } else {
+        sources = sources.filter(
+          (source) => source.recur_frequency === currentFilters.frequency,
+        );
+      }
+    }
+
+    if (currentFilters.dateFrom && currentFilters.dateTo) {
+      sources = sources.filter((source) => {
+        const sourceDate = new Date(source.date_time);
+        return (
+          sourceDate >= new Date(currentFilters.dateFrom!) &&
+          sourceDate <= new Date(currentFilters.dateTo!)
+        );
+      });
+    }
+
+    if (currentFilters.amountMin !== undefined) {
+      sources = sources.filter(
+        (source) => Number(source.income || 0) >= currentFilters.amountMin!,
+      );
+    }
+
+    if (currentFilters.amountMax !== undefined) {
+      sources = sources.filter(
+        (source) => Number(source.income || 0) <= currentFilters.amountMax!,
+      );
+    }
+
+    if (currentFilters.searchTerm) {
+      const term = currentFilters.searchTerm.toLowerCase();
+      sources = sources.filter((source) =>
+        source.type?.toLowerCase().includes(term),
+      );
+    }
+
+    // Sort sources
+    if (currentFilters.sortBy) {
+      sources.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        if (currentFilters.sortBy === "date") {
+          aValue = new Date(a.date_time).getTime();
+          bValue = new Date(b.date_time).getTime();
+        } else if (currentFilters.sortBy === "amount") {
+          aValue = Number(a.income || 0);
+          bValue = Number(b.income || 0);
+        } else {
+          return 0;
+        }
+
+        if (currentFilters.sortOrder === "desc") {
+          return bValue - aValue;
+        }
+        return aValue - bValue;
+      });
+    }
+
+    return sources;
+  });
+
+  const filteredLedgerEntries = computed(() => {
+    let entries = safeArray(ledgerEntries.value);
+    const currentFilters = ledgerFilters.value;
+
+    if (currentFilters.income_type) {
+      entries = entries.filter(
+        (entry) => entry.income_type === currentFilters.income_type,
+      );
+    }
+
+    if (currentFilters.dateFrom) {
+      entries = entries.filter(
+        (entry) =>
+          new Date(entry.date_time) >= new Date(currentFilters.dateFrom!),
+      );
+    }
+
+    if (currentFilters.dateTo) {
+      entries = entries.filter(
+        (entry) =>
+          new Date(entry.date_time) <= new Date(currentFilters.dateTo!),
+      );
+    }
+
+    return entries.sort(
+      (a, b) =>
+        new Date(b.date_time).getTime() - new Date(a.date_time).getTime(),
+    );
+  });
+
+  const recentSources = computed(() =>
+    allSources.value
+      .sort(
+        (a, b) =>
+          new Date(b.date_time).getTime() - new Date(a.date_time).getTime(),
+      )
+      .slice(0, 5),
+  );
+
+  const topIncomeTypes = computed(() =>
+    Object.entries(incomeByType.value)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([type, amount]) => ({ type, amount })),
+  );
+
+  // Cache validation
+  const isCacheValid = computed(() => {
+    if (!lastFetch.value) return false;
+    return Date.now() - lastFetch.value < cacheExpiry.value;
+  });
+
+  // Actions
+  async function fetchIncome(options: IncomeServiceOptions = {}) {
+    if (loading.value) return;
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const { forceRefresh = false } = options;
+
+      if (!forceRefresh && isCacheValid.value && hasData.value) {
+        return;
+      }
+
+      const data = await incomeService.getUserIncome({
+        ...options,
+        useCache: !forceRefresh,
+      });
+
+      incomes.value = data;
+      lastFetch.value = Date.now();
+    } catch (err: any) {
+      error.value = err.message || "Failed to fetch income data";
+      console.error("Error fetching income:", err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchIncomeWithAnalytics(options: IncomeServiceOptions = {}) {
+    if (loading.value) return;
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const { forceRefresh = false } = options;
+
+      if (
+        !forceRefresh &&
+        isCacheValid.value &&
+        hasData.value &&
+        analytics.value
+      ) {
+        return;
+      }
+
+      const data = await incomeService.getUserIncomeWithAnalytics({
+        ...options,
+        useCache: !forceRefresh,
+      });
+
+      incomes.value = data.incomes;
+      analytics.value = data.analytics;
+      lastFetch.value = Date.now();
+    } catch (err: any) {
+      error.value = err.message || "Failed to fetch income analytics";
+      console.error("Error fetching income analytics:", err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchIncomeLedger(
+    filters?: LedgerFilters,
+    options: IncomeServiceOptions = {},
+  ) {
+    if (loading.value) return;
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const data = await incomeService.getIncomeLedger(filters, options);
+      ledgerEntries.value = data;
+    } catch (err: any) {
+      error.value = err.message || "Failed to fetch income ledger";
+      console.error("Error fetching income ledger:", err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchIncomeTypes(options: IncomeServiceOptions = {}) {
+    if (loading.value) return;
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const data = await incomeService.getIncomeTypes(options);
+      incomeTypes.value = data;
+    } catch (err: any) {
+      error.value = err.message || "Failed to fetch income types";
+      console.error("Error fetching income types:", err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchMonthlyIncomeSummary(options: IncomeServiceOptions = {}) {
+    if (loading.value) return;
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const data = await incomeService.getMonthlyIncomeSummary(options);
+      monthlyIncomeSummary.value = data;
+    } catch (err: any) {
+      error.value = err.message || "Failed to fetch monthly income summary";
+      console.error("Error fetching monthly income summary:", err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchIncomeInsights(options: IncomeServiceOptions = {}) {
+    if (loading.value) return;
+
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const data = await incomeService.getIncomeInsights(options);
+      incomeInsights.value = data;
+    } catch (err: any) {
+      error.value = err.message || "Failed to fetch income insights";
+      console.error("Error fetching income insights:", err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function addIncomeSource(payload: AddIncomeSourcePayload) {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      await incomeService.createOrUpdateIncome(payload);
+      await fetchIncome({ forceRefresh: true });
+    } catch (err: any) {
+      error.value = err.message || "Failed to add income source";
+      console.error("Error adding income source:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updateIncomeSource(payload: UpdateIncomeSourcePayload) {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      await incomeService.createOrUpdateIncome(payload);
+      await fetchIncome({ forceRefresh: true });
+    } catch (err: any) {
+      error.value = err.message || "Failed to update income source";
+      console.error("Error updating income source:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deleteIncomeSource(payload: DeleteIncomeSourcePayload) {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      await incomeService.createOrUpdateIncome(payload);
+      await fetchIncome({ forceRefresh: true });
+    } catch (err: any) {
+      error.value = err.message || "Failed to delete income source";
+      console.error("Error deleting income source:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deleteIncome(incomeId: string) {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      await incomeService.deleteIncome(incomeId);
+
+      // Remove from local state
+      incomes.value = incomes.value.filter(
+        (income) => income.name !== incomeId,
+      );
+    } catch (err: any) {
+      error.value = err.message || "Failed to delete income";
+      console.error("Error deleting income:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updateRecurringLedgerEntries() {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const result = await incomeService.updateRecurringLedgerEntries();
+
+      // Refresh data after update
+      await fetchIncome({ forceRefresh: true });
+      if (ledgerEntries.value.length > 0) {
+        await fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true });
+      }
+
+      return result;
+    } catch (err: any) {
+      error.value = err.message || "Failed to update recurring ledger entries";
+      console.error("Error updating recurring ledger entries:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  function updateFilters(newFilters: Partial<IncomeFilters>) {
+    filters.value = { ...filters.value, ...newFilters };
+  }
+
+  function updateLedgerFilters(newFilters: Partial<LedgerFilters>) {
+    ledgerFilters.value = { ...ledgerFilters.value, ...newFilters };
+  }
+
+  function clearFilters() {
+    filters.value = {};
+  }
+
+  function clearLedgerFilters() {
+    ledgerFilters.value = {};
+  }
+
+  function clearError() {
+    error.value = null;
+  }
+
+  function clearCache() {
+    incomes.value = [];
+    incomeTypes.value = [];
+    ledgerEntries.value = [];
+    analytics.value = null;
+    monthlyIncomeSummary.value = null;
+    incomeInsights.value = null;
+    lastFetch.value = null;
+    incomeService.clearCache();
+  }
+
+  // Initialize store
+  function $reset() {
+    incomes.value = [];
+    incomeTypes.value = [];
+    ledgerEntries.value = [];
+    analytics.value = null;
+    monthlyIncomeSummary.value = null;
+    incomeInsights.value = null;
+    loading.value = false;
+    error.value = null;
+    filters.value = {};
+    ledgerFilters.value = {};
+    lastFetch.value = null;
+  }
+
+  return {
+    // State
+    incomes,
+    incomeTypes,
+    ledgerEntries,
+    analytics,
+    monthlyIncomeSummary,
+    incomeInsights,
+    loading,
+    error,
+    filters,
+    ledgerFilters,
+    lastFetch,
+    cacheExpiry,
+
+    // Getters
+    hasData,
+    totalIncome,
+    totalSources,
+    recurringSources,
+    recurringIncome,
+    oneTimeIncome,
+    incomeByType,
+    allSources,
+    filteredSources,
+    filteredLedgerEntries,
+    recentSources,
+    topIncomeTypes,
+    isCacheValid,
+
+    // Actions
+    fetchIncome,
+    fetchIncomeWithAnalytics,
+    fetchIncomeLedger,
+    fetchIncomeTypes,
+    fetchMonthlyIncomeSummary,
+    fetchIncomeInsights,
+    addIncomeSource,
+    updateIncomeSource,
+    deleteIncomeSource,
+    deleteIncome,
+    updateRecurringLedgerEntries,
+    updateFilters,
+    updateLedgerFilters,
+    clearFilters,
+    clearLedgerFilters,
+    clearError,
+    clearCache,
+    $reset,
+  };
+});

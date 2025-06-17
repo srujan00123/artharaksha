@@ -402,6 +402,7 @@ export const CACHE_KEYS = {
 	// Income cache keys - centralized and organized
 	USER_INCOME: "user-income",
 	USER_INCOME_ANALYTICS: "user-income-analytics",
+	INCOME_LEDGER: "income-ledger",
 	INCOME_TYPES: "income-types",
 	INCOME_FILTERS: "income-filters",
 	INCOME_PREFERENCES: "income-preferences",

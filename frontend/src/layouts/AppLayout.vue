@@ -124,13 +124,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { session } from '@/data/session'
-import { userResource } from '@/data/user'
-import NotificationCenter from '@/components/common/NotificationCenter.vue'
-import ThemeToggle from '@/components/common/ThemeToggle.vue'
-import { useAdvancedTheme } from '@/composables/useAdvancedTheme'
+import NotificationCenter from "@/components/common/NotificationCenter.vue"
+import ThemeToggle from "@/components/common/ThemeToggle.vue"
+import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { session } from "@/data/session"
+import { userResource } from "@/data/user"
+import { computed, onMounted, onUnmounted, ref } from "vue"
+import { useRoute, useRouter } from "vue-router"
 
 import {
 	BarChart3,
@@ -160,111 +160,173 @@ const router = useRouter()
 const profileDropdownOpen = ref(false)
 // Development mode check
 const isDevelopment = computed(() => {
-    return process.env.NODE_ENV === 'development' || import.meta.env.DEV
+	return process.env.NODE_ENV === "development" || import.meta.env.DEV
 })
 
 // Main navigation sections
 const mainTabs = [
-    {
-        name: 'dashboard',
-        label: 'Dashboard',
-        path: '/dashboard',
-        section: 'main',
-        icon: BarChart3
-    },
-    {
-        name: 'income',
-        label: 'Income',
-        path: '/income',
-        section: 'income',
-        icon: TrendingUp
-    },
-    {
-        name: 'expenses',
-        label: 'Expenses',
-        path: '/expenses',
-        section: 'expenses',
-        icon: TrendingUp
-    },
-    {
-        name: 'care-support',
-        label: 'Care & Support',
-        path: '/care-support',
-        section: 'care-support',
-        icon: Heart
-    },
-    {
-        name: 'applications-claims',
-        label: 'Applications & Claims',
-        path: '/applications-claims',
-        section: 'applications-claims',
-        icon: FileText
-    },
-    {
-        name: 'profile',
-        label: 'Profile',
-        path: '/profile',
-        section: 'profile',
-        icon: User
-    }
+	{
+		name: "dashboard",
+		label: "Dashboard",
+		path: "/dashboard",
+		section: "main",
+		icon: BarChart3,
+	},
+	{
+		name: "income",
+		label: "Income",
+		path: "/income",
+		section: "income",
+		icon: TrendingUp,
+	},
+	{
+		name: "expenses",
+		label: "Expenses",
+		path: "/expenses",
+		section: "expenses",
+		icon: TrendingUp,
+	},
+	{
+		name: "care-support",
+		label: "Care & Support",
+		path: "/care-support",
+		section: "care-support",
+		icon: Heart,
+	},
+	{
+		name: "applications-claims",
+		label: "Applications & Claims",
+		path: "/applications-claims",
+		section: "applications-claims",
+		icon: FileText,
+	},
+	{
+		name: "profile",
+		label: "Profile",
+		path: "/profile",
+		section: "profile",
+		icon: User,
+	},
 ]
 
 // Secondary navigation items - cached as constant
 const secondaryItems = {
-    dashboard: [
-        { name: 'overview', label: 'Overview', path: '/dashboard', icon: LayoutDashboard }
-    ],
-    income: [
-        { name: 'management', label: 'Management', path: '/income/management', icon: DollarSign },
-        { name: 'reports', label: 'Reports', path: '/income/reports', icon: BarChart3 }
-    ],
-    expenses: [
-        { name: 'overview', label: 'Overview', path: '/expenses/overview', icon: Receipt },
-        { name: 'categories', label: 'Categories', path: '/expenses/analytics/categories', icon: BarChart3 },
-        { name: 'medical', label: 'Medical Analytics', path: '/expenses/analytics/medical', icon: Heart },
-        { name: 'trends', label: 'Trends', path: '/expenses/analytics/trends', icon: TrendingUp }
-    ],
-    'care-support': [
-        { name: 'conditions', label: 'Health Conditions', path: '/care-support/conditions', icon: Stethoscope },
-        { name: 'programs', label: 'Schemes & Programs', path: '/care-support/programs', icon: Building },
-        { name: 'resources', label: 'Support Resources', path: '/care-support/resources', icon: BookOpen }
-    ],
-    'applications-claims': [
-        { name: 'applications', label: 'My Applications', path: '/applications-claims/applications', icon: FileText },
-        { name: 'claims', label: 'Claims & Benefits', path: '/applications-claims/claims', icon: CreditCard }
-    ]
+	dashboard: [
+		{
+			name: "overview",
+			label: "Overview",
+			path: "/dashboard",
+			icon: LayoutDashboard,
+		},
+	],
+	income: [
+		{
+			name: "management",
+			label: "Management",
+			path: "/income/management",
+			icon: DollarSign,
+		},
+		{
+			name: "reports",
+			label: "Reports",
+			path: "/income/reports",
+			icon: BarChart3,
+		},
+	],
+	expenses: [
+		{
+			name: "overview",
+			label: "Overview",
+			path: "/expenses/overview",
+			icon: Receipt,
+		},
+		{
+			name: "categories",
+			label: "Categories",
+			path: "/expenses/analytics/categories",
+			icon: BarChart3,
+		},
+		{
+			name: "medical",
+			label: "Medical Analytics",
+			path: "/expenses/analytics/medical",
+			icon: Heart,
+		},
+		{
+			name: "trends",
+			label: "Trends",
+			path: "/expenses/analytics/trends",
+			icon: TrendingUp,
+		},
+	],
+	"care-support": [
+		{
+			name: "conditions",
+			label: "Health Conditions",
+			path: "/care-support/conditions",
+			icon: Stethoscope,
+		},
+		{
+			name: "programs",
+			label: "Schemes & Programs",
+			path: "/care-support/programs",
+			icon: Building,
+		},
+		{
+			name: "resources",
+			label: "Support Resources",
+			path: "/care-support/resources",
+			icon: BookOpen,
+		},
+	],
+	"applications-claims": [
+		{
+			name: "applications",
+			label: "My Applications",
+			path: "/applications-claims/applications",
+			icon: FileText,
+		},
+		{
+			name: "claims",
+			label: "Claims & Benefits",
+			path: "/applications-claims/claims",
+			icon: CreditCard,
+		},
+	],
 }
 
 // Get current section based on route
 const currentSection = computed(() => {
-    const path = route.path
-    if (path.startsWith('/income')) return 'income'
-    if (path.startsWith('/expenses')) return 'expenses'
-    if (path.startsWith('/care-support')) return 'care-support'
-    if (path.startsWith('/applications-claims')) return 'applications-claims'
-    if (path.startsWith('/profile')) return 'profile'
-    return 'main'
+	const path = route.path
+	if (path.startsWith("/income")) return "income"
+	if (path.startsWith("/expenses")) return "expenses"
+	if (path.startsWith("/care-support")) return "care-support"
+	if (path.startsWith("/applications-claims")) return "applications-claims"
+	if (path.startsWith("/profile")) return "profile"
+	return "main"
 })
 
 const currentSectionTitle = computed(() => {
-    const sectionTitles = {
-        main: 'Dashboard',
-        income: 'Income Management',
-        expenses: 'Expense Management',
-        'care-support': 'Care & Support',
-        'applications-claims': 'Applications & Claims',
-        profile: 'Profile Settings'
-    }
-    return sectionTitles[currentSection.value] || 'Dashboard'
+	const sectionTitles = {
+		main: "Dashboard",
+		income: "Income Management",
+		expenses: "Expense Management",
+		"care-support": "Care & Support",
+		"applications-claims": "Applications & Claims",
+		profile: "Profile Settings",
+	}
+	return sectionTitles[currentSection.value] || "Dashboard"
 })
 
 const currentSecondaryItems = computed(() => {
-    return secondaryItems[currentSection.value] || secondaryItems.dashboard
+	return secondaryItems[currentSection.value] || secondaryItems.dashboard
 })
 
 function getCurrentPageTitle() {
-    const currentItem = currentSecondaryItems.value.find(item => item.path === route.path)
-    return currentItem ? currentItem.label : 'Page'
+	const currentItem = currentSecondaryItems.value.find(
+		(item) => item.path === route.path,
+	)
+	return currentItem ? currentItem.label : "Page"
 }
 
 function isActiveRoute(path) {
@@ -316,63 +378,63 @@ function handleLogout() {
 
 // Close dropdown when clicking outside
 function handleClickOutside(event) {
-    const dropdown = event.target.closest('.relative')
-    if (!dropdown) {
-        profileDropdownOpen.value = false
-    }
+	const dropdown = event.target.closest(".relative")
+	if (!dropdown) {
+		profileDropdownOpen.value = false
+	}
 }
 
 // Lifecycle management
 onMounted(() => {
-    document.addEventListener('click', handleClickOutside)
-    if (!userResource.data && session.isLoggedIn) {
-        userResource.fetch()
-    }
-    
-    // Note: Notifications are initialized by NotificationCenter component
+	document.addEventListener("click", handleClickOutside)
+	if (!userResource.data && session.isLoggedIn) {
+		userResource.fetch()
+	}
+
+	// Note: Notifications are initialized by NotificationCenter component
 })
 
 onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside)
-    
-    // Note: Notifications cleanup is handled by NotificationCenter component
+	document.removeEventListener("click", handleClickOutside)
+
+	// Note: Notifications cleanup is handled by NotificationCenter component
 })
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
 
 // Theme utility methods
-const getFinancialStatusClass = (type, intensity = '600') => {
-  const baseClasses = {
-    income: `text-green-${intensity} dark:text-green-400`,
-    expense: `text-red-${intensity} dark:text-red-400`,
-    medical: `text-blue-${intensity} dark:text-blue-400`,
-    warning: `text-yellow-${intensity} dark:text-yellow-400`,
-    alert: `text-orange-${intensity} dark:text-orange-400`,
-    neutral: `text-gray-${intensity} dark:text-gray-400`
-  }
-  return baseClasses[type] || baseClasses.neutral
+const getFinancialStatusClass = (type, intensity = "600") => {
+	const baseClasses = {
+		income: `text-green-${intensity} dark:text-green-400`,
+		expense: `text-red-${intensity} dark:text-red-400`,
+		medical: `text-blue-${intensity} dark:text-blue-400`,
+		warning: `text-yellow-${intensity} dark:text-yellow-400`,
+		alert: `text-orange-${intensity} dark:text-orange-400`,
+		neutral: `text-gray-${intensity} dark:text-gray-400`,
+	}
+	return baseClasses[type] || baseClasses.neutral
 }
 
-const getThemeSurfaceClass = (variant = 'primary') => {
-  const variants = {
-    primary: 'bg-white dark:bg-gray-800',
-    secondary: 'bg-gray-50 dark:bg-gray-900',
-    tertiary: 'bg-gray-100 dark:bg-gray-800'
-  }
-  return variants[variant] || variants.primary
+const getThemeSurfaceClass = (variant = "primary") => {
+	const variants = {
+		primary: "bg-white dark:bg-gray-800",
+		secondary: "bg-gray-50 dark:bg-gray-900",
+		tertiary: "bg-gray-100 dark:bg-gray-800",
+	}
+	return variants[variant] || variants.primary
 }
 
-const getThemeTextClass = (intensity = '600') => {
-  const intensityMap = {
-    '900': 'text-gray-900 dark:text-gray-100',
-    '800': 'text-gray-800 dark:text-gray-200',
-    '700': 'text-gray-700 dark:text-gray-300',
-    '600': 'text-gray-600 dark:text-gray-400',
-    '500': 'text-gray-500 dark:text-gray-400',
-    '400': 'text-gray-400 dark:text-gray-500'
-  }
-  return intensityMap[intensity] || intensityMap['600']
+const getThemeTextClass = (intensity = "600") => {
+	const intensityMap = {
+		900: "text-gray-900 dark:text-gray-100",
+		800: "text-gray-800 dark:text-gray-200",
+		700: "text-gray-700 dark:text-gray-300",
+		600: "text-gray-600 dark:text-gray-400",
+		500: "text-gray-500 dark:text-gray-400",
+		400: "text-gray-400 dark:text-gray-500",
+	}
+	return intensityMap[intensity] || intensityMap["600"]
 }
 </script>
 

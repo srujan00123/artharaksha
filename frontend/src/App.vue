@@ -20,7 +20,6 @@ const { setTitle } = usePageTitle()
 
 // Initialize advanced theme management (happens automatically)
 useAdvancedTheme()
-
 </script>
 
 <style>

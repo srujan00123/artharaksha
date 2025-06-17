@@ -41,7 +41,7 @@ Parameters:
     period?: 'this_month' | 'last_month' | 'last_3_months' | 'last_6_months' | 'this_year';
     type?: string;
     incomeType?: string;
-    frequency?: 'one-time' | 'recurring' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+    frequency?: 'one-time' | 'recurring' | 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
     isRecurring?: boolean;
     amountMin?: number;
     amountMax?: number;
@@ -67,7 +67,7 @@ Response:
       income: number;
       recur: boolean;
       date_time: string;
-      recur_frequency?: string;
+      recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
       stop_date?: string;
       ledger_entries: Array<{
         date_time: string;
@@ -99,7 +99,36 @@ Response:
 }
 ```
 
-### 3. Create or Update Income Source
+### 3. Get Income Ledger
+
+```typescript
+GET /api/method/artha.api.income.get_income_ledger
+
+Parameters:
+{
+  filters?: {
+    income_type?: 'recurring' | 'one-time';
+    dateFrom?: string; // YYYY-MM-DD
+    dateTo?: string; // YYYY-MM-DD
+  };
+}
+
+Response: Array<{
+  name: string; // Ledger entry name
+  income_source: string; // Source child name
+  income_type: "recurring" | "one-time";
+  date_time: string;
+  amount: number;
+  source_type: string;
+  source_recur: boolean;
+  source_income: number;
+  source_date_time: string;
+  source_recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
+  source_stop_date?: string;
+}>;
+```
+
+### 4. Create or Update Income Source
 
 ```typescript
 POST /api/method/artha.api.income.create_or_update_income
@@ -111,14 +140,14 @@ Parameters:
     income: number;
     recur: boolean;
     date_time?: string;
-    recur_frequency?: string;
+    recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
     stop_date?: string;
   } | Array<{
     type: string;
     income: number;
     recur: boolean;
     date_time?: string;
-    recur_frequency?: string;
+    recur_frequency?: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'yearly';
     stop_date?: string;
   }>;
   income_name?: string;
@@ -134,7 +163,7 @@ Response:
 }
 ```
 
-### 4. Get Monthly Income Summary
+### 5. Get Monthly Income Summary
 
 ```typescript
 GET / api / method / artha.api.income.get_monthly_income_summary;
@@ -147,7 +176,38 @@ Response: {
 }
 ```
 
-### 5. Get Income Insights
+### 6. Validate Income Data
+
+```typescript
+POST / api / method / artha.api.income.validate_income_data;
+
+Parameters: {
+  monthly_income: number;
+  income_source: Array<{
+    type: string;
+    income: number;
+    recur: boolean;
+    date_time?: string;
+    recur_frequency?:
+      | "daily"
+      | "weekly"
+      | "bi-weekly"
+      | "monthly"
+      | "quarterly"
+      | "semi-annually"
+      | "annually"
+      | "yearly";
+    stop_date?: string;
+  }>;
+}
+
+Response: {
+  is_valid: boolean;
+  errors: Record<string, string>;
+}
+```
+
+### 7. Get Income Insights
 
 ```typescript
 GET / api / method / artha.api.income.get_income_insights;
@@ -172,7 +232,7 @@ Response: {
 }
 ```
 
-### 6. Update Recurring Ledger Entries
+### 8. Update Recurring Ledger Entries
 
 ```typescript
 POST / api / method / artha.api.income.update_recurring_ledger_entries;
@@ -180,27 +240,20 @@ POST / api / method / artha.api.income.update_recurring_ledger_entries;
 Response: {
   status: "success";
   message: string;
+  updated_count: number;
 }
 ```
 
-### 7. Get Full Income Ledger
+### 9. Update All Recurring Ledgers (Scheduled Job)
 
 ```typescript
-GET / api / method / artha.api.income.get_income_ledger;
+POST /api/method/artha.api.income.update_all_recurring_ledgers
 
-Response: Array<{
-  name: string; // Ledger entry name
-  income_source: string; // Source child name
-  income_type: "recurring" | "one-time";
-  date_time: string;
-  amount: number;
-  source_type: string;
-  source_recur: boolean;
-  source_income: number;
-  source_date_time: string;
-  source_recur_frequency?: string;
-  source_stop_date?: string;
-}>;
+Response: {
+  status: "success" | "error";
+  message: string;
+  updated_count?: number;
+}
 ```
 
 ## Important Notes
@@ -208,33 +261,46 @@ Response: Array<{
 1. **Income Source Types**:
 
    - Each income source can be recurring or one-time
-   - Recurring sources require a frequency
+   - Recurring sources require a frequency from the supported list
    - Stop date is optional for recurring sources
    - Only income sources are editable from the frontend
 
-2. **Ledger Entries**:
+2. **Supported Frequencies**:
+
+   - `daily` - Every day
+   - `weekly` - Same day each week
+   - `bi-weekly` - Same day every 2 weeks
+   - `monthly` - Same date each month (handles month-end properly)
+   - `quarterly` - Same date every 3 months
+   - `semi-annually` - Same date every 6 months
+   - `annually` / `yearly` - Same date each year
+
+3. **Ledger Entries**:
 
    - Automatically created based on source configuration
    - For recurring income without stop date, entries are created up to current date
    - One-time income creates a single ledger entry
    - Ledger is backend-only and not editable from the frontend
+   - Enhanced frequency calculation using `dateutil.relativedelta` for accurate date progression
 
-3. **Monthly Income Calculation**:
+4. **Monthly Income Calculation**:
 
-   - Recurring income is converted to monthly equivalent
-   - One-time income is counted only in the month it occurs
-   - Total monthly income is the sum of all valid sources
+   - Only recurring income is included in monthly_income calculation
+   - One-time income is tracked separately in ledger entries
+   - Backend automatically recalculates monthly_income when sources change
 
-4. **Filtering**:
+5. **Filtering**:
 
    - Multiple filter options available
    - Date ranges can be specified in multiple formats
    - Analytics can be included in the response
+   - Ledger-specific filtering available via get_income_ledger
 
-5. **Error Handling**:
+6. **Error Handling**:
    - All endpoints return proper error messages
    - Failed operations are logged for debugging
    - Validation is performed on all inputs
+   - Frequency validation ensures only supported values are accepted
 
 ## Type Definitions
 
@@ -244,7 +310,15 @@ interface IncomeSource {
   income: number;
   recur: boolean;
   date_time?: string;
-  recur_frequency?: "daily" | "weekly" | "monthly" | "yearly";
+  recur_frequency?:
+    | "daily"
+    | "weekly"
+    | "bi-weekly"
+    | "monthly"
+    | "quarterly"
+    | "semi-annually"
+    | "annually"
+    | "yearly";
   stop_date?: string;
 }
 
@@ -263,32 +337,73 @@ interface IncomeRecord {
   owner: string;
   income_source: Array<IncomeSource & { ledger_entries: LedgerEntry[] }>;
 }
+
+interface FlattenedLedgerEntry {
+  name: string;
+  income_source: string;
+  income_type: "recurring" | "one-time";
+  date_time: string;
+  amount: number;
+  source_type: string;
+  source_recur: boolean;
+  source_income: number;
+  source_date_time: string;
+  source_recur_frequency?: string;
+  source_stop_date?: string;
+}
 ```
 
-## Table Usage
+## Usage Examples
+
+### Filtering Recurring Income Sources
+
+```javascript
+const recurringIncome = await call("artha.api.income.get_user_income", {
+  filters: { frequency: "recurring" },
+});
+```
+
+### Getting Ledger Entries for a Specific Period
+
+```javascript
+const ledgerEntries = await call("artha.api.income.get_income_ledger", {
+  filters: {
+    dateFrom: "2024-01-01",
+    dateTo: "2024-01-31",
+    income_type: "recurring",
+  },
+});
+```
+
+### Adding a New Income Source
+
+```javascript
+const result = await call("artha.api.income.create_or_update_income", {
+  income_source: [
+    {
+      type: "Salary",
+      income: 5000,
+      recur: true,
+      recur_frequency: "monthly",
+      date_time: "2024-01-01 00:00:00",
+    },
+  ],
+});
+```
+
+### Table Usage
 
 - **Recurring Incomes Table:** Use `get_user_income` and filter sources with `recur: true`. Only these can be edited/deleted in this table.
-- **Full Ledger Table:** Use `get_user_income` and flatten all `income_source[].ledger_entries[]` into a single array, attaching source info from the parent source. Only one-time incomes (`income_type: 'one-time'`) can be edited/deleted in this table.
+- **Full Ledger Table:** Use `get_income_ledger` to get flattened entries, or use `get_user_income` and flatten all `income_source[].ledger_entries[]` manually. Only one-time incomes (`income_type: 'one-time'`) can be edited/deleted in this table.
 
-### Example: Flattening Ledger Entries in the Frontend
+### Example: Using the Dedicated Ledger Endpoint
 
-```js
-const ledgerEntries = [];
-for (const income of income_records) {
-  for (const source of income.income_source) {
-    for (const entry of source.ledger_entries) {
-      ledgerEntries.push({
-        ...entry,
-        source_type: source.type,
-        source_recur: source.recur,
-        source_income: source.income,
-        source_date_time: source.date_time,
-        source_recur_frequency: source.recur_frequency,
-        source_stop_date: source.stop_date,
-        incomeId: income.name,
-        sourceId: source.name,
-      });
-    }
-  }
-}
+```javascript
+// Get all ledger entries (preferred method)
+const ledgerEntries = await call("artha.api.income.get_income_ledger");
+
+// Filter for one-time entries only
+const oneTimeEntries = await call("artha.api.income.get_income_ledger", {
+  filters: { income_type: "one-time" },
+});
 ```

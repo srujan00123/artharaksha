@@ -7,11 +7,11 @@ import router from "./router"
 
 // Initialize theme early
 const initializeTheme = () => {
-	const stored = localStorage.getItem('theme')
-	if (stored === 'dark') {
-		document.documentElement.classList.add('dark')
+	const stored = localStorage.getItem("theme")
+	if (stored === "dark") {
+		document.documentElement.classList.add("dark")
 	} else {
-		document.documentElement.classList.remove('dark')
+		document.documentElement.classList.remove("dark")
 	}
 }
 
@@ -27,7 +27,6 @@ import {
 	resourcesPlugin,
 	setConfig,
 } from "frappe-ui"
-
 
 const app = createApp(App)
 const pinia = createPinia()

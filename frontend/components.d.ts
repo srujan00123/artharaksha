@@ -28,7 +28,6 @@ declare module 'vue' {
     SchemeDetailsModal: typeof import('./src/components/support/SchemeDetailsModal.vue')['default']
     SearchBox: typeof import('./src/components/common/SearchBox.vue')['default']
     SupportFilter: typeof import('./src/components/support/SupportFilter.vue')['default']
-    ThemeSelector: typeof import('./src/components/common/ThemeSelector.vue')['default']
     ThemeToggle: typeof import('./src/components/common/ThemeToggle.vue')['default']
   }
 }

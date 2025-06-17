@@ -528,7 +528,7 @@ const {
 } = useExpense({ enableAdvancedAnalysis: false })
 
 const income = useIncome()
-const { canonicalTotalMonthlyIncome, fetchMonthlyAnalytics } = income
+const { totalIncome, getAnalytics } = income
 
 // Local state
 const expenseFilters = ref<ExpenseFilters>({
@@ -548,12 +548,12 @@ const expenseFilters = ref<ExpenseFilters>({
 const loading = computed(() => expenseLoading.value || income.loading)
 const error = computed(() => expenseError.value || income.error)
 const filteredExpenseCount = computed(() => expenses.value.length)
-const hasIncomeData = computed(() => income.totalMonthlyIncome.value > 0)
+const hasIncomeData = computed(() => income.totalIncome.value > 0)
 
 // CHE Calculations according to WHO standards
 const cheRatio = computed(() => {
 	if (!hasIncomeData.value || medicalExpenseAmount.value === 0) return 0
-	return (medicalExpenseAmount.value / income.totalMonthlyIncome.value) * 100
+	return (medicalExpenseAmount.value / income.totalIncome.value) * 100
 })
 
 const riskLevel = computed(() => {
@@ -774,7 +774,7 @@ const gaugeOption = computed(() => ({
 const donutOption = computed(() => {
 	const remainingIncome = Math.max(
 		0,
-		income.totalMonthlyIncome.value - medicalExpenseAmount.value,
+		income.totalIncome.value - medicalExpenseAmount.value,
 	)
 
 	return {
@@ -990,7 +990,7 @@ const barChartOptions = computed(() => ({
 const barChartSeries = computed(() => [
 	{
 		name: "Monthly Income",
-		data: [income.totalMonthlyIncome.value],
+		data: [income.totalIncome.value],
 	},
 	{
 		name: "Medical Expenses",
@@ -1150,7 +1150,7 @@ const handleRefresh = async () => {
 	try {
 		clearCache()
 		await refreshExpenses()
-		await income.fetchIncomes(true)
+		await income.fetchIncome({ forceRefresh: true })
 	} catch (err) {
 		console.error("Error refreshing data:", err)
 	}
@@ -1175,7 +1175,7 @@ const handleMedicalExport = (data: any) => {
 			cheRatio: cheRatio.value,
 			riskLevel: riskLevel.value,
 			financialProtectionStatus: financialProtectionStatus.value,
-			totalMonthlyIncome: canonicalTotalMonthlyIncome.value,
+			totalMonthlyIncome: income.totalIncome.value,
 			medicalExpenseAmount: medicalExpenseAmount.value,
 		},
 		timestamp: new Date().toISOString(),
@@ -1199,7 +1199,7 @@ onMounted(async () => {
 	try {
 		await loadExpenses({ useCache: true })
 		await income.initialize({ withAnalytics: true, forceRefresh: true })
-		await fetchMonthlyAnalytics(false)
+		await income.fetchIncomeWithAnalytics({ forceRefresh: false })
 	} catch (err) {
 		console.error("Error loading initial data:", err)
 	}
@@ -1213,7 +1213,6 @@ watch(
 	},
 	{ deep: true },
 )
-
 </script>
 
 <style scoped>
