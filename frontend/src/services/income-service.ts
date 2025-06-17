@@ -1,6 +1,7 @@
 /**
- * Income Service - Updated for new backend API and types
- * Only add/update/delete IncomeSourceType, ledger is backend-only
+ * Income Service - Robust & Redundancy-Free
+ * Gold standard service layer following exact backend API structure
+ * Provides clean, cached, type-safe operations for income management
  */
 
 import { call } from "frappe-ui";
@@ -26,7 +27,6 @@ import type {
   IncomeTypeRecord,
   IncomeDashboardMetrics,
   LedgerFilters,
-  UpdateAllRecurringLedgersResponse,
   UpdateIncomeSourcePayload,
   UpdateLedgerEntryPayload,
   UpdateLedgerEntryResponse,
@@ -36,114 +36,73 @@ import type {
 } from "../types/income";
 import { safeArray } from "../types/income";
 import { CACHE_KEYS, cacheService } from "./cache-service.js";
+import { apiService, API_ENDPOINTS } from "./api-service.js";
 
-// Normalize income record to ensure all fields are present and properly typed
-function normalizeIncomeRecord(record: any): IncomeRecord {
-  if (!record) {
-    throw new Error("Invalid income record: record is null or undefined");
-  }
-
-  return {
-    name: record.name || "",
-    household_profile: record.household_profile || "",
-    monthly_income: Number(record.monthly_income ?? 0),
-    creation: record.creation || "",
-    modified: record.modified || "",
-    owner: record.owner || "",
-    income_source: safeArray(record.income_source).map((src: any) => ({
-      name: src.name || "",
-      type: src.type || "",
-      income: Number(src.income || 0),
-      recur: true as const, // IncomeSourceRecord always has recur: true
-      recur_frequency: src.recur_frequency || "monthly",
-      date_time: src.date_time || "",
-      stop_date: src.stop_date || undefined,
-      ledger_entries: safeArray(src.ledger_entries).map((entry: any) => ({
-        date_time: entry.date_time || "",
-        amount: Number(entry.amount || 0),
-        income_type: entry.income_type || "one-time",
-      })),
-    })),
-  };
-}
-
-// Helper: Convert object with numeric keys to array
-function objectToArray(obj: any): any[] {
-  if (Array.isArray(obj)) return obj;
-  if (obj && typeof obj === "object") {
-    const keys = Object.keys(obj);
-    if (keys.every((k) => !isNaN(Number(k)))) {
-      return keys.map((k) => obj[k]);
-    }
-  }
-  return [];
-}
-
+/**
+ * Income Service Class
+ * Centralized, robust service layer with consistent error handling and caching
+ */
 class IncomeService {
+  private readonly cacheExpiry = 5 * 60 * 1000; // 5 minutes
+  private readonly longCacheExpiry = 30 * 60 * 1000; // 30 minutes for static data
+
   /**
-   * Get user income records (exact backend API response)
+   * Normalize income record to ensure consistent structure
    */
-  async getUserIncome(
-    options: IncomeServiceOptions = {},
-  ): Promise<IncomeRecord[]> {
-    try {
-      const {
-        filters,
-        include_analytics = false,
-        forceRefresh = false,
-        useCache = true,
-      } = options;
-
-      const cacheKey = useCache
-        ? cacheService.generateFilterKey(CACHE_KEYS.USER_INCOME, filters || {})
-        : null;
-
-      if (cacheKey && !forceRefresh) {
-        const cached = cacheService.getWithFilters(
-          CACHE_KEYS.USER_INCOME,
-          filters || {},
-        );
-        if (cached) {
-          return objectToArray(cached).map(normalizeIncomeRecord);
-        }
-      }
-
-      const response = await call("artha.api.income.get_user_income", {
-        filters: filters ? JSON.stringify(filters) : null,
-        include_analytics: include_analytics,
-      });
-
-      let incomeRecords: IncomeRecord[] = [];
-      if (include_analytics && response?.income_records) {
-        incomeRecords = safeArray(response.income_records).map(
-          normalizeIncomeRecord,
-        );
-      } else if (Array.isArray(response)) {
-        incomeRecords = safeArray(response).map(normalizeIncomeRecord);
-      } else if (response && !Array.isArray(response)) {
-        // Handle case where a single record is returned
-        incomeRecords = [normalizeIncomeRecord(response)];
-      } else {
-        return [];
-      }
-
-      if (cacheKey && useCache) {
-        cacheService.setWithFilters(
-          CACHE_KEYS.USER_INCOME,
-          incomeRecords,
-          filters || {},
-        );
-      }
-      return incomeRecords;
-    } catch (error) {
-      const errorMessage = error?.message || "Unknown error occurred";
-      console.error("Failed to fetch income data:", error);
-      throw new Error(`Failed to fetch income data: ${errorMessage}`);
+  private normalizeIncomeRecord(record: any): IncomeRecord {
+    if (!record) {
+      throw new Error("Invalid income record: record is null or undefined");
     }
+
+    return {
+      name: record.name || "",
+      household_profile: record.household_profile || "",
+      monthly_income: Number(record.monthly_income ?? 0),
+      creation: record.creation || "",
+      modified: record.modified || "",
+      owner: record.owner || "",
+      income_source: safeArray(record.income_source).map((src: any) => ({
+        name: src.name || "",
+        type: src.type || "",
+        income: Number(src.income || 0),
+        recur: true as const, // Always true for income sources
+        recur_frequency: src.recur_frequency || "monthly",
+        date_time: src.date_time || "",
+        stop_date: src.stop_date || undefined,
+        ledger_entries: safeArray(src.ledger_entries).map((entry: any) => ({
+          date_time: entry.date_time || "",
+          amount: Number(entry.amount || 0),
+          income_type: entry.income_type || "one-time",
+        })),
+      })),
+    };
   }
 
   /**
-   * Get user income with analytics (exact backend API response)
+   * Normalize flattened ledger entry
+   */
+  private normalizeLedgerEntry(entry: any): FlattenedLedgerEntry {
+    return {
+      name: entry.name || "",
+      income_source: entry.income_source || undefined,
+      income_type: entry.income_type || "one-time",
+      date_time: entry.date_time || "",
+      amount: Number(entry.amount || 0),
+      source_type: entry.source_type || "",
+      description: entry.description || undefined,
+      source_recur: entry.source_recur || undefined,
+      source_income: entry.source_income
+        ? Number(entry.source_income)
+        : undefined,
+      source_date_time: entry.source_date_time || undefined,
+      source_recur_frequency: entry.source_recur_frequency || undefined,
+      source_stop_date: entry.source_stop_date || undefined,
+    };
+  }
+
+  /**
+   * Get user income with analytics (primary method)
+   * Returns complete income data with optional analytics
    */
   async getUserIncomeWithAnalytics(
     options: IncomeServiceOptions = {},
@@ -153,83 +112,47 @@ class IncomeService {
     recurringSources: IncomeSourceRecord[];
     ledgerEntries: FlattenedLedgerEntry[];
   }> {
-    try {
-      const { filters, forceRefresh = false, useCache = true } = options;
-      const incomeKey = useCache
-        ? cacheService.generateFilterKey(CACHE_KEYS.USER_INCOME, filters || {})
-        : null;
-      const analyticsKey = useCache
-        ? cacheService.generateFilterKey(
-            CACHE_KEYS.USER_INCOME_ANALYTICS,
-            filters || {},
-          )
-        : null;
+    const { filters, forceRefresh = false, useCache = true } = options;
 
-      if (incomeKey && analyticsKey && !forceRefresh) {
-        const cachedIncomes = cacheService.getWithFilters(
-          CACHE_KEYS.USER_INCOME,
-          filters || {},
-        );
-        const cachedAnalytics = cacheService.getWithFilters(
+    // Generate cache keys
+    const cacheKey = useCache
+      ? cacheService.generateFilterKey(
           CACHE_KEYS.USER_INCOME_ANALYTICS,
           filters || {},
-        );
-        if (cachedIncomes && cachedAnalytics) {
-          return {
-            incomes: objectToArray(cachedIncomes).map(normalizeIncomeRecord),
-            analytics: cachedAnalytics,
-            recurringSources: [],
-            ledgerEntries: [],
-          };
-        }
-      }
+        )
+      : null;
 
-      const response: GetUserIncomeResponse = await call(
-        "artha.api.income.get_user_income",
-        {
+    // Check cache first
+    if (cacheKey && !forceRefresh) {
+      const cached = cacheService.getWithFilters(
+        CACHE_KEYS.USER_INCOME_ANALYTICS,
+        filters || {},
+      );
+      if (cached) {
+        return cached;
+      }
+    }
+
+    try {
+      const response: GetUserIncomeResponse = await apiService.execute(
+        call(API_ENDPOINTS.INCOME.USER_INCOME, {
           filters: filters ? JSON.stringify(filters) : null,
           include_analytics: true,
-        },
+        }),
       );
 
-      // Backend now returns recurring_sources and ledger_entries separately
+      // Process response data
       const recurringSources = safeArray(response.recurring_sources).map(
         (source) => ({
           ...source,
-          recur: true as const, // All sources from this endpoint are recurring
+          recur: true as const,
+          ledger_entries: safeArray(source.ledger_entries || []),
         }),
       );
-      const ledgerEntries = safeArray(response.ledger_entries);
 
-      // Store both for different use cases
-      // Create a legacy IncomeRecord for backward compatibility
-      const incomes: IncomeRecord[] = [];
-      if (recurringSources.length > 0 || ledgerEntries.length > 0) {
-        // Group all recurring sources into a single income record
-        const mockIncomeRecord: IncomeRecord = {
-          name: "household_income",
-          household_profile: "current_household",
-          monthly_income: recurringSources.reduce(
-            (sum, source) => sum + Number(source.income || 0),
-            0,
-          ),
-          creation: new Date().toISOString(),
-          modified: new Date().toISOString(),
-          owner: "current_user",
-          income_source: recurringSources.map((source) => ({
-            ...source,
-            recur: true as const,
-            ledger_entries: ledgerEntries
-              .filter((entry) => entry.income_source === source.name)
-              .map((entry) => ({
-                date_time: entry.date_time,
-                amount: entry.amount,
-                income_type: entry.income_type as "recurring" | "one-time",
-              })),
-          })) as IncomeSourceRecord[],
-        };
-        incomes.push(mockIncomeRecord);
-      }
+      const ledgerEntries = safeArray(response.ledger_entries).map(
+        this.normalizeLedgerEntry,
+      );
 
       const analytics = response.analytics || {
         total_income: 0,
@@ -251,125 +174,110 @@ class IncomeService {
         period_total_income: 0,
       };
 
-      if (useCache) {
-        if (incomeKey) {
-          cacheService.setWithFilters(
-            CACHE_KEYS.USER_INCOME,
-            incomes,
-            filters || {},
-          );
-        }
-        if (analyticsKey) {
-          cacheService.setWithFilters(
-            CACHE_KEYS.USER_INCOME_ANALYTICS,
-            analytics,
-            filters || {},
-          );
-        }
-      }
-      return {
+      // Create synthetic income records from sources for compatibility
+      const incomes: IncomeRecord[] =
+        recurringSources.length > 0
+          ? [
+              {
+                name: "synthetic-income-record",
+                household_profile: "current",
+                monthly_income: analytics.monthly_recurring_income || 0,
+                creation: new Date().toISOString(),
+                modified: new Date().toISOString(),
+                owner: "current-user",
+                income_source: recurringSources,
+              },
+            ]
+          : [];
+
+      const result = {
         incomes,
         analytics,
-        // Include raw data for direct use
         recurringSources,
         ledgerEntries,
       };
-    } catch (error) {
-      throw new Error(`Failed to fetch income analytics: ${error.message}`);
+
+      // Cache the result
+      if (cacheKey && useCache) {
+        cacheService.setWithFilters(
+          CACHE_KEYS.USER_INCOME_ANALYTICS,
+          result,
+          filters || {},
+          { maxAge: this.cacheExpiry },
+        );
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error("Failed to fetch income with analytics:", error);
+      throw new Error(
+        `Failed to load income data: ${error.message || "Unknown error"}`,
+      );
     }
   }
 
   /**
-   * Get flattened income ledger entries (new endpoint)
+   * Get user income (basic method without analytics)
+   */
+  async getUserIncome(
+    options: IncomeServiceOptions = {},
+  ): Promise<IncomeRecord[]> {
+    const result = await this.getUserIncomeWithAnalytics({
+      ...options,
+      include_analytics: false,
+    });
+    return result.incomes;
+  }
+
+  /**
+   * Get income ledger entries
    */
   async getIncomeLedger(
     filters?: LedgerFilters,
     options: IncomeServiceOptions = {},
   ): Promise<FlattenedLedgerEntry[]> {
-    try {
-      const { forceRefresh = false, useCache = true } = options;
-
-      const cacheKey = useCache
-        ? cacheService.generateFilterKey(
-            CACHE_KEYS.INCOME_LEDGER,
-            filters || {},
-          )
-        : null;
-
-      if (cacheKey && !forceRefresh) {
-        const cached = cacheService.getWithFilters(
-          CACHE_KEYS.INCOME_LEDGER,
-          filters || {},
-        );
-        if (cached) {
-          return safeArray(cached);
-        }
-      }
-
-      const response = await call("artha.api.income.get_income_ledger", {
-        filters: filters ? JSON.stringify(filters) : null,
-      });
-
-      const ledgerEntries: FlattenedLedgerEntry[] = safeArray(response).map(
-        (entry: any) => ({
-          name: entry.name || "",
-          income_source: entry.income_source || "",
-          income_type: entry.income_type || "one-time",
-          date_time: entry.date_time || "",
-          amount: Number(entry.amount || 0),
-          source_type: entry.source_type || "",
-          source_recur: Boolean(entry.source_recur),
-          source_income: Number(entry.source_income || 0),
-          source_date_time: entry.source_date_time || "",
-          source_recur_frequency: entry.source_recur_frequency,
-          source_stop_date: entry.source_stop_date,
-        }),
-      );
-
-      if (cacheKey && useCache) {
-        cacheService.setWithFilters(
-          CACHE_KEYS.INCOME_LEDGER,
-          ledgerEntries,
-          filters || {},
-        );
-      }
-
-      return ledgerEntries;
-    } catch (error) {
-      throw new Error(`Failed to fetch income ledger: ${error.message}`);
-    }
+    const result = await this.getUserIncomeWithAnalytics({
+      ...options,
+      filters: filters as IncomeFilters,
+    });
+    return result.ledgerEntries;
   }
 
   /**
-   * Get income types (exact backend API response)
+   * Get income types
    */
   async getIncomeTypes(
     options: IncomeServiceOptions = {},
   ): Promise<IncomeTypeRecord[]> {
-    try {
-      const { forceRefresh = false, useCache = true } = options;
-      if (useCache && !forceRefresh) {
-        const cached = cacheService.get(CACHE_KEYS.INCOME_TYPES);
-        if (cached) {
-          return cached;
-        }
-      }
+    const { useCache = true, forceRefresh = false } = options;
+    const cacheKey = CACHE_KEYS.INCOME_TYPES;
 
-      const response: GetIncomeTypesResponse = await call(
-        "artha.api.income.get_income_types",
+    if (useCache && !forceRefresh) {
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    try {
+      const response: GetIncomeTypesResponse = await apiService.execute(
+        call(API_ENDPOINTS.INCOME.TYPES),
       );
 
-      // Backend now returns {income_types: [...]} format consistently
-      const incomeTypes = safeArray(response.income_types);
+      const incomeTypes = safeArray(response.income_types || []);
 
       if (useCache) {
-        cacheService.set(CACHE_KEYS.INCOME_TYPES, incomeTypes, {
-          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        cacheService.set(cacheKey, incomeTypes, {
+          maxAge: this.longCacheExpiry,
         });
       }
+
       return incomeTypes;
-    } catch (error) {
-      throw new Error(`Failed to fetch income types: ${error.message}`);
+    } catch (error: any) {
+      console.error("Failed to fetch income types:", error);
+      throw new Error(
+        `Failed to load income types: ${error.message || "Unknown error"}`,
+      );
     }
   }
 
@@ -380,113 +288,72 @@ class IncomeService {
     options: IncomeServiceOptions = {},
   ): Promise<GetMonthlyIncomeSummaryResponse> {
     try {
-      const response: GetMonthlyIncomeSummaryResponse = await call(
-        "artha.api.income.get_monthly_income_summary",
+      return await apiService.execute(
+        call("artha.api.income.get_monthly_income_summary"),
       );
-      return (
-        response || {
-          monthly_income: 0,
-          recurring_income: 0,
-          one_time_income: 0,
-          total_sources: 0,
-        }
-      );
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Failed to fetch monthly income summary:", error);
       throw new Error(
-        `Failed to fetch monthly income summary: ${error.message}`,
+        `Failed to load monthly income summary: ${error.message || "Unknown error"}`,
       );
     }
   }
 
   /**
-   * Get income insights and recommendations
+   * Get income insights
    */
   async getIncomeInsights(
     options: IncomeServiceOptions = {},
   ): Promise<GetIncomeInsightsResponse> {
     try {
-      const response: GetIncomeInsightsResponse = await call(
-        "artha.api.income.get_income_insights",
+      return await apiService.execute(
+        call("artha.api.income.get_income_insights"),
       );
-      return (
-        response || {
-          insights: [],
-          recommendations: [],
-          scores: {
-            stability: 0,
-            diversification: 0,
-            growth: 0,
-          },
-        }
+    } catch (error: any) {
+      console.error("Failed to fetch income insights:", error);
+      throw new Error(
+        `Failed to load income insights: ${error.message || "Unknown error"}`,
       );
-    } catch (error) {
-      throw new Error(`Failed to fetch income insights: ${error.message}`);
     }
   }
 
   /**
-   * Get dashboard metrics with computed values
+   * Get dashboard metrics
    */
   async getDashboardMetrics(
     period: string = "this_month",
     options: IncomeServiceOptions = {},
   ): Promise<IncomeDashboardMetrics> {
-    try {
-      const { forceRefresh = false, useCache = true } = options;
+    const { useCache = true, forceRefresh = false } = options;
+    const cacheKey = `${CACHE_KEYS.INCOME_FILTERS}_dashboard_${period}`;
 
-      const cacheKey = useCache
-        ? cacheService.generateFilterKey(
-            `${CACHE_KEYS.USER_INCOME_ANALYTICS}_dashboard`,
-            { period },
-          )
-        : null;
-
-      if (cacheKey && !forceRefresh) {
-        const cached = cacheService.getWithFilters(
-          `${CACHE_KEYS.USER_INCOME_ANALYTICS}_dashboard`,
-          { period },
-        );
-        if (cached) {
-          return cached;
-        }
+    if (useCache && !forceRefresh) {
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        return cached;
       }
+    }
 
-      const response: IncomeDashboardMetrics = await call(
-        "artha.api.income.get_income_dashboard_metrics",
-        { period },
+    try {
+      const result = await apiService.execute(
+        call("artha.api.income.get_income_dashboard_metrics", { period }),
       );
 
-      const metrics = response || {
-        actual_monthly_income: 0,
-        recurring_income: 0,
-        one_time_income: 0,
-        total_sources: 0,
-        recurring_percentage: 0,
-        growth_rate: 0,
-        top_income_type: "",
-        income_by_type: {},
-        monthly_trends: [],
-        average_source_amount: 0,
-        period: period,
-      };
-
-      if (cacheKey && useCache) {
-        cacheService.setWithFilters(
-          `${CACHE_KEYS.USER_INCOME_ANALYTICS}_dashboard`,
-          metrics,
-          { period },
-        );
+      if (useCache) {
+        cacheService.set(cacheKey, result, { maxAge: 2 * 60 * 1000 }); // 2 minutes for dashboard
       }
 
-      return metrics;
-    } catch (error) {
-      throw new Error(`Failed to fetch dashboard metrics: ${error.message}`);
+      return result;
+    } catch (error: any) {
+      console.error("Failed to fetch dashboard metrics:", error);
+      throw new Error(
+        `Failed to load dashboard metrics: ${error.message || "Unknown error"}`,
+      );
     }
   }
 
   /**
-   * Create, update, or delete RECURRING income sources only
-   * For one-time income, use createDirectLedgerEntry instead
+   * Create or update income source
    */
   async createOrUpdateIncome(
     payload:
@@ -495,83 +362,111 @@ class IncomeService {
       | DeleteIncomeSourcePayload,
   ): Promise<CreateIncomeResponse> {
     try {
-      // Ensure all sources are marked as recurring
-      const sources = Array.isArray(payload.income_source)
-        ? payload.income_source
-        : [payload.income_source];
-
-      sources.forEach((source) => {
-        if (source && !source.recur) {
-          throw new Error(
-            "Only recurring income sources can be created here. Use direct ledger entry for one-time income.",
-          );
-        }
-      });
-
-      const response: CreateIncomeResponse = await call(
-        "artha.api.income.create_or_update_income",
-        {
-          income_source: JSON.stringify(payload.income_source),
-          income_name: (payload as any).income_name || null,
-          action: (payload as any).action || null,
-          source_name: (payload as any).source_name || null,
-        },
+      const result = await apiService.execute(
+        call(API_ENDPOINTS.INCOME.CREATE_OR_UPDATE, payload),
       );
-      this.clearCache();
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to save income: ${error.message}`);
+
+      // Invalidate caches
+      this.invalidateIncomeCaches();
+
+      return result;
+    } catch (error: any) {
+      console.error("Failed to create/update income:", error);
+      throw new Error(
+        `Failed to save income: ${error.message || "Unknown error"}`,
+      );
     }
   }
 
   /**
-   * Create a direct ledger entry for one-time income
+   * Create direct ledger entry (one-time income)
    */
   async createDirectLedgerEntry(
     payload: CreateDirectLedgerEntryPayload,
   ): Promise<CreateLedgerEntryResponse> {
     try {
-      const response: CreateLedgerEntryResponse = await call(
-        "artha.api.income.create_direct_ledger_entry",
-        {
-          income_type: payload.income_type,
-          amount: payload.amount,
-          date_time: payload.date_time,
-          description: payload.description,
-        },
+      const result = await apiService.execute(
+        call("artha.api.income.create_direct_ledger_entry", payload),
       );
-      this.clearCache();
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to create direct ledger entry: ${error.message}`);
+
+      // Invalidate caches
+      this.invalidateIncomeCaches();
+
+      return result;
+    } catch (error: any) {
+      console.error("Failed to create direct ledger entry:", error);
+      throw new Error(
+        `Failed to create ledger entry: ${error.message || "Unknown error"}`,
+      );
     }
   }
 
   /**
-   * Validate income data before saving
+   * Update ledger entry
    */
-  async validateIncomeData(
-    payload: ValidateIncomeDataPayload,
-  ): Promise<ValidationResponse> {
+  async updateLedgerEntry(
+    payload: UpdateLedgerEntryPayload,
+  ): Promise<UpdateLedgerEntryResponse> {
     try {
-      const response: ValidationResponse = await call(
-        "artha.api.income.validate_income_data",
-        {
-          monthly_income: payload.monthly_income,
-          income_source: JSON.stringify(payload.income_source),
-        },
+      const result = await apiService.execute(
+        call("artha.api.income.update_ledger_entry", payload),
       );
-      return (
-        response || {
-          is_valid: false,
-          errors: { general: "Validation failed" },
-        }
+
+      // Invalidate caches
+      this.invalidateIncomeCaches();
+
+      return result;
+    } catch (error: any) {
+      console.error("Failed to update ledger entry:", error);
+      throw new Error(
+        `Failed to update ledger entry: ${error.message || "Unknown error"}`,
       );
-    } catch (error) {
-      return {
-        is_valid: false,
-        errors: { general: `Validation error: ${error.message}` },
-      };
+    }
+  }
+
+  /**
+   * Delete ledger entry
+   */
+  async deleteLedgerEntry(
+    payload: DeleteLedgerEntryPayload,
+  ): Promise<DeleteLedgerEntryResponse> {
+    try {
+      const result = await apiService.execute(
+        call("artha.api.income.delete_ledger_entry", payload),
+      );
+
+      // Invalidate caches
+      this.invalidateIncomeCaches();
+
+      return result;
+    } catch (error: any) {
+      console.error("Failed to delete ledger entry:", error);
+      throw new Error(
+        `Failed to delete ledger entry: ${error.message || "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Create ledger entry for existing source
+   */
+  async createLedgerEntry(
+    payload: CreateLedgerEntryPayload,
+  ): Promise<CreateLedgerEntryResponse> {
+    try {
+      const result = await apiService.execute(
+        call("artha.api.income.create_ledger_entry", payload),
+      );
+
+      // Invalidate caches
+      this.invalidateIncomeCaches();
+
+      return result;
+    } catch (error: any) {
+      console.error("Failed to create ledger entry:", error);
+      throw new Error(
+        `Failed to create ledger entry: ${error.message || "Unknown error"}`,
+      );
     }
   }
 
@@ -580,131 +475,81 @@ class IncomeService {
    */
   async updateRecurringLedgerEntries(): Promise<UpdateRecurringLedgerEntriesResponse> {
     try {
-      const response: UpdateRecurringLedgerEntriesResponse = await call(
-        "artha.api.income.update_recurring_ledger_entries",
+      const result = await apiService.execute(
+        call("artha.api.income.update_recurring_ledger_entries"),
       );
-      this.clearCache();
-      return (
-        response || {
-          status: "success",
-          message: "Updated recurring ledger entries",
-          updated_count: 0,
-        }
-      );
-    } catch (error) {
+
+      // Invalidate caches
+      this.invalidateIncomeCaches();
+
+      return result;
+    } catch (error: any) {
+      console.error("Failed to update recurring ledger entries:", error);
       throw new Error(
-        `Failed to update recurring ledger entries: ${error.message}`,
+        `Failed to update recurring entries: ${error.message || "Unknown error"}`,
       );
     }
   }
 
+  /**
+   * Validate income data
+   */
+  async validateIncomeData(
+    payload: ValidateIncomeDataPayload,
+  ): Promise<ValidationResponse> {
+    try {
+      return await apiService.execute(
+        call(API_ENDPOINTS.INCOME.VALIDATE, payload),
+      );
+    } catch (error: any) {
+      console.error("Failed to validate income data:", error);
+      throw new Error(
+        `Failed to validate income data: ${error.message || "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Delete income record
+   */
   async deleteIncome(incomeId: string): Promise<void> {
     try {
-      await call("frappe.client.delete", {
-        doctype: "Income",
-        name: incomeId,
-      });
-      this.clearCache();
-    } catch (error) {
-      throw new Error(`Failed to delete Income record: ${error.message}`);
+      await apiService.execute(
+        call("frappe.client.delete", {
+          doctype: "Income",
+          name: incomeId,
+        }),
+      );
+
+      // Invalidate caches
+      this.invalidateIncomeCaches();
+    } catch (error: any) {
+      console.error("Failed to delete income:", error);
+      throw new Error(
+        `Failed to delete income: ${error.message || "Unknown error"}`,
+      );
     }
   }
 
   /**
-   * Update a specific ledger entry
+   * Invalidate all income-related caches
    */
-  async updateLedgerEntry(
-    payload: UpdateLedgerEntryPayload,
-  ): Promise<UpdateLedgerEntryResponse> {
-    try {
-      const response: UpdateLedgerEntryResponse = await call(
-        "artha.api.income.update_ledger_entry",
-        {
-          ledger_entry_name: payload.ledger_entry_name,
-          new_amount: payload.new_amount,
-          new_date: payload.new_date,
-          new_type: payload.new_type,
-        },
-      );
-      this.clearCache();
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to update ledger entry: ${error.message}`);
-    }
-  }
-
-  /**
-   * Delete a specific ledger entry
-   */
-  async deleteLedgerEntry(
-    payload: DeleteLedgerEntryPayload,
-  ): Promise<DeleteLedgerEntryResponse> {
-    try {
-      const response: DeleteLedgerEntryResponse = await call(
-        "artha.api.income.delete_ledger_entry",
-        {
-          ledger_entry_name: payload.ledger_entry_name,
-        },
-      );
-      this.clearCache();
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to delete ledger entry: ${error.message}`);
-    }
-  }
-
-  /**
-   * Create a new ledger entry
-   */
-  async createLedgerEntry(
-    payload: CreateLedgerEntryPayload,
-  ): Promise<CreateLedgerEntryResponse> {
-    try {
-      const response: CreateLedgerEntryResponse = await call(
-        "artha.api.income.create_ledger_entry",
-        {
-          income_source_name: payload.income_source_name,
-          amount: payload.amount,
-          date_time: payload.date_time,
-          income_type: payload.income_type || "one-time",
-        },
-      );
-      this.clearCache();
-      return response;
-    } catch (error) {
-      throw new Error(`Failed to create ledger entry: ${error.message}`);
-    }
-  }
-
-  async getIncomeAnalytics(
-    period:
-      | "this_month"
-      | "last_month"
-      | "last_3_months"
-      | "last_6_months"
-      | "this_year" = "last_3_months",
-    filters?: IncomeFilters,
-  ): Promise<IncomeAnalytics> {
-    try {
-      const analyticsFilters = { ...filters, period };
-      const result = await this.getUserIncomeWithAnalytics({
-        filters: analyticsFilters,
-      });
-      return result.analytics;
-    } catch (error) {
-      throw new Error(`Failed to fetch income analytics: ${error.message}`);
-    }
-  }
-
-  clearCache(): void {
-    cacheService.delete(CACHE_KEYS.USER_INCOME);
-    cacheService.delete(CACHE_KEYS.USER_INCOME_ANALYTICS);
-    cacheService.delete(CACHE_KEYS.INCOME_TYPES);
-    cacheService.delete(CACHE_KEYS.INCOME_LEDGER);
+  private invalidateIncomeCaches(): void {
     cacheService.clearKey(CACHE_KEYS.USER_INCOME);
     cacheService.clearKey(CACHE_KEYS.USER_INCOME_ANALYTICS);
     cacheService.clearKey(CACHE_KEYS.INCOME_LEDGER);
+    cacheService.clearKey(CACHE_KEYS.INCOME_FILTERS);
+    cacheService.clearPattern("income-dashboard");
+  }
+
+  /**
+   * Clear all caches
+   */
+  clearCache(): void {
+    this.invalidateIncomeCaches();
+    cacheService.clearKey(CACHE_KEYS.INCOME_TYPES);
   }
 }
 
+// Export singleton instance
 export const incomeService = new IncomeService();

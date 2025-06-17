@@ -1,431 +1,433 @@
 /**
- * Centralized Cache Service
- * Handles all caching operations for the application
+ * Cache Service - Robust & Redundancy-Free
+ * Advanced caching system with TTL, filtering, and pattern matching
+ * Provides consistent caching across all data layers
  */
 
-const CACHE_VERSION = "1.0.2"
-const MAX_CACHE_SIZE = 500
-const DEFAULT_MAX_AGE = 5 * 60 * 1000 // 5 minutes for development (reasonable for testing)
+// Cache configuration
+const CACHE_CONFIG = {
+	DEFAULT_TTL: 5 * 60 * 1000, // 5 minutes
+	MAX_CACHE_SIZE: 1000, // Maximum number of cache entries
+	CLEANUP_INTERVAL: 10 * 60 * 1000, // 10 minutes
+};
 
-export class CacheService {
-	constructor(prefix = "artha") {
-		this.prefix = prefix
-		this.stats = { hits: 0, misses: 0, size: 0 }
+// Cache keys - Centralized key definitions
+export const CACHE_KEYS = {
+	// Income related
+	USER_INCOME: "user_income",
+	USER_INCOME_ANALYTICS: "user_income_analytics",
+	INCOME_LEDGER: "income_ledger",
+	INCOME_TYPES: "income_types",
+	INCOME_FILTERS: "income_filters",
+	INCOME_DASHBOARD: "income_dashboard",
+
+	// Expense related
+	USER_EXPENSES: "user_expenses",
+	USER_EXPENSES_ANALYTICS: "user_expenses_analytics",
+	EXPENSE_TYPES: "expense_types",
+	EXPENSE_FILTERS: "expense_filters",
+	EXPENSE_DASHBOARD: "expense_dashboard",
+
+	// Profile related
+	USER_PROFILE: "user_profile",
+	HOUSEHOLD_PROFILE: "household_profile",
+
+	// Support related
+	HEALTH_CONDITIONS: "health_conditions",
+	WELFARE_SCHEMES: "welfare_schemes",
+	INSURANCE_SCHEMES: "insurance_schemes",
+	SUPPORT_PATHWAYS: "support_pathways",
+};
+
+/**
+ * Cache Service Class
+ * Provides advanced caching with TTL, pattern matching, and filter-based keys
+ */
+class CacheService {
+	constructor() {
+		this.cache = new Map();
+		this.filterCache = new Map(); // Separate cache for filtered data
+		this.timers = new Map(); // TTL timers
+		this.stats = {
+			hits: 0,
+			misses: 0,
+			sets: 0,
+			evictions: 0,
+		};
+
+		// Start cleanup interval
+		this.startCleanupInterval();
 	}
 
 	/**
-	 * Generate a cache key with user context
+	 * Generate a cache key for filtered data
+	 * @param {string} baseKey - Base cache key
+	 * @param {Object} filters - Filter object
+	 * @returns {string} - Generated cache key
 	 */
-	generateKey(baseKey, userId = null) {
-		const userSuffix = userId ? `-${userId}` : ""
-		return `${this.prefix}-${baseKey}${userSuffix}`
-	}
-
-	/**
-	 * Generate a filter-aware cache key
-	 * Creates unique cache keys based on filter combinations
-	 */
-	generateFilterKey(baseKey, filters = {}, options = {}) {
-		const { userId = null, profileId = null } = options
-
-		// Extract relevant filter properties for cache key
-		const filterParts = []
-
-		// Date range filters (most important for cache separation)
-		if (filters.dateFrom) filterParts.push(`from-${filters.dateFrom}`)
-		if (filters.dateTo) filterParts.push(`to-${filters.dateTo}`)
-		if (filters.period) filterParts.push(`period-${filters.period}`)
-
-		// Other significant filters that affect server data
-		if (filters.incomeType) filterParts.push(`type-${filters.incomeType}`)
-		if (filters.isRecurring !== null && filters.isRecurring !== undefined) {
-			filterParts.push(`recurring-${filters.isRecurring}`)
+	generateFilterKey(baseKey, filters) {
+		if (!filters || Object.keys(filters).length === 0) {
+			return baseKey;
 		}
 
-		// Amount filters (if they affect server queries)
-		if (filters.amountMin) filterParts.push(`min-${filters.amountMin}`)
-		if (filters.amountMax) filterParts.push(`max-${filters.amountMax}`)
+		// Sort filters for consistent key generation
+		const sortedFilters = Object.keys(filters)
+			.sort()
+			.reduce((result, key) => {
+				const value = filters[key];
+				if (value !== null && value !== undefined && value !== "") {
+					result[key] = value;
+				}
+				return result;
+			}, {});
 
-		// Create filter hash for cache key
-		const filterHash = filterParts.length > 0 ? `-${filterParts.join("-")}` : ""
-		const userSuffix = userId ? `-${userId}` : ""
-		const profileSuffix = profileId ? `-${profileId}` : ""
-
-		return `${this.prefix}-${baseKey}${userSuffix}${profileSuffix}${filterHash}`
+		const filterString = JSON.stringify(sortedFilters);
+		const filterHash = this.hashString(filterString);
+		return `${baseKey}_${filterHash}`;
 	}
 
 	/**
-	 * Save data to cache with metadata
+	 * Simple string hash function
+	 * @param {string} str - String to hash
+	 * @returns {string} - Hash value
 	 */
-	set(key, data, options = {}) {
-		try {
-			const { maxAge = DEFAULT_MAX_AGE, userId, profileId } = options
-
-			// Check data size for arrays to prevent localStorage overflow
-			if (Array.isArray(data) && data.length > MAX_CACHE_SIZE) {
-				return false
-			}
-
-			const cacheKey = this.generateKey(key, userId)
-			const cacheData = {
-				data,
-				version: CACHE_VERSION,
-				timestamp: Date.now(),
-				userId: userId || "anonymous",
-				profileId,
-				maxAge,
-			}
-
-			localStorage.setItem(cacheKey, JSON.stringify(cacheData))
-			return true
-		} catch (error) {
-			console.error("Cache set failed:", error)
-			return false
+	hashString(str) {
+		let hash = 0;
+		if (str.length === 0) return hash.toString();
+		
+		for (let i = 0; i < str.length; i++) {
+			const char = str.charCodeAt(i);
+			hash = ((hash << 5) - hash) + char;
+			hash = hash & hash; // Convert to 32-bit integer
 		}
+		return Math.abs(hash).toString(36);
 	}
 
 	/**
-	 * Save data to cache with filter-aware key
+	 * Set cache entry with TTL
+	 * @param {string} key - Cache key
+	 * @param {*} value - Value to cache
+	 * @param {Object} options - Cache options
 	 */
-	setWithFilters(key, data, filters = {}, options = {}) {
-		try {
-			const { maxAge = DEFAULT_MAX_AGE, userId, profileId } = options
+	set(key, value, options = {}) {
+		const { maxAge = CACHE_CONFIG.DEFAULT_TTL } = options;
 
-			// Check data size for arrays to prevent localStorage overflow
-			if (Array.isArray(data) && data.length > MAX_CACHE_SIZE) {
-				return false
-			}
-
-			const cacheKey = this.generateFilterKey(key, filters, {
-				userId,
-				profileId,
-			})
-			const cacheData = {
-				data,
-				version: CACHE_VERSION,
-				timestamp: Date.now(),
-				userId: userId || "anonymous",
-				profileId,
-				filters: { ...filters }, // Store filters for debugging
-				maxAge,
-			}
-
-			localStorage.setItem(cacheKey, JSON.stringify(cacheData))
-			return true
-		} catch (error) {
-			console.error("Cache setWithFilters failed:", error)
-			return false
+		// Check cache size and evict if necessary
+		if (this.cache.size >= CACHE_CONFIG.MAX_CACHE_SIZE) {
+			this.evictOldest();
 		}
-	}
 
-	/**
-	 * Get data from cache with validation
-	 */
-	get(key, options = {}) {
-		try {
-			const {
-				userId = null,
-				profileId = null,
-				maxAge = DEFAULT_MAX_AGE,
-				validateUser = true,
-				validateProfile = true,
-			} = options
+		// Clear existing timer if any
+		if (this.timers.has(key)) {
+			clearTimeout(this.timers.get(key));
+		}
 
-			const cacheKey = this.generateKey(key, userId)
-			const cached = this.getRaw(cacheKey)
+		// Create cache entry
+		const entry = {
+			value,
+			timestamp: Date.now(),
+			maxAge,
+			accessed: Date.now(),
+		};
 
-			if (!cached) {
-				this.stats.misses++
-				return null
-			}
+		this.cache.set(key, entry);
+		this.stats.sets++;
 
-			// Version check
-			if (cached.version !== CACHE_VERSION) {
-				this.delete(key, { userId })
-				this.stats.misses++
-				return null
-			}
-
-			// Age check
-			const age = Date.now() - cached.timestamp
-			const maxCacheAge = cached.maxAge || maxAge
-			if (age > maxCacheAge) {
-				this.delete(key, { userId })
-				this.stats.misses++
-				return null
-			}
-
-			// User validation
-			if (validateUser && userId && cached.userId !== userId) {
-				this.delete(key, { userId })
-				this.stats.misses++
-				return null
-			}
-
-			// Profile validation
-			if (validateProfile && profileId && cached.profileId !== profileId) {
-				this.delete(key, { userId })
-				this.stats.misses++
-				return null
-			}
-
-			this.stats.hits++
-			return cached.data
-		} catch (error) {
-			console.error("Cache get failed:", error)
-			this.stats.misses++
-			return null
+		// Set TTL timer
+		if (maxAge > 0) {
+			const timer = setTimeout(() => {
+				this.delete(key);
+			}, maxAge);
+			this.timers.set(key, timer);
 		}
 	}
 
 	/**
-	 * Get data from cache with filter-aware key
+	 * Get cache entry
+	 * @param {string} key - Cache key
+	 * @returns {*} - Cached value or null
 	 */
-	getWithFilters(key, filters = {}, options = {}) {
-		try {
-			const {
-				userId = null,
-				profileId = null,
-				maxAge = DEFAULT_MAX_AGE,
-				validateUser = true,
-				validateProfile = true,
-			} = options
+	get(key) {
+		const entry = this.cache.get(key);
 
-			const cacheKey = this.generateFilterKey(key, filters, {
-				userId,
-				profileId,
-			})
-			const cached = this.getRaw(cacheKey)
-
-			if (!cached) {
-				this.stats.misses++
-				return null
-			}
-
-			// Version check
-			if (cached.version !== CACHE_VERSION) {
-				this.deleteWithFilters(key, filters, { userId, profileId })
-				this.stats.misses++
-				return null
-			}
-
-			// Age check
-			const age = Date.now() - cached.timestamp
-			const maxCacheAge = cached.maxAge || maxAge
-			if (age > maxCacheAge) {
-				this.deleteWithFilters(key, filters, { userId, profileId })
-				this.stats.misses++
-				return null
-			}
-
-			// User validation
-			if (validateUser && userId && cached.userId !== userId) {
-				this.deleteWithFilters(key, filters, { userId, profileId })
-				this.stats.misses++
-				return null
-			}
-
-			// Profile validation
-			if (validateProfile && profileId && cached.profileId !== profileId) {
-				this.deleteWithFilters(key, filters, { userId, profileId })
-				this.stats.misses++
-				return null
-			}
-
-			this.stats.hits++
-			return cached.data
-		} catch (error) {
-			console.error("Cache getWithFilters failed:", error)
-			this.stats.misses++
-			return null
+		if (!entry) {
+			this.stats.misses++;
+			return null;
 		}
+
+		// Check if expired
+		if (this.isExpired(entry)) {
+			this.delete(key);
+			this.stats.misses++;
+			return null;
+		}
+
+		// Update access time
+		entry.accessed = Date.now();
+		this.stats.hits++;
+		return entry.value;
 	}
 
 	/**
-	 * Get raw cached data without validation
+	 * Set cache entry with filters
+	 * @param {string} baseKey - Base cache key
+	 * @param {*} value - Value to cache
+	 * @param {Object} filters - Filter object
+	 * @param {Object} options - Cache options
 	 */
-	getRaw(cacheKey) {
-		try {
-			const item = localStorage.getItem(cacheKey)
-			return item ? JSON.parse(item) : null
-		} catch (error) {
-			console.error("Cache parse failed:", error)
-			return null
+	setWithFilters(baseKey, value, filters, options = {}) {
+		const key = this.generateFilterKey(baseKey, filters);
+		this.set(key, value, options);
+
+		// Also store in filter cache for pattern matching
+		if (!this.filterCache.has(baseKey)) {
+			this.filterCache.set(baseKey, new Set());
 		}
+		this.filterCache.get(baseKey).add(key);
 	}
 
 	/**
-	 * Delete specific cache entry
+	 * Get cache entry with filters
+	 * @param {string} baseKey - Base cache key
+	 * @param {Object} filters - Filter object
+	 * @returns {*} - Cached value or null
 	 */
-	delete(key, options = {}) {
-		try {
-			const { userId = null } = options
-			const cacheKey = this.generateKey(key, userId)
-			localStorage.removeItem(cacheKey)
-			return true
-		} catch (error) {
-			console.error("Cache delete failed:", error)
-			return false
-		}
+	getWithFilters(baseKey, filters) {
+		const key = this.generateFilterKey(baseKey, filters);
+		return this.get(key);
 	}
 
 	/**
-	 * Delete specific filter-aware cache entry
+	 * Check if cache entry exists
+	 * @param {string} key - Cache key
+	 * @returns {boolean} - True if exists and not expired
 	 */
-	deleteWithFilters(key, filters = {}, options = {}) {
-		try {
-			const { userId = null, profileId = null } = options
-			const cacheKey = this.generateFilterKey(key, filters, {
-				userId,
-				profileId,
-			})
-			localStorage.removeItem(cacheKey)
-			return true
-		} catch (error) {
-			console.error("Cache deleteWithFilters failed:", error)
-			return false
+	has(key) {
+		const entry = this.cache.get(key);
+		if (!entry) return false;
+		
+		if (this.isExpired(entry)) {
+			this.delete(key);
+			return false;
 		}
+		
+		return true;
 	}
 
 	/**
-	 * Clear all cache entries matching pattern
+	 * Delete cache entry
+	 * @param {string} key - Cache key
 	 */
-	clearPattern(pattern) {
-		try {
-			const keysToRemove = []
-			for (let i = 0; i < localStorage.length; i++) {
-				const key = localStorage.key(i)
-				if (key && key.includes(pattern)) {
-					keysToRemove.push(key)
+	delete(key) {
+		const deleted = this.cache.delete(key);
+		
+		if (this.timers.has(key)) {
+			clearTimeout(this.timers.get(key));
+			this.timers.delete(key);
+		}
+
+		// Clean up filter cache references
+		for (const [baseKey, keySet] of this.filterCache.entries()) {
+			if (keySet.has(key)) {
+				keySet.delete(key);
+				if (keySet.size === 0) {
+					this.filterCache.delete(baseKey);
 				}
 			}
-
-			keysToRemove.forEach((key) => localStorage.removeItem(key))
-			this.stats = { hits: 0, misses: 0, size: 0 }
-			return keysToRemove.length
-		} catch (error) {
-			console.error("Cache clear pattern failed:", error)
-			return 0
 		}
+
+		if (deleted) {
+			this.stats.evictions++;
+		}
+		
+		return deleted;
 	}
 
 	/**
-	 * Clear all cache entries for a user
+	 * Clear cache entries by key pattern
+	 * @param {string} pattern - Pattern to match (supports wildcards)
 	 */
-	clearUser(userId) {
-		return this.clearPattern(`${this.prefix}-${userId}`)
+	clearPattern(pattern) {
+		const regex = new RegExp(pattern.replace(/\*/g, ".*"));
+		const keysToDelete = [];
+
+		for (const key of this.cache.keys()) {
+			if (regex.test(key)) {
+				keysToDelete.push(key);
+			}
+		}
+
+		keysToDelete.forEach(key => this.delete(key));
+		return keysToDelete.length;
 	}
 
 	/**
-	 * Clear all cache entries for a specific key (all filter variations)
+	 * Clear all cache entries for a specific key
+	 * @param {string} baseKey - Base cache key
 	 */
-	clearKey(baseKey, options = {}) {
-		const { userId = null, profileId = null } = options
-		let pattern = `${this.prefix}-${baseKey}`
+	clearKey(baseKey) {
+		// Clear the base key
+		this.delete(baseKey);
 
-		if (userId) pattern += `-${userId}`
-		if (profileId) pattern += `-${profileId}`
+		// Clear all filtered variants
+		if (this.filterCache.has(baseKey)) {
+			const keySet = this.filterCache.get(baseKey);
+			for (const key of keySet) {
+				this.delete(key);
+			}
+			this.filterCache.delete(baseKey);
+		}
 
-		return this.clearPattern(pattern)
+		// Also clear by pattern for safety
+		this.clearPattern(`${baseKey}_*`);
 	}
 
 	/**
-	 * Clear all application cache
+	 * Clear all cache entries
 	 */
-	clearAll() {
-		return this.clearPattern(this.prefix)
+	clear() {
+		// Clear all timers
+		for (const timer of this.timers.values()) {
+			clearTimeout(timer);
+		}
+
+		this.cache.clear();
+		this.filterCache.clear();
+		this.timers.clear();
+		this.stats.evictions += this.cache.size;
 	}
 
 	/**
 	 * Get cache statistics
+	 * @returns {Object} - Cache statistics
 	 */
 	getStats() {
-		return { ...this.stats }
+		return {
+			...this.stats,
+			size: this.cache.size,
+			hitRate: this.stats.hits / (this.stats.hits + this.stats.misses) || 0,
+		};
 	}
 
 	/**
-	 * Debug information about cache entries
+	 * Get all cache keys
+	 * @returns {Array} - Array of cache keys
 	 */
-	debug(pattern = null) {
-		const entries = []
-		const searchPattern = pattern || this.prefix
+	keys() {
+		return Array.from(this.cache.keys());
+	}
 
-		for (let i = 0; i < localStorage.length; i++) {
-			const key = localStorage.key(i)
-			if (key && key.includes(searchPattern)) {
-				const cached = this.getRaw(key)
-				if (cached) {
-					entries.push({
-						key,
-						userId: cached.userId,
-						profileId: cached.profileId,
-						version: cached.version,
-						timestamp: new Date(cached.timestamp).toISOString(),
-						age: Math.round((Date.now() - cached.timestamp) / 1000 / 60),
-						dataCount: Array.isArray(cached.data) ? cached.data.length : 1,
-					})
-				}
+	/**
+	 * Get cache size
+	 * @returns {number} - Number of cache entries
+	 */
+	size() {
+		return this.cache.size;
+	}
+
+	/**
+	 * Check if cache entry is expired
+	 * @param {Object} entry - Cache entry
+	 * @returns {boolean} - True if expired
+	 */
+	isExpired(entry) {
+		if (entry.maxAge <= 0) return false; // No expiration
+		return Date.now() - entry.timestamp > entry.maxAge;
+	}
+
+	/**
+	 * Evict oldest cache entry (LRU)
+	 */
+	evictOldest() {
+		let oldestKey = null;
+		let oldestTime = Infinity;
+
+		for (const [key, entry] of this.cache.entries()) {
+			if (entry.accessed < oldestTime) {
+				oldestTime = entry.accessed;
+				oldestKey = key;
 			}
 		}
 
-		return {
-			entries,
-			stats: this.getStats(),
-			total: entries.length,
+		if (oldestKey) {
+			this.delete(oldestKey);
 		}
 	}
 
 	/**
-	 * Check if cache key exists and is valid
+	 * Start cleanup interval for expired entries
 	 */
-	has(key, options = {}) {
-		const cached = this.get(key, options)
-		return cached !== null
+	startCleanupInterval() {
+		setInterval(() => {
+			this.cleanup();
+		}, CACHE_CONFIG.CLEANUP_INTERVAL);
+	}
+
+	/**
+	 * Clean up expired entries
+	 */
+	cleanup() {
+		const expiredKeys = [];
+
+		for (const [key, entry] of this.cache.entries()) {
+			if (this.isExpired(entry)) {
+				expiredKeys.push(key);
+			}
+		}
+
+		expiredKeys.forEach(key => this.delete(key));
+		
+		if (expiredKeys.length > 0) {
+			console.debug(`Cache cleanup: removed ${expiredKeys.length} expired entries`);
+		}
+	}
+
+	/**
+	 * Preload cache with data
+	 * @param {Object} data - Data to preload { key: value }
+	 * @param {Object} options - Cache options
+	 */
+	preload(data, options = {}) {
+		for (const [key, value] of Object.entries(data)) {
+			this.set(key, value, options);
+		}
+	}
+
+	/**
+	 * Get cache entries by prefix
+	 * @param {string} prefix - Key prefix
+	 * @returns {Object} - Object with matching entries
+	 */
+	getByPrefix(prefix) {
+		const result = {};
+		
+		for (const [key, entry] of this.cache.entries()) {
+			if (key.startsWith(prefix) && !this.isExpired(entry)) {
+				result[key] = entry.value;
+			}
+		}
+		
+		return result;
+	}
+
+	/**
+	 * Invalidate cache entries by tags
+	 * @param {Array} tags - Tags to invalidate
+	 */
+	invalidateByTags(tags) {
+		// This would require storing tags with entries
+		// For now, we'll use pattern matching
+		tags.forEach(tag => {
+			this.clearPattern(`*${tag}*`);
+		});
 	}
 }
 
-// Create default instance
-export const cacheService = new CacheService()
+// Export singleton instance
+export const cacheService = new CacheService();
 
-// Export cache keys constants
-export const CACHE_KEYS = {
-	// Expense cache keys - following income pattern
-	USER_EXPENSES: "user-expenses",
-	USER_EXPENSES_ANALYTICS: "user-expenses-analytics",
-	EXPENSE_TYPES: "expense-types",
-	EXPENSE_DASHBOARD: "expense-dashboard",
-	EXPENSE_FILTERS: "expense-filters",
-	EXPENSE_PREFERENCES: "expense-preferences",
+// Export for testing
+export { CacheService, CACHE_CONFIG };
 
-	// Income cache keys - centralized and organized
-	USER_INCOME: "user-income",
-	USER_INCOME_ANALYTICS: "user-income-analytics",
-	INCOME_LEDGER: "income-ledger",
-	INCOME_TYPES: "income-types",
-	INCOME_FILTERS: "income-filters",
-	INCOME_PREFERENCES: "income-preferences",
-
-	// Household cache keys
-	HOUSEHOLD_PROFILE: "household-cache",
-
-	// UI state cache keys
-	GROUP_STATE: "group-state",
-	FILTERS: "filters", // Generic filters
-	PREFERENCES: "preferences", // Generic preferences
-
-	// User cache keys
-	USER_PROFILE: "user-profile",
-	USER_PREFERENCES: "user-preferences",
-
-	// Support cache keys
-	HEALTH_CONDITIONS: "health-conditions",
-	WELFARE_SCHEMES: "welfare-schemes",
-	INSURANCE_SCHEMES: "insurance-schemes",
-	ALL_SCHEMES: "all-schemes",
-	SUPPORT_PATHWAYS: "support-pathways",
-	ELIGIBLE_SCHEMES: "eligible-schemes",
-	SUPPORT_RECOMMENDATIONS: "support-recommendations",
-	SCHEME_APPLICATIONS: "scheme-applications",
-	SCHEME_CLAIMS: "scheme-claims",
-	USER_HEALTH_CONDITIONS: "user-health-conditions",
-}
+// Legacy default export
+export default cacheService;

@@ -1,7 +1,7 @@
 /**
- * Expense Store
- * Manages expense state and provides reactive data for components
- * Follows the income management pattern with clean separation of concerns
+ * Expense Store - Robust & Redundancy-Free
+ * Centralized state management for expense data with clean separation of concerns
+ * Follows the exact income store pattern for consistency
  */
 
 import { defineStore } from "pinia";
@@ -17,6 +17,7 @@ import type {
   ExpenseTypeRecord,
   GetExpenseTypesResponse,
 } from "../types/expense";
+import { safeArray } from "../types/expense";
 
 // Default filters
 const defaultFilters: ExpenseFilters = {
@@ -25,11 +26,12 @@ const defaultFilters: ExpenseFilters = {
   category: "",
   dateFrom: "",
   dateTo: "",
-  amountMin: 0,
-  amountMax: 0,
+  amountMin: undefined,
+  amountMax: undefined,
   sortBy: "date",
   sortOrder: "desc",
-  period: "all",
+  period: "this_month",
+  isDirect: undefined,
 };
 
 export const useExpenseStore = defineStore("expense", () => {
@@ -45,7 +47,7 @@ export const useExpenseStore = defineStore("expense", () => {
   const error = ref<string | null>(null);
   const filters = ref<ExpenseFilters>({ ...defaultFilters });
   const lastFetch = ref<number | null>(null);
-  const cacheExpiry = ref(300000); // 5 minutes
+  const cacheExpiry = ref(5 * 60 * 1000); // 5 minutes
 
   // Computed properties
   const hasData = computed(() => expenses.value.length > 0);
@@ -56,91 +58,108 @@ export const useExpenseStore = defineStore("expense", () => {
   });
 
   const filteredExpenses = computed(() => {
-    let filtered = expenses.value;
+    let filtered = expenses.value.slice();
+    const currentFilters = filters.value;
 
-    // Apply filters
-    if (filters.value.searchTerm) {
-      const searchTerm = filters.value.searchTerm.toLowerCase();
+    // Search filter
+    if (currentFilters.searchTerm) {
+      const term = currentFilters.searchTerm.toLowerCase();
       filtered = filtered.filter(
         (expense) =>
-          expense.category.toLowerCase().includes(searchTerm) ||
-          (expense.description || "").toLowerCase().includes(searchTerm),
+          expense.category.toLowerCase().includes(term) ||
+          (expense.description || "").toLowerCase().includes(term),
       );
     }
 
-    if (filters.value.type) {
+    // Type filter
+    if (currentFilters.type) {
       filtered = filtered.filter(
-        (expense) => expense.type === filters.value.type,
+        (expense) => expense.type === currentFilters.type,
       );
     }
 
-    if (filters.value.category) {
+    // Category filter
+    if (currentFilters.category) {
       filtered = filtered.filter(
-        (expense) => expense.category === filters.value.category,
+        (expense) => expense.category === currentFilters.category,
       );
     }
 
-    if (filters.value.dateFrom) {
-      const fromDate = new Date(filters.value.dateFrom);
+    // Date filters
+    if (currentFilters.dateFrom) {
+      const fromDate = new Date(currentFilters.dateFrom);
       filtered = filtered.filter(
         (expense) => new Date(expense.date_time) >= fromDate,
       );
     }
 
-    if (filters.value.dateTo) {
-      const toDate = new Date(filters.value.dateTo);
+    if (currentFilters.dateTo) {
+      const toDate = new Date(currentFilters.dateTo);
       filtered = filtered.filter(
         (expense) => new Date(expense.date_time) <= toDate,
       );
     }
 
-    if (filters.value.amountMin && filters.value.amountMin > 0) {
+    // Amount filters
+    if (currentFilters.amountMin !== undefined) {
       filtered = filtered.filter(
-        (expense) => expense.amount >= filters.value.amountMin!,
+        (expense) => expense.amount >= currentFilters.amountMin!,
       );
     }
 
-    if (filters.value.amountMax && filters.value.amountMax > 0) {
+    if (currentFilters.amountMax !== undefined) {
       filtered = filtered.filter(
-        (expense) => expense.amount <= filters.value.amountMax!,
+        (expense) => expense.amount <= currentFilters.amountMax!,
       );
     }
 
-    if (filters.value.isDirect !== undefined) {
+    // Direct/Indirect filter for medical expenses
+    if (
+      currentFilters.isDirect !== undefined &&
+      currentFilters.type === "medical"
+    ) {
       filtered = filtered.filter(
         (expense) =>
           expense.type === "medical" &&
-          expense.is_direct === filters.value.isDirect,
+          Boolean(expense.is_direct) === currentFilters.isDirect,
       );
     }
 
     // Sorting
-    const sortBy = filters.value.sortBy || "date";
-    const sortOrder = filters.value.sortOrder || "desc";
+    if (currentFilters.sortBy) {
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
 
-    filtered.sort((a, b) => {
-      let aVal: any, bVal: any;
+        if (currentFilters.sortBy === "date") {
+          aValue = new Date(a.date_time).getTime();
+          bValue = new Date(b.date_time).getTime();
+        } else if (currentFilters.sortBy === "amount") {
+          aValue = a.amount;
+          bValue = b.amount;
+        } else if (currentFilters.sortBy === "category") {
+          aValue = a.category.toLowerCase();
+          bValue = b.category.toLowerCase();
+          if (currentFilters.sortOrder === "desc") {
+            return bValue.localeCompare(aValue);
+          }
+          return aValue.localeCompare(bValue);
+        } else {
+          return 0;
+        }
 
-      switch (sortBy) {
-        case "amount":
-          aVal = a.amount;
-          bVal = b.amount;
-          break;
-        case "category":
-          aVal = a.category;
-          bVal = b.category;
-          break;
-        case "date":
-        default:
-          aVal = new Date(a.date_time);
-          bVal = new Date(b.date_time);
-          break;
-      }
-
-      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
+        if (
+          currentFilters.sortBy === "date" ||
+          currentFilters.sortBy === "amount"
+        ) {
+          if (currentFilters.sortOrder === "desc") {
+            return bValue - aValue;
+          }
+          return aValue - bValue;
+        }
+        return 0;
+      });
+    }
 
     return filtered;
   });
@@ -189,9 +208,10 @@ export const useExpenseStore = defineStore("expense", () => {
 
   const expenseCount = computed(() => filteredExpenses.value.length);
 
-  const averageExpense = computed(() =>
-    expenseCount.value > 0 ? totalAmount.value / expenseCount.value : 0,
-  );
+  const averageExpense = computed(() => {
+    const count = expenseCount.value;
+    return count > 0 ? totalAmount.value / count : 0;
+  });
 
   const expensesByDate = computed(() => {
     const grouped: Record<string, FlattenedExpenseEntry[]> = {};
@@ -269,6 +289,7 @@ export const useExpenseStore = defineStore("expense", () => {
 
       const data = await expenseService.getUserExpenses({
         ...options,
+        filters: filters.value,
         useCache: !forceRefresh,
       });
 
