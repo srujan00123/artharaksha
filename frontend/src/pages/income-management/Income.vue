@@ -28,7 +28,7 @@
     <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
         <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-          <Button 
+          <button 
             v-if="currentView === 'sources'"
             @click="openIncomeSourceForm" 
             :disabled="loading" 
@@ -38,8 +38,8 @@
           >
             <Plus class="w-4 h-4 mr-2" />
             Add Income Source
-          </Button>
-          <Button 
+          </button>
+          <button 
             v-if="currentView === 'ledger'"
             @click="openDirectIncomeForm" 
             :disabled="loading" 
@@ -49,7 +49,7 @@
           >
             <Plus class="w-4 h-4 mr-2" />
             Add Income
-          </Button>
+          </button>
           <Button @click="handleRefresh" :disabled="loading" variant="outline" size="sm" class="w-full sm:w-auto">
             <RefreshCw class="w-4 h-4 mr-2" />
             Refresh

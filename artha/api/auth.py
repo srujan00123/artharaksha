@@ -41,7 +41,8 @@ def register_account(email, password):
         household_profile.user = user.email
 
         household_profile.save(ignore_permissions=True)
-        frappe.log_error(f"Household Profile created: {household_profile.name}")
+        frappe.log_error(
+            f"Household Profile created: {household_profile.name}")
 
         # Create Expense document (only set required field)
         expense = frappe.new_doc("Expense")
@@ -59,7 +60,7 @@ def register_account(email, password):
         return None
     except Exception as e:
         frappe.log_error(f"Registration failed: {str(e)}")
-        raise 
+        raise
 
 
 @frappe.whitelist()
@@ -70,15 +71,15 @@ def get_permission_query_conditions_for_user(user=None):
     """
     if not user:
         user = frappe.session.user
-    
+
     # System Manager can access all users
     if "System Manager" in frappe.get_roles(user):
         return ""
-    
+
     # Artha Users can only access their own record
     if "Artha User" in frappe.get_roles(user):
         return f"`tabUser`.name = '{user}'"
-    
+
     # Default: no access
     return "1=0"
 
@@ -91,11 +92,11 @@ def has_permission_for_user(doc, user=None, ptype=None):
     """
     if not user:
         user = frappe.session.user
-    
+
     # System Manager has full access
     if "System Manager" in frappe.get_roles(user):
         return True
-    
+
     # Artha Users can only access their own record
     if "Artha User" in frappe.get_roles(user):
         if isinstance(doc, str):
@@ -104,7 +105,7 @@ def has_permission_for_user(doc, user=None, ptype=None):
         else:
             # doc is a document object
             return doc.name == user
-    
+
     # Default: no access
     return False
 
@@ -118,10 +119,10 @@ def get_current_user_profile():
         user = frappe.session.user
         if not user or user == "Guest":
             frappe.throw(_("Not authenticated"))
-        
+
         # Get user document with required fields
         user_doc = frappe.get_doc("User", user)
-        
+
         # Return only safe fields
         return {
             "name": user_doc.name,
@@ -158,30 +159,30 @@ def update_user_profile(**kwargs):
         user = frappe.session.user
         if not user or user == "Guest":
             frappe.throw(_("Not authenticated"))
-        
+
         # Get user document
         user_doc = frappe.get_doc("User", user)
-        
+
         # Allowed fields for update
         allowed_fields = [
             "first_name", "middle_name", "last_name", "full_name",
             "phone", "mobile_no", "location", "bio", "user_image",
             "language", "time_zone", "desk_theme"
         ]
-        
+
         # Update only allowed fields
         updated = False
         for field, value in kwargs.items():
             if field in allowed_fields and hasattr(user_doc, field):
                 setattr(user_doc, field, value)
                 updated = True
-        
+
         if updated:
             user_doc.save(ignore_permissions=True)
             frappe.db.commit()
-        
+
         return get_current_user_profile()
-        
+
     except Exception as e:
         frappe.log_error(f"Failed to update user profile: {str(e)}")
         frappe.throw(_("Failed to update user profile"))
@@ -196,10 +197,10 @@ def get_current_user_roles():
         user = frappe.session.user
         if user == 'Guest':
             return []
-        
+
         roles = frappe.get_roles(user)
         return roles
-        
+
     except Exception as e:
         frappe.log_error(f"Error getting user roles: {str(e)}")
         return []
@@ -214,10 +215,10 @@ def has_admin_role():
         user = frappe.session.user
         if user == 'Guest':
             return False
-        
+
         roles = frappe.get_roles(user)
         return 'System Manager' in roles or 'Administrator' in roles
-        
+
     except Exception as e:
         frappe.log_error(f"Error checking admin role: {str(e)}")
         return False

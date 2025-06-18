@@ -114,7 +114,7 @@
                       @click="navigateToIncome">
                 <div class="flex items-center justify-between">
                         <div class="min-w-0 flex-1">
-                            <p class="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Monthly Income</p>
+                            <p class="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Total Income</p>
                             <p class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                                 ₹{{ analytics?.totalIncome ?? 0 }}
                             </p>

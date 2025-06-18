@@ -32,6 +32,7 @@ export const API_ENDPOINTS = {
 		LOGIN: "login",
 		LOGOUT: "logout",
 		SESSION: "artha.api.auth.get_session_user",
+		GET_CURRENT_USER_PROFILE: "artha.api.auth.get_current_user_profile",
 	},
 	PROFILE: {
 		GET: "artha.api.profile.get_user_profile",

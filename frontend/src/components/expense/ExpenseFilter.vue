@@ -91,12 +91,12 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Min Amount</label>
-                                <TextInput type="number" v-model="localFilters.amountMin" @input="onFilterChange"
+                                <TextInput type="number" v-model="amountMinString" @input="onAmountMinChange"
                                     placeholder="0" min="0" step="0.01" class="w-full" size="sm" />
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Max Amount</label>
-                                <TextInput type="number" v-model="localFilters.amountMax" @input="onFilterChange"
+                                <TextInput type="number" v-model="amountMaxString" @input="onAmountMaxChange"
                                     placeholder="No limit" min="0" step="0.01" class="w-full" size="sm" />
                             </div>
                         </div>
@@ -182,9 +182,7 @@ import { Badge, Button, Card, TextInput } from "frappe-ui"
 import { ShoppingBag, SlidersHorizontal, Stethoscope } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
 import { useExpense } from "../../composables/useExpense"
-import type {
-	ExpenseFilters,
-} from "../../types/expense"
+import type { ExpenseFilters } from "../../types/expense"
 import { getClientDateString, getClientTime } from "../../utils/date"
 
 // Props
@@ -198,29 +196,39 @@ const props = withDefaults(defineProps<Props>(), {
 	filteredCount: 0,
 })
 
-// Use the expense composable with new system
+// Emits
+const emit = defineEmits<{
+	'update:filters': [filters: ExpenseFilters]
+}>()
+
+// Use the expense composable
 const {
-	filters,
-	refreshData,
-	loading,
-} = useExpense()
+	filters: storeFilters,
+	updateFilters,
+	clearFilters,
+} = useExpense({ autoInitialize: false })
 
 // Local state
 const showFilters = ref(false)
 
-// Local filters that sync with the composable
+// Local filters that sync with the store
 const localFilters = ref<ExpenseFilters>({
 	searchTerm: "",
 	dateFrom: "",
 	dateTo: "",
-	amountMin: 0,
-	amountMax: 0,
+	amountMin: undefined,
+	amountMax: undefined,
 	category: "",
 	type: "",
 	sortBy: "date",
 	sortOrder: "desc",
-	period: "this_month", // Default to this month
+	period: "this_month",
+	isDirect: undefined,
 })
+
+// String representations for amount inputs
+const amountMinString = ref("")
+const amountMaxString = ref("")
 
 // Quick date filter options
 const quickDateFilters = [
@@ -400,19 +408,25 @@ function formatAmountRange(): string {
 }
 
 // Methods
-async function onFilterChange() {
-	// Use cache-aware refresh for filter changes
-	try {
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: true
-		})
-	} catch (error) {
-		console.error("Failed to refresh data after filter change:", error)
-	}
+function onFilterChange() {
+	// Update the store and emit to parent
+	updateFilters(localFilters.value)
+	emit('update:filters', localFilters.value)
 }
 
-async function applyQuickDateFilter(period: string) {
+function onAmountMinChange() {
+	const value = parseFloat(amountMinString.value)
+	localFilters.value.amountMin = isNaN(value) || value <= 0 ? undefined : value
+	onFilterChange()
+}
+
+function onAmountMaxChange() {
+	const value = parseFloat(amountMaxString.value)
+	localFilters.value.amountMax = isNaN(value) || value <= 0 ? undefined : value
+	onFilterChange()
+}
+
+function applyQuickDateFilter(period: string) {
 	const filter = quickDateFilters.find((f) => f.value === period)
 	if (filter) {
 		localFilters.value.dateFrom = ""
@@ -422,7 +436,7 @@ async function applyQuickDateFilter(period: string) {
 		if (validPeriods.includes(period as any)) {
 			localFilters.value.period = period as typeof validPeriods[number]
 		}
-		await onFilterChange()
+		onFilterChange()
 	}
 }
 
@@ -430,35 +444,45 @@ function isActiveDateFilter(period: string): boolean {
 	return localFilters.value.period === period
 }
 
-async function clearAllFilters() {
+function clearAllFilters() {
 	localFilters.value = {
 		searchTerm: "",
 		dateFrom: "",
 		dateTo: "",
-		amountMin: 0,
-		amountMax: 0,
+		amountMin: undefined,
+		amountMax: undefined,
 		category: "",
 		type: "",
 		sortBy: "date",
 		sortOrder: "desc",
-		period: "this_month", // Reset to default
+		period: "this_month",
+		isDirect: undefined,
 	}
-	await onFilterChange()
+	amountMinString.value = ""
+	amountMaxString.value = ""
+	
+	// Clear store filters and emit to parent
+	clearFilters()
+	emit('update:filters', localFilters.value)
 }
 
-// Sync local filters with composable filters
-watch(filters, (newFilters) => {
+// Sync local filters with store filters
+watch(storeFilters, (newFilters) => {
 	if (newFilters) {
 		localFilters.value = { ...newFilters }
+		// Update string representations
+		amountMinString.value = newFilters.amountMin ? newFilters.amountMin.toString() : ""
+		amountMaxString.value = newFilters.amountMax ? newFilters.amountMax.toString() : ""
 	}
-}, { deep: true })
+}, { deep: true, immediate: true })
 
 // Initialize on mount
-onMounted(async () => {
-	// Set default period on mount if not already set
-	if (!localFilters.value.period) {
-		localFilters.value.period = "this_month"
-		await onFilterChange()
+onMounted(() => {
+	// Sync with store filters on mount
+	if (storeFilters.value) {
+		localFilters.value = { ...storeFilters.value }
+		amountMinString.value = storeFilters.value.amountMin ? storeFilters.value.amountMin.toString() : ""
+		amountMaxString.value = storeFilters.value.amountMax ? storeFilters.value.amountMax.toString() : ""
 	}
 })
 </script>
