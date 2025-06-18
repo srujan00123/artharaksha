@@ -72,13 +72,13 @@ def get_user_expenses(filters: Optional[Union[str, Dict]] = None, include_analyt
             return {
                 "expenses": [],
                 "analytics": {
-                "total_expenses": 0,
-                "medical_expenses": 0,
-                "other_expenses": 0,
-                "direct_medical": 0,
-                "indirect_medical": 0,
-                "expense_by_category": {},
-                "monthly_trends": [],
+                    "total_expenses": 0,
+                    "medical_expenses": 0,
+                    "other_expenses": 0,
+                    "direct_medical": 0,
+                    "indirect_medical": 0,
+                    "expense_by_category": {},
+                    "monthly_trends": [],
                     "summary": {
                         "total_count": 0,
                         "average_expense": 0,
@@ -305,7 +305,7 @@ def _calculate_analytics(expense_entries: List[Dict], filters: Dict) -> Dict[str
                            if e['type'] == 'medical' and not e.get('is_direct', True))
 
     # Category breakdown
-        expense_by_category = {}
+    expense_by_category = {}
     for entry in expense_entries:
         category = entry['category']
         if category not in expense_by_category:
@@ -313,59 +313,59 @@ def _calculate_analytics(expense_entries: List[Dict], filters: Dict) -> Dict[str
         expense_by_category[category] += flt(entry['amount'])
 
     # Monthly trends
-        monthly_data = {}
+    monthly_data = {}
     for entry in expense_entries:
         entry_date = getdate(entry['date_time'])
         month_key = entry_date.strftime("%Y-%m")
 
-            if month_key not in monthly_data:
-                monthly_data[month_key] = {
-                    "total": 0,
-                    "medical": 0,
-                    "other": 0,
-                    "direct": 0,
-                    "indirect": 0
-                }
+        if month_key not in monthly_data:
+            monthly_data[month_key] = {
+                "total": 0,
+                "medical": 0,
+                "other": 0,
+                "direct": 0,
+                "indirect": 0
+            }
 
         amount = flt(entry['amount'])
         monthly_data[month_key]["total"] += amount
 
         if entry['type'] == 'medical':
-                monthly_data[month_key]["medical"] += amount
+            monthly_data[month_key]["medical"] += amount
             if entry.get('is_direct', True):
-                    monthly_data[month_key]["direct"] += amount
-                else:
-                    monthly_data[month_key]["indirect"] += amount
+                monthly_data[month_key]["direct"] += amount
+            else:
+                monthly_data[month_key]["indirect"] += amount
         else:
-                monthly_data[month_key]["other"] += amount
-        
-        # Generate monthly trends
-        monthly_trends = []
-        for month_key in sorted(monthly_data.keys()):
-            month_date = datetime.strptime(month_key, "%Y-%m")
-            monthly_trends.append({
-                "month": month_date.strftime("%b %Y"),
-                "total": monthly_data[month_key]["total"],
-                "medical": monthly_data[month_key]["medical"],
-                "other": monthly_data[month_key]["other"],
-                "direct": monthly_data[month_key]["direct"],
-                "indirect": monthly_data[month_key]["indirect"]
-            })
-        
+            monthly_data[month_key]["other"] += amount
+
+    # Generate monthly trends
+    monthly_trends = []
+    for month_key in sorted(monthly_data.keys()):
+        month_date = datetime.strptime(month_key, "%Y-%m")
+        monthly_trends.append({
+            "month": month_date.strftime("%b %Y"),
+            "total": monthly_data[month_key]["total"],
+            "medical": monthly_data[month_key]["medical"],
+            "other": monthly_data[month_key]["other"],
+            "direct": monthly_data[month_key]["direct"],
+            "indirect": monthly_data[month_key]["indirect"]
+        })
+
     # Summary statistics
     total_count = len(expense_entries)
     average_expense = total_expenses / total_count if total_count > 0 else 0
     top_category = max(expense_by_category.items(), key=lambda x: x[1])[
         0] if expense_by_category else ""
-        
-        return {
-            "total_expenses": total_expenses,
-            "medical_expenses": medical_expenses,
-            "other_expenses": other_expenses,
-            "direct_medical": direct_medical,
-            "indirect_medical": indirect_medical,
-            "expense_by_category": expense_by_category,
-            "monthly_trends": monthly_trends,
+
+    return {
+        "total_expenses": total_expenses,
+        "medical_expenses": medical_expenses,
+        "other_expenses": other_expenses,
+        "direct_medical": direct_medical,
+        "indirect_medical": indirect_medical,
+        "expense_by_category": expense_by_category,
+        "monthly_trends": monthly_trends,
         "summary": {
             "total_count": total_count,
             "average_expense": average_expense,
@@ -405,7 +405,7 @@ def get_expense_dashboard_metrics(period: str = "this_month") -> Dict[str, Any]:
             "start_date": "",
             "end_date": ""
         }
-        
+
     except Exception as e:
         frappe.log_error(f"Error fetching expense dashboard metrics: {str(e)}")
         frappe.throw(_("Failed to fetch expense dashboard metrics"))
@@ -511,7 +511,7 @@ def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[st
 
         # Get parent document info
         parent_doc = frappe.get_doc("Expense", child_doc.parent)
-        
+
         return {
             "name": parent_doc.name,
             "household_profile": parent_doc.household_profile,
@@ -593,7 +593,7 @@ def validate_expense_data(expense_data: Union[str, Dict]) -> Dict[str, Any]:
         # Date validation
         if not expense_data.get("date_time"):
             errors["date_time"] = "Please select a date"
-                else:
+        else:
             try:
                 expense_date = getdate(expense_data["date_time"])
                 today = getdate()
@@ -601,12 +601,12 @@ def validate_expense_data(expense_data: Union[str, Dict]) -> Dict[str, Any]:
                     errors["date_time"] = "Expense date cannot be in the future"
             except:
                 errors["date_time"] = "Please enter a valid date"
-        
+
         return {
             "is_valid": len(errors) == 0,
             "errors": errors
         }
-        
+
     except Exception as e:
         frappe.log_error(f"Error validating expense data: {str(e)}")
         return {
