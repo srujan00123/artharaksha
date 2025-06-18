@@ -887,3 +887,191 @@ def log_expense_operation(operation: str, details: Dict[str, Any]) -> None:
         # Don't fail the main operation if logging fails
         frappe.log_error(
             f"Failed to log expense operation {operation}: {str(e)}")
+
+
+def get_recurring_income_sources(household_profile: str) -> list:
+    """
+    Fetch all recurring income sources for a household profile.
+    """
+    recurring_sources = []
+    income_records = frappe.get_all(
+        "Income",
+        filters={"household_profile": household_profile},
+        fields=["name"]
+    )
+    for record in income_records:
+        sources = frappe.get_all(
+            "Income Source Type",
+            filters={"parent": record.name, "recur": 1},
+            fields=[
+                "name", "type", "income", "recur",
+                "date_time", "recur_frequency", "stop_date"
+            ],
+            order_by="creation desc"
+        )
+        for source in sources:
+            source.recur = bool(source.recur)
+            recurring_sources.append(source)
+    return recurring_sources
+
+
+def get_all_ledger_entries(household_profile: str) -> list:
+    """
+    Fetch all ledger entries for a household profile, flattened with source info if available.
+    """
+    all_ledger_entries = []
+    income_records = frappe.get_all(
+        "Income",
+        filters={"household_profile": household_profile},
+        fields=["name"]
+    )
+    for record in income_records:
+        entries = frappe.get_all(
+            "Income Ledger",
+            filters={"parent": record.name},
+            fields=[
+                "name", "income_source", "income_type",
+                "date_time", "amount", "source_type", "description"
+            ],
+            order_by="date_time desc"
+        )
+        for entry in entries:
+            flattened_entry = {
+                "name": entry.name,
+                "income_source": entry.income_source,
+                "income_type": entry.income_type,
+                "date_time": entry.date_time,
+                "amount": entry.amount,
+                "description": entry.description
+            }
+            if entry.income_source:
+                source_info = frappe.get_all(
+                    "Income Source Type",
+                    filters={"name": entry.income_source},
+                    fields=[
+                        "type", "income", "recur", "date_time",
+                        "recur_frequency", "stop_date"
+                    ]
+                )
+                if source_info:
+                    source = source_info[0]
+                    flattened_entry.update({
+                        "source_type": source.type,
+                        "source_recur": source.recur,
+                        "source_income": source.income,
+                        "source_date_time": source.date_time,
+                        "source_recur_frequency": source.recur_frequency,
+                        "source_stop_date": source.stop_date
+                    })
+                else:
+                    flattened_entry["source_type"] = "Unknown"
+            else:
+                flattened_entry["source_type"] = entry.source_type or "One-time"
+            all_ledger_entries.append(flattened_entry)
+    return all_ledger_entries
+
+
+def apply_income_filters(ledger_entries: list, filters: dict) -> list:
+    """
+    Apply all supported filters to the ledger entries.
+    """
+    filtered_ledger_entries = ledger_entries.copy()
+    # Date filters
+    if filters.get('dateFrom'):
+        start_date = getdate(filters['dateFrom'])
+        filtered_ledger_entries = [
+            e for e in filtered_ledger_entries
+            if getdate(e['date_time']) >= start_date]
+    if filters.get('dateTo'):
+        end_date = getdate(filters['dateTo'])
+        filtered_ledger_entries = [
+            e for e in filtered_ledger_entries
+            if getdate(e['date_time']) <= end_date
+        ]
+    # Period filters
+    start_date = None
+    end_date = None
+    if filters.get('period'):
+        period = filters['period']
+        today = getdate()
+        if period == "this_month":
+            start_date = today.replace(day=1)
+            end_date = today
+        elif period == "last_month":
+            last_month = today.replace(day=1) - timedelta(days=1)
+            start_date = last_month.replace(day=1)
+            end_date = last_month
+        elif period == "last_3_months":
+            start_date = (today.replace(day=1) -
+                          timedelta(days=90)).replace(day=1)
+            end_date = today
+        elif period == "last_6_months":
+            start_date = (today.replace(day=1) -
+                          timedelta(days=180)).replace(day=1)
+            end_date = today
+        elif period == "this_year":
+            start_date = today.replace(month=1, day=1)
+            end_date = today
+    if start_date and end_date:
+        filtered_ledger_entries = [
+            e for e in filtered_ledger_entries
+            if start_date <= getdate(e['date_time']) <= end_date
+        ]
+    # Income type filter
+    if filters.get('type'):
+        filtered_ledger_entries = [
+            e for e in filtered_ledger_entries
+            if e['source_type'] == filters['type']
+        ]
+    # Frequency filter
+    if filters.get('isRecurring') is not None:
+        if filters['isRecurring']:
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries
+                if e['income_type'] == 'recurring'
+            ]
+        else:
+            filtered_ledger_entries = [
+                e for e in filtered_ledger_entries
+                if e['income_type'] == 'one-time'
+            ]
+    # Amount filters
+    if filters.get('amountMin'):
+        min_amount = flt(filters['amountMin'])
+        filtered_ledger_entries = [
+            e for e in filtered_ledger_entries
+            if flt(e['amount']) >= min_amount
+        ]
+    if filters.get('amountMax'):
+        max_amount = flt(filters['amountMax'])
+        filtered_ledger_entries = [
+            e for e in filtered_ledger_entries
+            if flt(e['amount']) <= max_amount
+        ]
+    # Search filter
+    if filters.get('searchTerm'):
+        search_term = filters['searchTerm'].lower()
+        filtered_ledger_entries = [
+            e for e in filtered_ledger_entries
+            if search_term in e['source_type'].lower()
+        ]
+    # Sorting
+    sort_by = filters.get('sortBy', 'date')
+    sort_order = filters.get('sortOrder', 'desc')
+    reverse_sort = sort_order == 'desc'
+    if sort_by == 'date':
+        filtered_ledger_entries.sort(
+            key=lambda x: getdate(x['date_time']),
+            reverse=reverse_sort
+        )
+    elif sort_by == 'amount':
+        filtered_ledger_entries.sort(
+            key=lambda x: flt(x['amount']),
+            reverse=reverse_sort
+        )
+    elif sort_by == 'type':
+        filtered_ledger_entries.sort(
+            key=lambda x: x['source_type'],
+            reverse=reverse_sort
+        )
+    return filtered_ledger_entries
