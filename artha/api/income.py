@@ -762,37 +762,40 @@ def get_user_income(filters: Optional[Union[str, Dict]] = None, include_analytic
                     "top_income_type": ""
                 },
                 "period": filters.get('period', ''),
-                "actual_monthly_income": sum(flt(s.income) for s in recurring_sources)
+                "actual_monthly_income": 0,
+                "recurring_percentage": 0,
+                "growth_rate": 0,
+                "monthly_recurring_income": 0,
+                "expected_monthly_income": 0,
+                "period_recurring_income": 0,
+                "period_one_time_income": 0,
+                "period_total_income": 0
             }
 
             monthly_data = {}
             total_amount = 0
             type_amounts = {}
+            recurring_amount = 0
+            one_time_amount = 0
 
-            # Calculate metrics from filtered ledger entries
+            # Calculate metrics from filtered ledger entries ONLY
             for entry in filtered_ledger_entries:
                 entry_amount = flt(entry['amount'])
-                analytics_data["total_income"] += entry_amount
                 total_amount += entry_amount
 
-                # Track by income type
+                # Track by income type from ledger
                 if entry['income_type'] == 'recurring':
-                    analytics_data["recurring_income"] += entry_amount
+                    recurring_amount += entry_amount
                 else:
-                    analytics_data["one_time_income"] += entry_amount
+                    one_time_amount += entry_amount
 
-                # Group by type
-                source_type = entry['source_type']
-                if source_type not in analytics_data["income_by_type"]:
-                    analytics_data["income_by_type"][source_type] = 0
-                analytics_data["income_by_type"][source_type] += entry_amount
-
-                # Track for summary
+                # Group by source type from ledger
+                source_type = entry['source_type'] or 'Unknown'
                 if source_type not in type_amounts:
                     type_amounts[source_type] = 0
                 type_amounts[source_type] += entry_amount
 
-                # Monthly trends
+                # Monthly trends from ledger entries
                 entry_date = getdate(entry['date_time'])
                 month_key = entry_date.strftime("%Y-%m")
                 if month_key not in monthly_data:
@@ -808,6 +811,30 @@ def get_user_income(filters: Optional[Union[str, Dict]] = None, include_analytic
                 else:
                     monthly_data[month_key]["one_time"] += entry_amount
 
+            # Set analytics based on ledger calculations
+            analytics_data["total_income"] = total_amount
+            analytics_data["recurring_income"] = recurring_amount
+            analytics_data["one_time_income"] = one_time_amount
+            analytics_data["income_by_type"] = type_amounts
+            analytics_data["period_total_income"] = total_amount
+            analytics_data["period_recurring_income"] = recurring_amount
+            analytics_data["period_one_time_income"] = one_time_amount
+
+            # Calculate expected monthly income from recurring sources
+            analytics_data["expected_monthly_income"] = sum(
+                flt(s.income) for s in recurring_sources)
+
+            # Calculate actual monthly income from recurring entries in current period
+            analytics_data["actual_monthly_income"] = recurring_amount
+            analytics_data["monthly_recurring_income"] = recurring_amount
+
+            # Calculate percentages
+            if total_amount > 0:
+                analytics_data["recurring_percentage"] = (
+                    recurring_amount / total_amount) * 100
+            else:
+                analytics_data["recurring_percentage"] = 0
+
             # Generate monthly trends
             for month_key in sorted(monthly_data.keys()):
                 month_date = datetime.strptime(month_key, "%Y-%m")
@@ -818,25 +845,16 @@ def get_user_income(filters: Optional[Union[str, Dict]] = None, include_analytic
                     "one_time": monthly_data[month_key]["one_time"]
                 })
 
-            # Summary statistics
+            # Summary statistics from ledger
             analytics_data["summary"]["average_source_amount"] = (
                 total_amount / len(filtered_ledger_entries)
                 if len(filtered_ledger_entries) > 0 else 0
             )
 
-            # Find top income type
+            # Find top income type from actual entries
             if type_amounts:
                 top_type = max(type_amounts.items(), key=lambda x: x[1])
                 analytics_data["summary"]["top_income_type"] = top_type[0]
-
-            # Calculate additional metrics
-            total_income_for_percentage = analytics_data["recurring_income"] + \
-                analytics_data["one_time_income"]
-            analytics_data["recurring_percentage"] = (
-                (analytics_data["recurring_income"] /
-                 total_income_for_percentage) * 100
-                if total_income_for_percentage > 0 else 0
-            )
 
             # Calculate growth rate from monthly trends
             trends = analytics_data["monthly_trends"]
@@ -849,19 +867,6 @@ def get_user_income(filters: Optional[Union[str, Dict]] = None, include_analytic
                 )
             else:
                 analytics_data["growth_rate"] = 0
-
-            # Calculate actual income from filtered ledger entries
-            analytics_data["monthly_recurring_income"] = calculate_monthly_income_from_ledger(
-                household_profile, filters)
-
-            # Also calculate recurring income potential (what should be earned monthly)
-            analytics_data["expected_monthly_income"] = sum(
-                flt(s.income) for s in recurring_sources)
-
-            # Calculate actual income for the period from ledger
-            analytics_data["period_recurring_income"] = analytics_data["recurring_income"]
-            analytics_data["period_one_time_income"] = analytics_data["one_time_income"]
-            analytics_data["period_total_income"] = analytics_data["total_income"]
 
         return {
             "recurring_sources": recurring_sources,
@@ -891,7 +896,7 @@ def calculate_monthly_income_from_ledger(household_profile: str, filters: Option
 def get_monthly_income_summary(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Union[float, int]]:
     """
     Get income summary for CHE analysis with filter support
-    Calculated from ledger entries to ensure consistency with filtered data
+    All calculations based on income_ledger entries for consistency
 
     If no filters provided, defaults to current month for backward compatibility
     """
@@ -917,18 +922,17 @@ def get_monthly_income_summary(filters: Optional[Union[str, Dict]] = None) -> Di
                 "recurring_income": 0,
                 "one_time_income": 0,
                 "total_sources": 0,
+                "expected_monthly_income": 0,
                 "period": filters.get("period", "this_month")
             }
 
-        # Use the existing filtered income calculation
+        # Use ledger-based income calculation
         analytics_result = get_user_income(
             filters=json.dumps(filters),
             include_analytics=True
         )
 
         analytics = analytics_result.get("analytics", {})
-
-        # Get period info for display
         period_info = get_period_info(filters)
 
         return {
@@ -937,11 +941,13 @@ def get_monthly_income_summary(filters: Optional[Union[str, Dict]] = None) -> Di
             "one_time_income": analytics.get("one_time_income", 0),
             "total_sources": analytics.get("summary", {}).get("total_sources", 0),
             "expected_monthly_income": analytics.get("expected_monthly_income", 0),
+            "actual_monthly_income": analytics.get("actual_monthly_income", 0),
             "period": filters.get("period", "custom"),
             "period_name": period_info.get("period_name", ""),
             "start_date": period_info.get("start_date", ""),
             "end_date": period_info.get("end_date", ""),
             "days_in_period": period_info.get("days_count", 0),
+            "recurring_percentage": analytics.get("recurring_percentage", 0),
             "filters": filters
         }
 
@@ -954,7 +960,7 @@ def get_monthly_income_summary(filters: Optional[Union[str, Dict]] = None) -> Di
 def get_income_dashboard_metrics(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
     """
     Get computed dashboard metrics for income management with comprehensive filter support
-    Provides all the key metrics needed for dashboard displays
+    All calculations based on income_ledger entries for consistency
 
     Filters supported:
     - period: this_month, last_month, last_3_months, last_6_months, this_year
@@ -990,6 +996,7 @@ def get_income_dashboard_metrics(filters: Optional[Union[str, Dict]] = None) -> 
                 "expected_monthly_income": 0,
                 "recurring_income": 0,
                 "one_time_income": 0,
+                "total_income": 0,
                 "total_sources": 0,
                 "recurring_percentage": 0,
                 "growth_rate": 0,
@@ -1001,23 +1008,17 @@ def get_income_dashboard_metrics(filters: Optional[Union[str, Dict]] = None) -> 
                 "period": filters.get("period", "custom")
             }
 
-        # Get analytics using existing function with full filters
+        # Get analytics using ledger-based calculation
         analytics_result = get_user_income(
             filters=json.dumps(filters),
             include_analytics=True
         )
 
         analytics = analytics_result.get("analytics", {})
-
-        # Calculate actual total income from filtered ledger entries
-        actual_total_income = calculate_monthly_income_from_ledger(
-            household_profile, filters)
-
-        # Get date range info for display
         period_info = get_period_info(filters)
 
         return {
-            "actual_monthly_income": actual_total_income,
+            "actual_monthly_income": analytics.get("actual_monthly_income", 0),
             "expected_monthly_income": analytics.get("expected_monthly_income", 0),
             "recurring_income": analytics.get("recurring_income", 0),
             "one_time_income": analytics.get("one_time_income", 0),
@@ -1034,8 +1035,9 @@ def get_income_dashboard_metrics(filters: Optional[Union[str, Dict]] = None) -> 
             "start_date": period_info.get("start_date", ""),
             "end_date": period_info.get("end_date", ""),
             "total_ledger_entries": len(analytics_result.get("ledger_entries", [])),
-            "recurring_entries": analytics.get("summary", {}).get("recurring_entries", 0),
-            "one_time_entries": analytics.get("summary", {}).get("one_time_entries", 0)
+            "period_recurring_income": analytics.get("period_recurring_income", 0),
+            "period_one_time_income": analytics.get("period_one_time_income", 0),
+            "period_total_income": analytics.get("period_total_income", 0)
         }
 
     except Exception as e:
@@ -1220,7 +1222,7 @@ def validate_income_data(monthly_income: Union[str, float], income_source: Union
 def get_income_analytics(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
     """
     Get comprehensive income analytics with advanced filtering
-    Combines dashboard metrics, user income data, and insights
+    All calculations based on income_ledger entries for consistency
     """
     try:
         # Parse filters if provided
@@ -1240,37 +1242,62 @@ def get_income_analytics(filters: Optional[Union[str, Dict]] = None) -> Dict[str
         if not household_profile:
             return {
                 "status": "error",
-                "message": "No household profile found for current user"
+                "message": "No household profile found for current user",
+                "analytics": {
+                    "total_income": 0,
+                    "recurring_income": 0,
+                    "one_time_income": 0,
+                    "income_by_type": {},
+                    "monthly_trends": [],
+                    "summary": {
+                        "total_sources": 0,
+                        "average_source_amount": 0,
+                        "top_income_type": ""
+                    }
+                }
             }
 
-        # Get comprehensive data
+        # Get comprehensive data using ledger-based calculations
         user_income_result = get_user_income(
             filters=json.dumps(filters),
             include_analytics=True
         )
 
-        dashboard_metrics = get_income_dashboard_metrics(filters)
-        income_summary = get_monthly_income_summary(filters)
+        # Get additional metrics
         period_info = get_period_info(filters)
 
-        # Combine all data
+        # Extract analytics from ledger-based calculations
+        analytics = user_income_result.get("analytics", {})
+        ledger_entries = user_income_result.get("ledger_entries", [])
+        recurring_sources = user_income_result.get("recurring_sources", [])
+
+        # Ensure all analytics are properly set from ledger data
         return {
             "status": "success",
             "filters": filters,
             "period_info": period_info,
-            "dashboard_metrics": dashboard_metrics,
-            "income_summary": income_summary,
-            "recurring_sources": user_income_result.get("recurring_sources", []),
-            "ledger_entries": user_income_result.get("ledger_entries", []),
-            "analytics": user_income_result.get("analytics", {}),
+            "analytics": analytics,
+            "recurring_sources": recurring_sources,
+            "ledger_entries": ledger_entries,
             "totals": {
-                "total_entries": len(user_income_result.get("ledger_entries", [])),
-                "total_sources": len(user_income_result.get("recurring_sources", [])),
-                "total_income": user_income_result.get("analytics", {}).get("total_income", 0),
+                "total_entries": len(ledger_entries),
+                "total_sources": len(recurring_sources),
+                "total_income": analytics.get("total_income", 0),
+                "recurring_income": analytics.get("recurring_income", 0),
+                "one_time_income": analytics.get("one_time_income", 0),
                 "average_per_day": (
-                    user_income_result.get("analytics", {}).get("total_income", 0) /
+                    analytics.get("total_income", 0) /
                     max(1, period_info.get("days_count", 1))
                 )
+            },
+            "summary": {
+                "expected_monthly_income": analytics.get("expected_monthly_income", 0),
+                "actual_monthly_income": analytics.get("actual_monthly_income", 0),
+                "recurring_percentage": analytics.get("recurring_percentage", 0),
+                "growth_rate": analytics.get("growth_rate", 0),
+                "top_income_type": analytics.get("summary", {}).get("top_income_type", ""),
+                "income_by_type": analytics.get("income_by_type", {}),
+                "monthly_trends": analytics.get("monthly_trends", [])
             }
         }
 

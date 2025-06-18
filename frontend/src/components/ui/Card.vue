@@ -29,71 +29,72 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref } from "vue"
 
 const props = defineProps({
-    /**
-     * Whether the card should have hover effects
-     */
-    hoverable: {
-        type: Boolean,
-        default: false
-    },
+	/**
+	 * Whether the card should have hover effects
+	 */
+	hoverable: {
+		type: Boolean,
+		default: false,
+	},
 
-    /**
-     * Whether the card is clickable
-     */
-    clickable: {
-        type: Boolean,
-        default: false
-    },
+	/**
+	 * Whether the card is clickable
+	 */
+	clickable: {
+		type: Boolean,
+		default: false,
+	},
 
-    /**
-     * Custom CSS classes to apply
-     */
-    customClass: {
-        type: String,
-        default: ''
-    },
+	/**
+	 * Custom CSS classes to apply
+	 */
+	customClass: {
+		type: String,
+		default: "",
+	},
 
-    /**
-     * Padding for the card body
-     */
-    padding: {
-        type: String,
-        default: 'default',
-        validator: (value) => ['none', 'sm', 'default', 'lg', 'xl'].includes(value)
-    },
+	/**
+	 * Padding for the card body
+	 */
+	padding: {
+		type: String,
+		default: "default",
+		validator: (value) => ["none", "sm", "default", "lg", "xl"].includes(value),
+	},
 
-    /**
-     * Card variant
-     */
-    variant: {
-        type: String,
-        default: 'default',
-        validator: (value) => ['default', 'outlined', 'elevated', 'flat'].includes(value)
-    }
+	/**
+	 * Card variant
+	 */
+	variant: {
+		type: String,
+		default: "default",
+		validator: (value) =>
+			["default", "outlined", "elevated", "flat"].includes(value),
+	},
 })
 
-const emit = defineEmits(['click'])
+const emit = defineEmits(["click"])
 
 const focused = ref(false)
 
 const bodyPadding = computed(() => {
-    const paddingMap = {
-        none: 'p-0',
-        sm: 'p-2',
-        default: 'p-4',
-        lg: 'p-6',
-        xl: 'p-8'
-    }
-    return paddingMap[props.padding] || paddingMap.default
+	const paddingMap = {
+		none: "p-0",
+		sm: "p-2",
+		default: "p-4",
+		lg: "p-6",
+		xl: "p-8",
+	}
+	return paddingMap[props.padding] || paddingMap.default
 })
 
 const handleClick = (event) => {
-    if (props.clickable) {
-        emit('click', event)
-    }
+	if (props.clickable) {
+		emit("click", event)
+	}
 }
 </script>
 

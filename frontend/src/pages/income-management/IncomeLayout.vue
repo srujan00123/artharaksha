@@ -1,97 +1,70 @@
 <template>
-  <div class="income-layout">
-    <!-- Header Section Banner -->
-    <div class="header-section mb-6">
-      <div class="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
-              Income Management
-            </h1>
-            <p class="text-green-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
-              Manage your household income sources and track monthly earnings with advanced analytics
-            </p>
-            <!-- 🚀 NEW: Enhanced header with filter summary -->
-            <div v-if="analytics?.filter_applied" class="mt-2">
-              <div class="inline-flex items-center px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
-                <Filter class="w-4 h-4 mr-2" />
-                {{ analytics.filter_summary || 'Filters applied' }}
-              </div>
-            </div>
-          </div>
-          <div class="hidden sm:block">
-            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-              <TrendingUp class="w-8 h-8 text-white" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+	<div class="income-layout">
+		<!-- Header Section Banner -->
+		<div class="header-section mb-6">
+			<div class="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
+				<div class="flex items-start justify-between">
+					<div class="flex-1">
+						<h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
+							Income Management
+						</h1>
+						<p class="text-green-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
+							Manage your household income sources and track monthly earnings with advanced analytics
+						</p>
+						<!-- 🚀 NEW: Enhanced header with filter summary -->
+						<div v-if="analytics?.filter_applied" class="mt-2">
+							<div class="inline-flex items-center px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+								<Filter class="w-4 h-4 mr-2" />
+								{{ analytics.filter_summary || 'Filters applied' }}
+							</div>
+						</div>
+					</div>
+					<div class="hidden sm:block">
+						<div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+							<TrendingUp class="w-8 h-8 text-white" />
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-    <!-- Child Route Content -->
-    <div class="income-content">
-      <router-view 
-        :loading="loading"
-        :error="error"
-        :analytics="analytics"
-        :dashboard-metrics="dashboardMetrics"
-        :filter-options="filterOptions"
-        :period-info="periodInfo"
-        @add-income="handleAddIncome"
-        @refresh="handleRefresh"
-        @filter-change="handleFilterChange"
-        @export-data="handleExportData"
-      />
-    </div>
+		<!-- Child Route Content -->
+		<div class="income-content">
+			<router-view :loading="loading" :error="error" :analytics="analytics" :dashboard-metrics="dashboardMetrics"
+				:filter-options="filterOptions" :period-info="periodInfo" @add-income="handleAddIncome"
+				@refresh="handleRefresh" @filter-change="handleFilterChange" @export-data="handleExportData" />
+		</div>
 
-    <!-- Income Form Modal -->
-    <IncomeForm 
-      v-if="showIncomeForm"
-      :is-open="showIncomeForm"
-      :editing-source="editingSource"
-      :mode="incomeFormMode"
-      :income-types="incomeTypes"
-      :form-state="incomeFormState"
-      @close="closeIncomeForm"
-      @submit="handleIncomeSubmit"
-      @validation-change="handleValidationChange"
-    />
+		<!-- Income Form Modal -->
+		<IncomeForm v-if="showIncomeForm" :is-open="showIncomeForm" :editing-source="editingSource"
+			:mode="incomeFormMode" :income-types="incomeTypes" :form-state="incomeFormState" @close="closeIncomeForm"
+			@submit="handleIncomeSubmit" @validation-change="handleValidationChange" />
 
-    <!-- Ledger Entry Edit Modal -->
-    <LedgerEntryModal
-      :is-open="showLedgerModal"
-      :entry="editingLedgerEntry"
-      :loading="loading"
-      :income-types="incomeTypes"
-      @close="closeLedgerModal"
-      @submit="handleLedgerSubmit"
-    />
+		<!-- Ledger Entry Edit Modal -->
+		<LedgerEntryModal :is-open="showLedgerModal" :entry="editingLedgerEntry" :loading="loading"
+			:income-types="incomeTypes" @close="closeLedgerModal" @submit="handleLedgerSubmit" />
 
-    <!-- 🚀 NEW: Enhanced error handling with retry options -->
-    <div v-if="criticalError" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
-        <div class="flex items-center mb-4">
-          <AlertCircle class="w-6 h-6 text-red-500 mr-3" />
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Critical Error</h3>
-        </div>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">{{ criticalError }}</p>
-        <div class="flex space-x-3">
-          <button 
-            @click="handleRetry"
-            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Retry
-          </button>
-          <button 
-            @click="handleResetFilters"
-            class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
-          >
-            Reset Filters
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+		<!-- 🚀 NEW: Enhanced error handling with retry options -->
+		<div v-if="criticalError" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+			<div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+				<div class="flex items-center mb-4">
+					<AlertCircle class="w-6 h-6 text-red-500 mr-3" />
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Critical Error</h3>
+				</div>
+				<p class="text-gray-600 dark:text-gray-400 mb-4">{{ criticalError }}</p>
+				<div class="flex space-x-3">
+					<button @click="handleRetry"
+						class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+						Retry
+					</button>
+					<button @click="handleResetFilters"
+						class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+						Reset Filters
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -552,6 +525,6 @@ const handleLedgerSubmit = async (
 
 <style scoped>
 .income-layout {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+	@apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
 }
-</style> 
+</style>

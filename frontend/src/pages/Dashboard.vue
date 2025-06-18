@@ -128,21 +128,21 @@
             <!-- Key Metrics Overview -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                 <!-- Monthly Income -->
-                <MetricCard title="Total Income" :value="formatCurrency(totalMonthlyIncome)" :icon="TrendingUp"
-                    color="green" :clickable="true" :show-progress="true" :progress-percentage="100"
+                <MetricCard title="Total Income" :value="totalMonthlyIncome" :icon="TrendingUp" color="green"
+                    :clickable="true" :show-progress="true" :progress-percentage="75" :currency="true"
                     @click="navigateToIncome">
                     <template #subtitle>
-                        <span class="text-xs text-green-600 dark:text-green-400">{{ recurringIncomeCount }}
-                            recurring</span>
+                        <span class="text-xs text-green-600 dark:text-green-400">{{
+                            formatCurrency(totalRecurringIncomeValue) }} recurring</span>
                         <span class="text-xs text-gray-400 dark:text-gray-500">•</span>
-                        <span class="text-xs text-blue-600 dark:text-blue-400">₹{{
-                            formatCurrency(totalRecurringIncomeValue) }} total</span>
+                        <span class="text-xs text-blue-600 dark:text-blue-400">{{
+                            formatCurrency(totalOneTimeIncomeValue) }} one-time</span>
                     </template>
                 </MetricCard>
 
                 <!-- Total Expenses -->
-                <MetricCard title="Total Expenses" :value="formatCurrency(totalExpenseAmountValue)" :icon="PieChart"
-                    color="blue" :clickable="true" :show-progress="true" :progress-percentage="expensePercentage"
+                <MetricCard title="Total Expenses" :value="totalExpenseAmountValue" :icon="PieChart" color="blue"
+                    :clickable="true" :show-progress="true" :progress-percentage="expensePercentage" :currency="true"
                     :footer="`${expensePercentage}% of income`" @click="navigateToExpenses">
                     <template #subtitle>
                         <span class="text-xs text-blue-600 dark:text-blue-400">{{ medicalExpenseCount }} medical</span>
@@ -172,8 +172,8 @@
                 </MetricCard>
 
                 <!-- Claims & Benefits -->
-                <MetricCard title="Claims & Benefits" :value="formatCurrency(totalBenefitsReceived)" :icon="CreditCard"
-                    color="purple" :clickable="true" :footer="`${claimsSuccessRate}% success rate`"
+                <MetricCard title="Claims & Benefits" :value="totalBenefitsReceived" :icon="CreditCard" color="purple"
+                    :clickable="true" :footer="`${claimsSuccessRate}% success rate`" :currency="true"
                     @click="navigateToClaims">
                     <template #subtitle>
                         <span class="text-xs text-purple-600 dark:text-purple-400">{{ totalClaims }} claims</span>
@@ -450,9 +450,9 @@
                                 </div>
                                 <div class="space-y-1">
                                     <div class="flex justify-between text-xs">
-                                        <span class="text-green-600 dark:text-green-400">Income: ₹{{
+                                        <span class="text-green-600 dark:text-green-400">Income: {{
                                             formatCurrency(totalMonthlyIncome) }}</span>
-                                        <span class="text-red-600 dark:text-red-400">Expenses: ₹{{
+                                        <span class="text-red-600 dark:text-red-400">Expenses: {{
                                             formatCurrency(totalExpenseAmountValue) }}</span>
                                     </div>
                                 </div>
@@ -580,13 +580,13 @@ const router = useRouter()
 // Use stores and composables
 const userStore = useUserStore()
 
-// 🚀 FIXED: Use all composables properly
-const income = useIncome()
-const expense = useExpense()
+// Use composables with proper initialization
+const income = useIncome({ autoInitialize: false })
+const expense = useExpense({ autoInitialize: false })
 const support = useSupport()
 const household = useHousehold()
 
-// 🚀 FIXED: Destructure composable methods and state properly
+// Destructure composable methods and state properly
 const {
     initialize: initializeIncome,
     getAnalytics,
@@ -657,7 +657,7 @@ const currentDate = computed(() =>
 // User info
 const userDisplayName = computed(() => userStore.userDisplayName || "User")
 
-// 🚀 UPDATED: Use proper income composable values instead of manual analytics access
+// Updated: Use proper income composable values with ref handling
 const totalMonthlyIncome = computed(() => {
     return totalIncome?.value || 0
 })
@@ -668,6 +668,18 @@ const totalRecurringIncomeValue = computed(() => {
 
 const totalOneTimeIncomeValue = computed(() => {
     return oneTimeIncome?.value || 0
+})
+
+// 🚀 NEW: Calculate income progress percentage based on composition
+const incomeProgressPercentage = computed(() => {
+    const total = totalMonthlyIncome.value
+    const recurring = totalRecurringIncomeValue.value
+
+    if (total === 0) return 0
+
+    // Simple calculation: show progress based on recurring vs total ratio
+    const recurringRatio = recurring / total
+    return Math.min(Math.round(recurringRatio * 100), 100)
 })
 
 // Analytics data for additional insights when needed

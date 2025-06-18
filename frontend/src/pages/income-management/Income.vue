@@ -1,273 +1,222 @@
 /**
- * Income Management Page - Enhanced with Comprehensive Filter System
- * Uses new architecture with proper error handling, cache management, and advanced analytics
- */
+* Income Management Page - Enhanced with Comprehensive Filter System
+* Uses new architecture with proper error handling, cache management, and advanced analytics
+*/
 
 <template>
-  <div class="income-management space-y-4 lg:space-y-6">
+	<div class="income-management space-y-4 lg:space-y-6">
 
-    <!-- Top Controls -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4 sm:p-5 lg:p-6">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <!-- Add Income Buttons -->
-        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <button 
-            v-if="currentView === 'sources'"
-            @click="openIncomeSourceForm" 
-            :disabled="loading" 
-            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto"
-          >
-            <Plus class="w-4 h-4 mr-2" />
-            Add Income Source
-          </button>
-          <button 
-            v-if="currentView === 'ledger'"
-            @click="openDirectIncomeForm" 
-            :disabled="loading" 
-            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto"
-          >
-            <Plus class="w-4 h-4 mr-2" />
-            Add Income
-          </button>
-          <button 
-            @click="handleRefresh" 
-            :disabled="loading" 
-            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full sm:w-auto"
-          >
-            <RefreshCw class="w-4 h-4 mr-2" />
-            Refresh
-          </button>
-          <!-- 🚀 NEW: Enhanced actions -->
-          <button 
-            v-if="analytics?.filter_applied"
-            @click="clearFilters" 
-            class="inline-flex items-center px-4 py-2 border border-orange-300 dark:border-orange-600 shadow-sm text-sm font-medium rounded-lg text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors w-full sm:w-auto"
-          >
-            <X class="w-4 h-4 mr-2" />
-            Clear Filters
-          </button>
-        </div>
-        
-        <!-- View Toggle -->
-        <div class="flex rounded-lg border border-gray-200 dark:border-gray-600 p-1 bg-gray-50 dark:bg-gray-700">
-          <button @click="currentView = 'sources'" :class="[
-            'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-            currentView === 'sources' 
-                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-          ]">
-            Sources ({{ totalSources?.value || 0 }})
-          </button>
-          <button @click="switchToLedgerView" :class="[
-            'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-            currentView === 'ledger' 
-                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-          ]">
-            Ledger ({{ filteredLedgerEntries?.value?.length || 0 }})
-          </button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 🚀 ENHANCED: Summary Cards with reliable data sources (matching Reports.vue pattern) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-              <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-          <div class="ml-3">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Income</p>
-            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(totalIncome?.value || 0) }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ totalSources?.value || 0 }} sources
-            </p>
-          </div>
-        </div>
-      </div>
+		<!-- Top Controls -->
+		<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4 sm:p-5 lg:p-6">
+			<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<!-- Add Income Buttons -->
+				<div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
+					<button v-if="currentView === 'sources'" @click="openIncomeSourceForm" :disabled="loading"
+						class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto">
+						<Plus class="w-4 h-4 mr-2" />
+						Add Income Source
+					</button>
+					<button v-if="currentView === 'ledger'" @click="openDirectIncomeForm" :disabled="loading"
+						class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto">
+						<Plus class="w-4 h-4 mr-2" />
+						Add Income
+					</button>
+					<button @click="handleRefresh" :disabled="loading"
+						class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full sm:w-auto">
+						<RefreshCw class="w-4 h-4 mr-2" />
+						Refresh
+					</button>
+					<!-- 🚀 NEW: Enhanced actions -->
+					<button v-if="analytics?.filter_applied" @click="clearFilters"
+						class="inline-flex items-center px-4 py-2 border border-orange-300 dark:border-orange-600 shadow-sm text-sm font-medium rounded-lg text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors w-full sm:w-auto">
+						<X class="w-4 h-4 mr-2" />
+						Clear Filters
+					</button>
+				</div>
 
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-              <Repeat class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-          <div class="ml-3">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Recurring Income</p>
-            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(recurringIncome?.value || 0) }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ recurringPercentage }}% of total
-            </p>
-          </div>
-        </div>
-      </div>
+				<!-- View Toggle -->
+				<div
+					class="flex rounded-lg border border-gray-200 dark:border-gray-600 p-1 bg-gray-50 dark:bg-gray-700">
+					<button @click="currentView = 'sources'" :class="[
+						'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+						currentView === 'sources'
+							? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+							: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+					]">
+						Sources ({{ totalSources || 0 }})
+					</button>
+					<button @click="switchToLedgerView" :class="[
+						'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+						currentView === 'ledger'
+							? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+							: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+					]">
+						Ledger ({{ filteredLedgerEntries?.length || 0 }})
+					</button>
+				</div>
+			</div>
+		</div>
 
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-              <Calendar class="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-          <div class="ml-3">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">One-time Income</p>
-            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ formatCurrency(oneTimeIncome?.value || 0) }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ formatPeriod(currentPeriod) }}
-            </p>
-          </div>
-        </div>
-      </div>
+		<!-- 🚀 ENHANCED: Summary Cards with reliable data sources (matching Reports.vue pattern) -->
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<div
+							class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+							<DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
+						</div>
+					</div>
+					<div class="ml-3">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Income</p>
+						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
+							formatCurrency(totalIncome || 0) }}</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400">
+							{{ totalSources || 0 }} sources
+						</p>
+					</div>
+				</div>
+			</div>
 
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-              <Hash class="w-4 h-4 text-orange-600 dark:text-orange-400" />
-            </div>
-          </div>
-          <div class="ml-3">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Income Sources</p>
-            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ totalSources?.value || 0 }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              Active sources
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<div
+							class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+							<Repeat class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+						</div>
+					</div>
+					<div class="ml-3">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Recurring Income</p>
+						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
+							formatCurrency(recurringIncome || 0) }}</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400">
+							{{ recurringPercentage }}% of total
+						</p>
+					</div>
+				</div>
+			</div>
 
-    <!-- 🚀 NEW: Enhanced Filter Section -->
-    <IncomeFilter 
-      v-if="currentView === 'ledger'"
-      :total-count="getTotalCount()"
-      :filtered-count="getFilteredCount()"
-      :income-types="incomeTypes"
-      :current-view="currentView"
-      :filter-options="filterOptions"
-      :current-filters="currentFilters"
-      @filter-change="handleFilterChange"
-      @clear-filters="clearFilters"
-    />
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<div
+							class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+							<Calendar class="w-4 h-4 text-purple-600 dark:text-purple-400" />
+						</div>
+					</div>
+					<div class="ml-3">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">One-time Income</p>
+						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
+							formatCurrency(oneTimeIncome || 0) }}</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400">
+							{{ formatPeriod(currentPeriod) }}
+						</p>
+					</div>
+				</div>
+			</div>
 
-    <!-- 🚀 NEW: Period Information Display -->
-    <div v-if="periodInfo && analytics?.filter_applied" 
-         class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-      <div class="flex items-center">
-        <Info class="w-5 h-5 text-blue-500 mr-3" />
-        <div>
-          <h4 class="text-sm font-medium text-blue-900 dark:text-blue-100">
-            {{ periodInfo.period_name }}
-          </h4>
-          <p class="text-sm text-blue-700 dark:text-blue-300">
-            {{ formatDate(periodInfo.start_date) }} - {{ formatDate(periodInfo.end_date) }}
-            ({{ periodInfo.days_count }} days)
-          </p>
-        </div>
-      </div>
-    </div>
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
+				<div class="flex items-center">
+					<div class="flex-shrink-0">
+						<div
+							class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+							<Hash class="w-4 h-4 text-orange-600 dark:text-orange-400" />
+						</div>
+					</div>
+					<div class="ml-3">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Income Sources</p>
+						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ totalSources || 0 }}
+						</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400">
+							Active sources
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center py-12">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="text-gray-600 dark:text-gray-400 ml-3">Loading income data...</p>
-    </div>
+		<!-- 🚀 NEW: Enhanced Filter Section -->
+		<IncomeFilter v-if="currentView === 'ledger'" :total-count="getTotalCount()"
+			:filtered-count="getFilteredCount()" :income-types="incomeTypes" :current-view="currentView"
+			:filter-options="filterOptions" :current-filters="currentFilters" @filter-change="handleFilterChange"
+			@clear-filters="clearFilters" />
 
-    <!-- Error State -->
-    <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-      <div class="flex items-center">
-        <div class="flex-shrink-0">
-          <AlertCircle class="h-5 w-5 text-red-400" />
-        </div>
-        <div class="ml-3">
-          <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Income Data</h3>
-          <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ error }}</p>
-        </div>
-      </div>
-      <div class="mt-4">
-        <button 
-          @click="handleRefresh"
-          class="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 text-red-800 dark:text-red-200 px-3 py-1 rounded text-sm transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    </div>
+		<!-- 🚀 NEW: Period Information Display -->
+		<div v-if="periodInfo && analytics?.filter_applied"
+			class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+			<div class="flex items-center">
+				<Info class="w-5 h-5 text-blue-500 mr-3" />
+				<div>
+					<h4 class="text-sm font-medium text-blue-900 dark:text-blue-100">
+						{{ periodInfo.period_name }}
+					</h4>
+					<p class="text-sm text-blue-700 dark:text-blue-300">
+						{{ formatDate(periodInfo.start_date) }} - {{ formatDate(periodInfo.end_date) }}
+						({{ periodInfo.days_count }} days)
+					</p>
+				</div>
+			</div>
+		</div>
 
-    <!-- Content Section -->
-    <div v-else class="income-content">
-      <!-- Sources View -->
-      <IncomeSources
-        v-if="currentView === 'sources'"
-        :sources="filteredSources"
-        :total-count="filteredSources?.value?.length || 0"
-        :monthly-total="analytics?.monthly_recurring_income || 0"
-        :selected-items="selectedItems"
-        :loading="loading"
-        :analytics="analytics"
-        @add-source="openIncomeSourceForm"
-        @edit-source="editIncomeSource"
-        @delete-source="deleteIncomeSourceHandler"
-        @source-selection="handleSourceSelection"
-        @toggle-select-all="toggleSelectAll"
-        @clear-filters="clearFilters"
-        @export-data="handleExportData"
-      />
+		<!-- Loading State -->
+		<div v-if="loading" class="flex items-center justify-center py-12">
+			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+			<p class="text-gray-600 dark:text-gray-400 ml-3">Loading income data...</p>
+		</div>
 
-      <!-- Ledger View -->
-      <IncomeLedger
-        v-if="currentView === 'ledger'"
-        :entries="filteredLedgerEntries"
-        :total-count="filteredLedgerEntries?.value?.length || 0"
-        :total-amount="getLedgerTotalAmount()"
-        :selected-items="selectedLedgerItems"
-        :loading="loading"
-        :analytics="analytics"
-        :period-info="periodInfo"
-        @add-source="openDirectIncomeForm"
-        @edit-entry="editLedgerEntry"
-        @delete-entry="deleteLedgerEntryHandler"
-        @ledger-selection="handleLedgerSelection"
-        @toggle-select-all="toggleSelectAllLedger"
-        @export-data="handleExportData"
-      />
-    </div>
+		<!-- Error State -->
+		<div v-else-if="error"
+			class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+			<div class="flex items-center">
+				<div class="flex-shrink-0">
+					<AlertCircle class="h-5 w-5 text-red-400" />
+				</div>
+				<div class="ml-3">
+					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Income Data</h3>
+					<p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ error }}</p>
+				</div>
+			</div>
+			<div class="mt-4">
+				<button @click="handleRefresh"
+					class="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 text-red-800 dark:text-red-200 px-3 py-1 rounded text-sm transition-colors">
+					Try Again
+				</button>
+			</div>
+		</div>
 
-    <!-- Modals -->
-    <IncomeForm 
-      v-if="showIncomeForm"
-      :is-open="showIncomeForm"
-      :editing-source="editingSource"
-      :mode="incomeFormMode"
-      :income-types="incomeTypes"
-      :form-state="incomeFormState"
-      @close="closeIncomeForm"
-      @submit="handleIncomeSubmit"
-      @validation-change="handleValidationChange"
-    />
+		<!-- Content Section -->
+		<div v-else class="income-content">
+			<!-- Sources View -->
+			<IncomeSources v-if="currentView === 'sources'" :sources="filteredSources"
+				:total-count="filteredSources?.length || 0" :monthly-total="analytics?.monthly_recurring_income || 0"
+				:selected-items="selectedItems" :loading="loading" :analytics="analytics"
+				@add-source="openIncomeSourceForm" @edit-source="editIncomeSource"
+				@delete-source="deleteIncomeSourceHandler" @source-selection="handleSourceSelection"
+				@toggle-select-all="toggleSelectAll" @clear-filters="clearFilters" @export-data="handleExportData" />
 
-    <!-- Ledger Entry Edit Modal -->
-    <LedgerEntryModal
-      :is-open="showLedgerModal"
-      :entry="editingLedgerEntry"
-      :loading="loading"
-      :income-types="incomeTypes"
-      @close="closeLedgerModal"
-      @submit="handleLedgerSubmit"
-    />
+			<!-- Ledger View -->
+			<IncomeLedger v-if="currentView === 'ledger'" :entries="filteredLedgerEntries"
+				:total-count="filteredLedgerEntries?.length || 0" :total-amount="getLedgerTotalAmount()"
+				:selected-items="selectedLedgerItems" :loading="loading" :analytics="analytics"
+				:period-info="periodInfo" @add-source="openDirectIncomeForm" @edit-entry="editLedgerEntry"
+				@delete-entry="deleteLedgerEntryHandler" @ledger-selection="handleLedgerSelection"
+				@toggle-select-all="toggleSelectAllLedger" @export-data="handleExportData" />
+		</div>
 
-    <!-- Household Profile Creator -->
-    <HouseholdProfileCreator
-      v-if="showHouseholdProfileCreator"
-      :is-open="showHouseholdProfileCreator"
-      @close="closeHouseholdProfileCreator"
-      @success="handleProfileCreated"
-    />
-  </div>
+		<!-- Modals -->
+		<IncomeForm v-if="showIncomeForm" :is-open="showIncomeForm" :editing-source="editingSource"
+			:mode="incomeFormMode" :income-types="incomeTypes" :form-state="incomeFormState" @close="closeIncomeForm"
+			@submit="handleIncomeSubmit" @validation-change="handleValidationChange" />
+
+		<!-- Ledger Entry Edit Modal -->
+		<LedgerEntryModal :is-open="showLedgerModal" :entry="editingLedgerEntry" :loading="loading"
+			:income-types="incomeTypes" @close="closeLedgerModal" @submit="handleLedgerSubmit" />
+
+		<!-- Household Profile Creator -->
+		<HouseholdProfileCreator v-if="showHouseholdProfileCreator" :is-open="showHouseholdProfileCreator"
+			@close="closeHouseholdProfileCreator" @success="handleProfileCreated" />
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -314,11 +263,11 @@ import type {
 	UpdateLedgerEntryPayload,
 } from "../../types/income"
 
-// 🚀 NEW: Inject enhanced state and actions from IncomeLayout
-const incomeState = inject<any>("incomeState")
-const incomeActions = inject<any>("incomeActions")
+// Import the useIncome composable directly for reliable data access
+import { useIncome } from "../../composables/useIncome"
 
-// Destructure state with enhanced types
+// Use income composable directly for data access
+const income = useIncome({ autoInitialize: false })
 const {
 	incomes,
 	incomeTypes,
@@ -333,6 +282,14 @@ const {
 	filteredSources,
 	filteredLedgerEntries,
 	hasData,
+} = income
+
+// 🚀 NEW: Inject enhanced state and actions from IncomeLayout for UI state
+const incomeState = inject<any>("incomeState")
+const incomeActions = inject<any>("incomeActions")
+
+// Destructure UI state and actions only
+const {
 	showIncomeForm,
 	incomeFormMode,
 	editingSource,
@@ -393,8 +350,8 @@ const enhancedPeriodInfo = computed<PeriodInfo | null>(() => {
 
 // 🚀 NEW: Enhanced computed properties matching Reports.vue pattern
 const recurringPercentage = computed(() => {
-	if (!totalIncome?.value || totalIncome.value === 0) return 0
-	if (!recurringIncome?.value) return 0
+	if (!totalIncome.value || totalIncome.value === 0) return 0
+	if (!recurringIncome.value) return 0
 	return ((recurringIncome.value / totalIncome.value) * 100).toFixed(1)
 })
 

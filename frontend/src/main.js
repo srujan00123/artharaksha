@@ -28,8 +28,7 @@ import {
 } from "frappe-ui"
 
 // Import our custom UI components
-import Card from "./components/ui/Card.vue"
-import MetricCard from "./components/ui/MetricCard.vue"
+import { Card, MetricCard } from "./components/ui"
 
 const app = createApp(App)
 const pinia = createPinia()
