@@ -323,10 +323,11 @@
 
 <script setup>
 import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { useSupport } from "@/composables/useSupport"
+import { useHousehold } from "@/composables/useHousehold"
 import { Button } from "frappe-ui"
 import { AlertTriangle, Plus, Shield, Trash2, X } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
-import { supportService } from "../../services/support-service"
 import { CLAIM_STATUS_OPTIONS, DOCUMENT_TYPES } from "../../types/support"
 
 // Props
@@ -343,6 +344,10 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(["close", "save"])
+
+// Composables
+const support = useSupport()
+const household = useHousehold()
 
 // Reactive data
 const loading = ref(false)
@@ -423,12 +428,12 @@ async function submitClaim() {
 
 		let response
 		if (isEditing.value) {
-			response = await supportService.updateSchemeClaim(
+			response = await support.updateClaim(
 				props.claim.name,
 				claimData,
 			)
 		} else {
-			response = await supportService.createSchemeClaim(claimData)
+			response = await support.createClaim(claimData)
 		}
 
 		emit("save", response)
@@ -452,7 +457,7 @@ function cancelDelete() {
 async function deleteClaim() {
 	try {
 		deleting.value = true
-		await supportService.deleteSchemeClaim(props.claim.name)
+		await support.deleteClaim(props.claim.name)
 		emit("save", null)
 		closeModal()
 	} catch (error) {
@@ -473,7 +478,7 @@ function initializeForm() {
 			customSchemeName: props.claim.custom_scheme_name || "",
 			customSchemeType: props.claim.custom_scheme_type || "",
 			claimAmount: props.claim.claim_amount || null,
-			status: props.claim.custom || "submitted",
+			status: props.claim.status || "submitted",
 			approvedAmount: props.claim.approved_amount || null,
 			documents: props.claim.documents_submitted || [],
 			claimDate: props.claim.claim_date || "",

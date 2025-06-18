@@ -530,10 +530,9 @@ export class SupportService {
     applicationData: ApplicationFormData,
   ): Promise<SchemeApplication> {
     try {
-      const response = await call(
-        API_ENDPOINTS.SUPPORT.CREATE_APPLICATION,
-        applicationData,
-      );
+      const response = await call(API_ENDPOINTS.SUPPORT.CREATE_APPLICATION, {
+        application_data: applicationData,
+      });
       const newApplication: SchemeApplication = response;
 
       // Update local cache
@@ -559,8 +558,8 @@ export class SupportService {
   ): Promise<SchemeApplication> {
     try {
       const response = await call(API_ENDPOINTS.SUPPORT.UPDATE_APPLICATION, {
-        name: applicationName,
-        ...applicationData,
+        application_name: applicationName,
+        application_data: applicationData,
       });
       const updatedApplication: SchemeApplication = response;
 
@@ -622,10 +621,9 @@ export class SupportService {
    */
   async createSchemeClaim(claimData: ClaimFormData): Promise<SchemeClaim> {
     try {
-      const response = await call(
-        API_ENDPOINTS.SUPPORT.CREATE_CLAIM,
-        claimData,
-      );
+      const response = await call(API_ENDPOINTS.SUPPORT.CREATE_CLAIM, {
+        claim_data: claimData,
+      });
       const newClaim: SchemeClaim = response;
 
       // Update local cache
@@ -648,8 +646,8 @@ export class SupportService {
   ): Promise<SchemeClaim> {
     try {
       const response = await call(API_ENDPOINTS.SUPPORT.UPDATE_CLAIM, {
-        name: claimName,
-        ...claimData,
+        claim_name: claimName,
+        claim_data: claimData,
       });
       const updatedClaim: SchemeClaim = response;
 
@@ -676,7 +674,7 @@ export class SupportService {
   async deleteSchemeApplication(applicationName: string): Promise<boolean> {
     try {
       const result = await call(API_ENDPOINTS.SUPPORT.DELETE_APPLICATION, {
-        name: applicationName,
+        application_name: applicationName,
       });
 
       // Handle graceful "not found" responses
@@ -719,7 +717,7 @@ export class SupportService {
   async deleteSchemeClaim(claimName: string): Promise<boolean> {
     try {
       const result = await call(API_ENDPOINTS.SUPPORT.DELETE_CLAIM, {
-        name: claimName,
+        claim_name: claimName,
       });
 
       // Handle graceful "not found" responses

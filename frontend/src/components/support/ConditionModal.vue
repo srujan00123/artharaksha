@@ -137,6 +137,8 @@
 
 <script setup>
 import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { useSupport } from "@/composables/useSupport"
+import { useHousehold } from "@/composables/useHousehold"
 import { X } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
 
@@ -160,6 +162,10 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(["close", "save"])
+
+// Composables
+const support = useSupport()
+const household = useHousehold()
 
 // Form data
 const formData = ref({
@@ -186,9 +192,15 @@ const isFormValid = computed(() => {
 })
 
 // Methods
-const handleSubmit = () => {
+const handleSubmit = async () => {
 	if (isFormValid.value) {
-		emit("save", { ...formData.value })
+		try {
+			// Use the support composable to handle health condition updates
+			const conditionData = { ...formData.value }
+			emit("save", conditionData)
+		} catch (error) {
+			console.error("Error saving condition:", error)
+		}
 	}
 }
 

@@ -319,10 +319,11 @@
 
 <script setup>
 import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
+import { useSupport } from "@/composables/useSupport"
+import { useHousehold } from "@/composables/useHousehold"
 import { Button } from "frappe-ui"
 import { AlertTriangle, Building, Plus, Trash2, X } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
-import { supportService } from "../../services/support-service"
 import { DOCUMENT_TYPES } from "../../types/support"
 
 // Props
@@ -339,6 +340,10 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(["close", "save"])
+
+// Composables
+const support = useSupport()
+const household = useHousehold()
 
 // Reactive data
 const loading = ref(false)
@@ -432,12 +437,12 @@ async function submitApplication() {
 
 		let response
 		if (isEditing.value) {
-			response = await supportService.updateSchemeApplication(
+			response = await support.updateApplication(
 				props.application.name,
 				applicationData,
 			)
 		} else {
-			response = await supportService.createSchemeApplication(applicationData)
+			response = await support.createApplication(applicationData)
 		}
 
 		emit("save", response)
@@ -461,7 +466,7 @@ function cancelDelete() {
 async function deleteApplication() {
 	try {
 		deleting.value = true
-		await supportService.deleteSchemeApplication(props.application.name)
+		await support.deleteApplication(props.application.name)
 		emit("save", null)
 		closeModal()
 	} catch (error) {

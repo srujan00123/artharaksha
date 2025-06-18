@@ -895,6 +895,18 @@ const handleDateFilterChange = async () => {
 	}
 }
 
+// Helper function to initialize date filters
+const initializeDateFilters = () => {
+	const now = new Date()
+	const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+	const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+	
+	return {
+		dateFrom: firstDay.toISOString().split('T')[0],
+		dateTo: lastDay.toISOString().split('T')[0]
+	}
+}
+
 // 3. Update resetDateFilters and applyCurrentMonthFilter to update dashboardFilters
 const resetDateFilters = async () => {
 	const initial = initializeDateFilters()
@@ -935,19 +947,22 @@ async function loadDashboardData() {
 	])
 }
 
-// Lifecycle
-onMounted(async () => {
+// Refresh dashboard data
+const refreshDashboard = async () => {
 	try {
+		isLoading.value = true
+		hasError.value = false
+		errorMessage.value = ""
 		await loadDashboardData()
 		lastUpdated.value = new Date().toLocaleTimeString()
 	} catch (error) {
 		hasError.value = true
-		errorMessage.value = error.message || "Failed to load dashboard"
-		console.error("Dashboard initialization error:", error)
+		errorMessage.value = error.message || "Failed to refresh dashboard"
+		console.error("Dashboard refresh error:", error)
 	} finally {
 		isLoading.value = false
 	}
-})
+}
 
 // Advanced theme management
 const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
@@ -1015,16 +1030,36 @@ const handlePeriodChange = async () => {
 	}
 }
 
-// On mount, initialize dashboard with analytics and selected period
+// Initialize dashboard filters
+onMounted(() => {
+	const initial = initializeDateFilters()
+	dashboardFilters.value.dateFrom = initial.dateFrom
+	dashboardFilters.value.dateTo = initial.dateTo
+})
+
+// Lifecycle - initialize dashboard with all data
 onMounted(async () => {
 	try {
+		isLoading.value = true
+		hasError.value = false
+		errorMessage.value = ""
 		analyticsLoading.value = true
 		analyticsError.value = null
-		await initialize({ withAnalytics: true, period: selectedPeriod.value })
+		
+		// Initialize all composables with analytics
+		await Promise.all([
+			initialize({ withAnalytics: true, period: selectedPeriod.value }),
+			loadDashboardData()
+		])
+		
+		lastUpdated.value = new Date().toLocaleTimeString()
 	} catch (err) {
-		analyticsError.value =
-			err instanceof Error ? err.message : "Failed to load analytics"
+		hasError.value = true
+		errorMessage.value = err instanceof Error ? err.message : "Failed to load dashboard"
+		analyticsError.value = err instanceof Error ? err.message : "Failed to load analytics"
+		console.error("Dashboard initialization error:", err)
 	} finally {
+		isLoading.value = false
 		analyticsLoading.value = false
 	}
 })
