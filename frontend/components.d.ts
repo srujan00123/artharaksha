@@ -9,8 +9,8 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AdminNotificationCenter: typeof import('./src/components/admin/AdminNotificationCenter.vue')['default']
-    AppLayout: typeof import("./src/components/AppLayout.vue")["default"]
     ApplicationModal: typeof import('./src/components/support/ApplicationModal.vue')['default']
+    Card: typeof import('./src/components/ui/Card.vue')['default']
     CategoryDetailsModal: typeof import('./src/components/expense/CategoryDetailsModal.vue')['default']
     CategorySection: typeof import('./src/components/expense/CategorySection.vue')['default']
     CHEAlert: typeof import('./src/components/alerts/CHEAlert.vue')['default']
@@ -26,6 +26,7 @@ declare module 'vue' {
     IncomeSources: typeof import('./src/components/income/IncomeSources.vue')['default']
     LedgerEntryModal: typeof import('./src/components/income/LedgerEntryModal.vue')['default']
     MedicalCategorization: typeof import('./src/components/expense/MedicalCategorization.vue')['default']
+    MetricCard: typeof import('./src/components/ui/MetricCard.vue')['default']
     NotificationCenter: typeof import('./src/components/common/NotificationCenter.vue')['default']
     PathwayDetailsModal: typeof import('./src/components/support/PathwayDetailsModal.vue')['default']
     QuickActionButton: typeof import('./src/components/QuickActionButton.vue')['default']

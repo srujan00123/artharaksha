@@ -20,13 +20,16 @@ initializeTheme()
 
 import {
 	Button,
-	Card,
 	Input,
 	frappeRequest,
 	pageMetaPlugin,
 	resourcesPlugin,
 	setConfig,
 } from "frappe-ui"
+
+// Import our custom UI components
+import Card from "./components/ui/Card.vue"
+import MetricCard from "./components/ui/MetricCard.vue"
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -38,7 +41,9 @@ app.use(router)
 app.use(resourcesPlugin)
 app.use(pageMetaPlugin) // Enable reactive page titles
 
+// Register components globally
 app.component("Button", Button)
 app.component("Card", Card)
+app.component("MetricCard", MetricCard)
 app.component("Input", Input)
 app.mount("#app")

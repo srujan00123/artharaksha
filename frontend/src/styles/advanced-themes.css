@@ -1,5 +1,6 @@
-/* Advanced Theme System CSS - Ultra Performance Optimized */
+/* Advanced Theme System CSS - Clean and Consolidated */
 :root {
+	/* Primary Theme Colors */
 	--theme-primary: #3b82f6;
 	--theme-surface: #ffffff;
 	--theme-background: #f8fafc;
@@ -16,9 +17,6 @@
 	--theme-primary: #3b82f6;
 	--theme-surface: #ffffff;
 	--theme-background: #f8fafc;
-	--theme-primary: #3b82f6;
-	--theme-surface: #ffffff;
-	--theme-background: #f8fafc;
 }
 
 [data-theme="dark"] {
@@ -28,14 +26,9 @@
 	--theme-text-primary: #f1f5f9;
 	--theme-text-secondary: #94a3b8;
 	--theme-border: #1e293b;
-	--theme-primary: #60a5fa;
-	--theme-surface: #0f172a;
-	--theme-background: #020617;
-	--theme-text-primary: #f1f5f9;
-	--theme-text-secondary: #94a3b8;
-	--theme-border: #1e293b;
 }
 
+/* Financial Context Classes */
 .financial-income {
 	color: var(--theme-success);
 	background-color: rgba(16, 185, 129, 0.1);
@@ -51,10 +44,12 @@
 	background-color: rgba(59, 130, 246, 0.1);
 }
 
+/* Dark Theme Base */
 .dark {
 	background: #020617;
 }
 
+/* Dark Theme Backgrounds */
 .dark .bg-white {
 	background: #0f172a;
 	border-color: #1e293b;
@@ -65,6 +60,11 @@
 }
 
 .dark .bg-gray-100 {
+	background: #1e293b;
+}
+
+.dark .bg-gray-200,
+.dark .bg-gray-700 {
 	background: #1e293b;
 }
 
@@ -79,6 +79,7 @@
 	background: #020617;
 }
 
+/* Dark Theme Text Colors */
 .dark .text-gray-900 {
 	color: #f8fafc;
 }
@@ -89,24 +90,21 @@
 
 .dark .text-gray-700 {
 	color: #e2e8f0;
-	color: #e2e8f0;
 }
 
 .dark .text-gray-600 {
-	color: #cbd5e1;
 	color: #cbd5e1;
 }
 
 .dark .text-gray-500 {
 	color: #94a3b8;
-	color: #94a3b8;
 }
 
 .dark .text-gray-400 {
 	color: #64748b;
-	color: #64748b;
 }
 
+/* Dark Theme Borders */
 .dark .border-gray-200,
 .dark .border-gray-300,
 .dark .border-gray-600,
@@ -115,10 +113,8 @@
 	border-color: #1e293b;
 }
 
-.dark .hover\:bg-gray-50:hover {
-	background: #1e293b;
-}
-
+/* Dark Theme Hover States */
+.dark .hover\:bg-gray-50:hover,
 .dark .hover\:bg-gray-100:hover {
 	background: #1e293b;
 }
@@ -127,36 +123,7 @@
 	background: #334155;
 }
 
-.dark .btn-primary {
-	background: #3b82f6;
-	border-color: #2563eb;
-	color: #ffffff;
-}
-
-.dark .btn-primary:hover {
-	background: #2563eb;
-}
-
-.dark .btn-outline {
-	background: #0f172a;
-	border-color: #334155;
-	color: #f1f5f9;
-}
-
-.dark .btn-outline:hover {
-	background: #1e293b;
-}
-
-.dark .btn-ghost {
-	background: transparent;
-	color: #94a3b8;
-}
-
-.dark .btn-ghost:hover {
-	background: #1e293b;
-	color: #f1f5f9;
-}
-
+/* Form Inputs - Dark Theme */
 .dark input[type="date"],
 .dark input[type="time"],
 .dark input[type="datetime-local"],
@@ -204,6 +171,7 @@
 	border-color: #3b82f6;
 }
 
+/* Color Backgrounds - Dark Theme */
 .dark .bg-blue-50 {
 	background: rgba(59, 130, 246, 0.1);
 }
@@ -264,6 +232,7 @@
 	background: rgba(239, 68, 68, 0.2);
 }
 
+/* Color Hover States - Dark Theme */
 .dark .hover\:bg-blue-100:hover {
 	background: rgba(59, 130, 246, 0.2);
 }
@@ -296,9 +265,124 @@
 	background: rgba(168, 85, 247, 0.3);
 }
 
-.dark .bg-gray-200,
-.dark .bg-gray-700 {
+/* Button System */
+.btn-primary,
+.btn-outline,
+.btn-ghost,
+.btn-success,
+.btn-danger,
+.btn-warning {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 0.5rem;
+	font-weight: 500;
+	transition: all 0.2s ease;
+	cursor: pointer;
+	border: 1px solid transparent;
+	text-decoration: none;
+	outline: none;
+	white-space: nowrap;
+}
+
+.btn-primary:focus,
+.btn-outline:focus,
+.btn-ghost:focus,
+.btn-success:focus,
+.btn-danger:focus,
+.btn-warning:focus {
+	outline: 2px solid transparent;
+	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--theme-primary);
+}
+
+/* Light Theme Buttons */
+.btn-primary {
+	background: #3b82f6;
+	border-color: #2563eb;
+	color: #ffffff;
+}
+
+.btn-primary:hover {
+	background: #2563eb;
+}
+
+.btn-outline {
+	background: #ffffff;
+	border-color: #d1d5db;
+	color: #374151;
+}
+
+.btn-outline:hover {
+	background: #f9fafb;
+}
+
+.btn-ghost {
+	background: transparent;
+	color: #6b7280;
+}
+
+.btn-ghost:hover {
+	background: #f3f4f6;
+	color: #374151;
+}
+
+.btn-success {
+	background: #10b981;
+	color: #ffffff;
+}
+
+.btn-success:hover {
+	background: #059669;
+}
+
+.btn-danger {
+	background: #ef4444;
+	color: #ffffff;
+}
+
+.btn-danger:hover {
+	background: #dc2626;
+}
+
+.btn-warning {
+	background: #f59e0b;
+	color: #ffffff;
+}
+
+.btn-warning:hover {
+	background: #d97706;
+}
+
+/* Dark Theme Button Overrides */
+.dark .btn-primary {
+	background: #3b82f6;
+	border-color: #2563eb;
+	color: #ffffff;
+}
+
+.dark .btn-primary:hover {
+	background: #2563eb;
+}
+
+.dark .btn-outline {
+	background: #0f172a;
+	border-color: #334155;
+	color: #f1f5f9;
+}
+
+.dark .btn-outline:hover {
 	background: #1e293b;
+}
+
+.dark .btn-ghost {
+	background: transparent;
+	color: #94a3b8;
+}
+
+.dark .btn-ghost:hover {
+	background: #1e293b;
+	color: #f1f5f9;
 }
 
 .dark .btn-success {
@@ -328,6 +412,13 @@
 	background: #d97706;
 }
 
+/* Disabled Button States */
+.btn-primary:disabled,
+.btn-outline:disabled,
+.btn-ghost:disabled,
+.btn-success:disabled,
+.btn-danger:disabled,
+.btn-warning:disabled,
 .dark .btn-primary:disabled,
 .dark .btn-outline:disabled,
 .dark .btn-ghost:disabled,
@@ -336,52 +427,4 @@
 .dark .btn-warning:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
-}
-
-/* Prevent unwanted scroll bars on all card-like components */
-.card,
-.frappe-card,
-.dashboard-card {
-	overflow: visible !important;
-	max-width: 100%;
-	max-height: 100%;
-}
-
-.dark .text-gray-500,
-.dark .text-gray-600,
-.dark .text-gray-700 {
-	color: #e5e7eb !important;
-}
-
-.quick-actions-row,
-.quick-action-box,
-.Card,
-.dashboard-card,
-.frappe-card {
-	overflow: visible !important;
-	max-width: 100%;
-	max-height: 100%;
-}
-
-.quick-actions-row {
-	overflow-x: visible !important;
-	overflow-y: visible !important;
-	flex-wrap: wrap;
-}
-
-/* Prevent scroll bars in the Total Expenses card and its children */
-.Card,
-.dashboard-card,
-.frappe-card {
-	overflow: visible !important;
-	max-height: none !important;
-	height: auto !important;
-}
-
-.Card > *,
-.dashboard-card > *,
-.frappe-card > * {
-	overflow: visible !important;
-	max-height: none !important;
-	height: auto !important;
 }

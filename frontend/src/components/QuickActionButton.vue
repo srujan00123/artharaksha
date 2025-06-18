@@ -1,14 +1,10 @@
 <template>
-    <button 
-        :class="buttonClasses"
-        :disabled="loading || disabled"
-        @click="handleClick"
-        class="flex flex-col items-center p-3 sm:p-4 h-auto min-h-[80px] space-y-2 border rounded-lg text-gray-700 dark:text-gray-300 dark:text-gray-600 bg-white dark:bg-gray-800 dark:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 hover:scale-105 hover:shadow dark:shadow-gray-900/20-md"
-    >
-        <div v-if="loading" class="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-current"></div>
-        <component v-else :is="iconComponent" class="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-        <span class="text-xs sm:text-sm font-medium text-center leading-tight">{{ label }}</span>
-    </button>
+	<button :class="buttonClasses" :disabled="loading || disabled" @click="handleClick"
+		class="flex flex-col items-center p-3 sm:p-4 h-auto min-h-[80px] space-y-2 border rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 hover:shadow-md">
+		<div v-if="loading" class="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-current"></div>
+		<component v-else :is="iconComponent" class="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+		<span class="text-xs sm:text-sm font-medium text-center leading-tight">{{ label }}</span>
+	</button>
 </template>
 
 <script setup>
@@ -254,4 +250,4 @@ const getThemeTextClass = (intensity = "600") => {
 	}
 	return intensityMap[intensity] || intensityMap["600"]
 }
-</script> 
+</script>
