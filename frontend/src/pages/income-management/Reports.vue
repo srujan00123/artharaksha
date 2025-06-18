@@ -341,7 +341,7 @@ const {
 	analytics,
 	loading,
 	error,
-	
+
 	// Computed values
 	totalIncome,
 	recurringIncome,
@@ -349,7 +349,7 @@ const {
 	totalSources,
 	incomeByType,
 	filteredSources,
-	
+
 	// Actions
 	updateFilters,
 	fetchIncomeWithAnalytics,
@@ -364,7 +364,8 @@ const selectedPeriod = ref<
 
 // Computed properties for analytics data using new architecture
 const incomeByTypeData = computed(() => {
-	if (!incomeByType.value || Object.keys(incomeByType.value).length === 0) return []
+	if (!incomeByType.value || Object.keys(incomeByType.value).length === 0)
+		return []
 
 	const total = totalIncome.value || 1
 	const colors = [

@@ -183,6 +183,109 @@
                         </form>
                 </Card>
 
+                <!-- Household Profile Management -->
+                <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+                    <div class="flex items-center justify-between mb-4 lg:mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Household Profile</h3>
+                        <Button 
+                            v-if="!householdProfile && !loadingHouseholdProfile" 
+                            variant="solid" 
+                            size="sm" 
+                            @click="showHouseholdProfileCreator = true"
+                        >
+                            <User class="w-4 h-4 mr-2" />
+                            Create Profile
+                        </Button>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div v-if="loadingHouseholdProfile" class="flex items-center justify-center py-8">
+                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span class="ml-3 text-gray-600 dark:text-gray-400">Loading household profile...</span>
+                    </div>
+
+                    <!-- No Profile State -->
+                    <div v-else-if="!householdProfile" class="text-center py-8">
+                        <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <User class="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Household Profile</h4>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">
+                            Create a household profile to manage your family's income and expenses effectively.
+                        </p>
+                        <Button variant="solid" @click="showHouseholdProfileCreator = true">
+                            <User class="w-4 h-4 mr-2" />
+                            Create Household Profile
+                        </Button>
+                    </div>
+
+                    <!-- Profile Exists -->
+                    <div v-else class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                                <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Address</h5>
+                                <p class="text-gray-600 dark:text-gray-400">{{ householdProfile.address || 'Not specified' }}</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                                <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">District</h5>
+                                <p class="text-gray-600 dark:text-gray-400">{{ householdProfile.district || 'Not specified' }}</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                                <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Family Members</h5>
+                                <p class="text-gray-600 dark:text-gray-400">{{ householdProfile.family_member_count || 0 }}</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                                <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Annual Income</h5>
+                                <p class="text-gray-600 dark:text-gray-400">
+                                    {{ householdProfile.annual_income ? formatCurrency(householdProfile.annual_income) : 'Not specified' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Status Indicators -->
+                        <div class="flex flex-wrap gap-2 pt-2">
+                            <span v-if="householdProfile.vulnerability_status" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                Vulnerable Status
+                            </span>
+                            <span v-if="householdProfile.ration_card_holder" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                Ration Card Holder
+                            </span>
+                            <span v-if="householdProfile.che_10" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                CHE 10%
+                            </span>
+                            <span v-if="householdProfile.che_25" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                CHE 25%
+                            </span>
+                        </div>
+
+                        <!-- Health Conditions -->
+                        <div v-if="householdProfile.health_conditions && householdProfile.health_conditions.length > 0" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <h5 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Health Conditions</h5>
+                            <div class="flex flex-wrap gap-2">
+                                <span 
+                                    v-for="condition in householdProfile.health_conditions" 
+                                    :key="condition.condition"
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                >
+                                    {{ condition.condition }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
+                            <Button variant="outline" size="sm" @click="editHouseholdProfile" class="w-full sm:w-auto">
+                                <User class="w-4 h-4 mr-2" />
+                                Edit Profile
+                            </Button>
+                            <Button variant="outline" size="sm" @click="refreshHouseholdProfile" class="w-full sm:w-auto">
+                                <RefreshCw class="w-4 h-4 mr-2" />
+                                Refresh
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
+
                 <!-- Preferences -->
             <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 lg:mb-6">Preferences</h3>
@@ -331,6 +434,14 @@
                 </Card>
         </div>
     </div>
+
+    <!-- Household Profile Creator Modal -->
+    <HouseholdProfileCreator
+        v-if="showHouseholdProfileCreator"
+        :is-open="showHouseholdProfileCreator"
+        @close="closeHouseholdProfileCreator"
+        @success="handleProfileCreated"
+    />
 </template>
 
 <script setup>
@@ -350,9 +461,23 @@ import {
 	User,
 } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
+import HouseholdProfileCreator from "../components/profile/HouseholdProfileCreator.vue"
+// Import household profile constants for validation
+import { HOUSEHOLD_PROFILE_CONSTANTS } from "../types/household"
+// Import household profile utilities
+import {
+	convertFromBackend,
+	formatCurrency,
+	getStatusSummary,
+} from "../utils/household-profile"
 
 // Store
 const userStore = useUserStore()
+
+// Add household profile state
+const householdProfile = ref(null)
+const loadingHouseholdProfile = ref(false)
+const showHouseholdProfileCreator = ref(false)
 
 // Form states
 const profileForm = ref({
@@ -579,6 +704,51 @@ const formatDate = (dateString) => {
 	})
 }
 
+// Household Profile Methods
+const loadHouseholdProfile = async () => {
+	try {
+		loadingHouseholdProfile.value = true
+
+		// Use the support API endpoint that exists
+		const response = await fetch(
+			"/api/method/artha.api.support.get_household_profile",
+		)
+		const data = await response.json()
+
+		if (data.message) {
+			householdProfile.value = data.message
+		} else {
+			householdProfile.value = null
+		}
+	} catch (error) {
+		console.error("Failed to load household profile:", error)
+		householdProfile.value = null
+	} finally {
+		loadingHouseholdProfile.value = false
+	}
+}
+
+const refreshHouseholdProfile = async () => {
+	await loadHouseholdProfile()
+	toast.success("Household profile refreshed successfully")
+}
+
+const editHouseholdProfile = () => {
+	// Open the profile creator in edit mode
+	showHouseholdProfileCreator.value = true
+}
+
+const closeHouseholdProfileCreator = () => {
+	showHouseholdProfileCreator.value = false
+}
+
+const handleProfileCreated = async (profileData) => {
+	showHouseholdProfileCreator.value = false
+	// Refresh the household profile data
+	await loadHouseholdProfile()
+	toast.success("Household profile created successfully")
+}
+
 // Watch for user data changes
 watch(() => userStore.currentUser, populateForm, { deep: true })
 watch(
@@ -595,6 +765,7 @@ watch(
 onMounted(async () => {
 	await userStore.initialize()
 	populateForm()
+	await loadHouseholdProfile()
 })
 
 // Advanced theme management

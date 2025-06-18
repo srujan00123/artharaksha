@@ -1,6 +1,7 @@
 """
 Income API
 Provides specialized endpoints for income management and analysis
+All income operations are handled here to ensure consistency and proper event handling
 """
 
 import frappe
@@ -9,6 +10,392 @@ from frappe.utils import flt, getdate, now_datetime
 from datetime import datetime, timedelta
 import json
 from typing import Dict, List, Any, Optional, Union
+
+# Import utility functions from centralized utils module
+from artha.utils.income_utils import (
+    convert_datetime_format,
+    get_next_occurrence,
+    get_recurring_dates,
+    create_ledger_entry,
+    create_recurring_ledger_entries,
+    cleanup_orphaned_entries,
+    calculate_monthly_income_from_sources,
+    calculate_period_income,
+    get_income_summary_stats,
+    validate_income_source_data,
+    validate_ledger_entry_data,
+    get_user_household_profile,
+    format_currency_amount,
+    get_period_display_name,
+    log_income_operation
+)
+
+
+# ===============================
+# LEDGER MANAGEMENT FUNCTIONS
+# ===============================
+
+@frappe.whitelist()
+def create_initial_recurring_entries(income_name: str, source_name: str) -> Dict[str, Any]:
+    """
+    Create initial ledger entries for a new recurring source using utility function
+    """
+    try:
+        income_doc = frappe.get_doc("Income", income_name)
+
+        # Find the source
+        source = None
+        for src in income_doc.income_source:
+            if src.name == source_name:
+                source = src
+                break
+
+        if not source:
+            frappe.throw(f"Source {source_name} not found")
+
+        if not source.recur:
+            frappe.throw(
+                "Only recurring sources can have automatic ledger entries")
+
+        # Prepare source data for utility function
+        source_data = {
+            'income': source.income,
+            'type': source.type,
+            'recur_frequency': source.recur_frequency
+        }
+
+        start_date = getdate(source.date_time)
+        today = getdate()
+        stop_date = getdate(source.stop_date) if source.stop_date else today
+
+        # Use utility function to create recurring entries
+        entries_added = create_recurring_ledger_entries(
+            income_name, source_name, source_data, start_date, min(
+                stop_date, today)
+        )
+
+        log_income_operation("create_initial_recurring_entries", {
+            "income_name": income_name,
+            "source_name": source_name,
+            "entries_added": entries_added
+        })
+
+        return {
+            "status": "success",
+            "message": f"Created {entries_added} initial recurring entries",
+            "entries_added": entries_added
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error creating initial recurring entries: {str(e)}")
+        frappe.throw(f"Failed to create initial recurring entries: {str(e)}")
+
+
+@frappe.whitelist()
+def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: int = 1000) -> Dict[str, Any]:
+    """
+    Update recurring ledger entries for a specific income record
+    """
+    try:
+        income_doc = frappe.get_doc("Income", income_name)
+        today = getdate()
+        total_entries_added = 0
+
+        for source in income_doc.income_source:
+            if source.recur:
+                # Get existing entries for this source
+                existing_entries = frappe.get_all(
+                    "Income Ledger",
+                    filters={
+                        "parent": income_name,
+                        "income_source": source.name
+                    },
+                    fields=["date_time"],
+                    order_by="date_time desc"
+                )
+
+                if existing_entries:
+                    # Find the latest entry date
+                    latest_date = max(getdate(entry.date_time)
+                                      for entry in existing_entries)
+
+                    # Determine end date based on stop_date
+                    end_date = today
+                    if source.stop_date:
+                        stop_date = getdate(source.stop_date)
+                        end_date = min(today, stop_date)
+
+                    # Create entries from latest_date + 1 occurrence to end_date
+                    next_date = get_next_occurrence(
+                        latest_date, source.recur_frequency)
+
+                    entry_count = 0
+                    while next_date <= end_date and entry_count < limit_entries:
+                        # Check if entry already exists for this date
+                        existing = frappe.db.exists("Income Ledger", {
+                            "parent": income_name,
+                            "income_source": source.name,
+                            "date_time": next_date
+                        })
+
+                        if not existing:
+                            # Create ledger entry directly in database
+                            ledger_entry = frappe.get_doc({
+                                "doctype": "Income Ledger",
+                                "parent": income_name,
+                                "parenttype": "Income",
+                                "parentfield": "income_ledger",
+                                "income_source": source.name,
+                                "income_type": "recurring",
+                                "date_time": next_date,
+                                "amount": flt(source.income),
+                                "source_type": source.type,
+                                "description": f"Recurring {source.type} income"
+                            })
+                            ledger_entry.insert()
+                            total_entries_added += 1
+                            entry_count += 1
+
+                        next_date = get_next_occurrence(
+                            next_date, source.recur_frequency)
+
+                        # Safety check to prevent infinite loops
+                        if next_date <= latest_date:
+                            frappe.log_error(
+                                f"Infinite loop detected in recurring entries for {source.name}",
+                                "Income Recurring Entry Error"
+                            )
+                            break
+                else:
+                    # No entries exist, create from start
+                    result = create_initial_recurring_entries(
+                        income_name, source.name)
+                    total_entries_added += result.get("entries_added", 0)
+
+        return {
+            "status": "success",
+            "message": f"Updated recurring entries for Income {income_name}",
+            "entries_added": total_entries_added
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error updating recurring entries: {str(e)}")
+        frappe.throw(f"Failed to update recurring entries: {str(e)}")
+
+
+@frappe.whitelist()
+def cleanup_orphaned_ledger_entries_for_income(income_name: str) -> Dict[str, Any]:
+    """
+    Clean up orphaned ledger entries for a specific income record using utility function
+    """
+    try:
+        income_doc = frappe.get_doc("Income", income_name)
+        valid_source_names = {
+            source.name for source in income_doc.income_source}
+
+        # Use utility function for cleanup
+        cleaned_count = cleanup_orphaned_entries(
+            income_name, valid_source_names)
+
+        log_income_operation("cleanup_orphaned_entries", {
+            "income_name": income_name,
+            "cleaned_count": cleaned_count
+        })
+
+        return {
+            "status": "success",
+            "message": f"Cleaned up {cleaned_count} orphaned entries",
+            "cleaned_count": cleaned_count
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error cleaning up ledger entries: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to clean up ledger entries: {str(e)}",
+            "cleaned_count": 0
+        }
+
+
+# ===============================
+# EXISTING API FUNCTIONS (Updated to use new ledger management)
+# ===============================
+
+@frappe.whitelist()
+def get_period_info(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
+    """
+    Get period information including start and end dates for display
+    """
+    try:
+        # Parse filters if provided
+        if isinstance(filters, str):
+            filters = json.loads(filters)
+
+        if not filters:
+            filters = {}
+
+        today = getdate()
+        start_date = None
+        end_date = None
+        period_name = ""
+
+        # Check for custom date range first
+        if filters.get('dateFrom') and filters.get('dateTo'):
+            start_date = getdate(filters['dateFrom'])
+            end_date = getdate(filters['dateTo'])
+            period_name = f"{start_date.strftime('%b %d, %Y')} - {end_date.strftime('%b %d, %Y')}"
+        elif filters.get('dateFrom'):
+            start_date = getdate(filters['dateFrom'])
+            end_date = today
+            period_name = f"From {start_date.strftime('%b %d, %Y')}"
+        elif filters.get('dateTo'):
+            end_date = getdate(filters['dateTo'])
+            period_name = f"Until {end_date.strftime('%b %d, %Y')}"
+        elif filters.get('period'):
+            period = filters['period']
+
+            if period == "this_month":
+                start_date = today.replace(day=1)
+                end_date = today
+                period_name = "This Month"
+            elif period == "last_month":
+                last_month = today.replace(day=1) - timedelta(days=1)
+                start_date = last_month.replace(day=1)
+                end_date = last_month
+                period_name = "Last Month"
+            elif period == "last_3_months":
+                start_date = (today.replace(day=1) -
+                              timedelta(days=90)).replace(day=1)
+                end_date = today
+                period_name = "Last 3 Months"
+            elif period == "last_6_months":
+                start_date = (today.replace(day=1) -
+                              timedelta(days=180)).replace(day=1)
+                end_date = today
+                period_name = "Last 6 Months"
+            elif period == "this_year":
+                start_date = today.replace(month=1, day=1)
+                end_date = today
+                period_name = "This Year"
+            else:
+                # Default to this month
+                start_date = today.replace(day=1)
+                end_date = today
+                period_name = "This Month"
+        else:
+            # Default to this month
+            start_date = today.replace(day=1)
+            end_date = today
+            period_name = "This Month"
+
+        return {
+            "start_date": start_date.strftime('%Y-%m-%d') if start_date else "",
+            "end_date": end_date.strftime('%Y-%m-%d') if end_date else "",
+            "period_name": period_name,
+            "days_count": (end_date - start_date).days + 1 if start_date and end_date else 0,
+            "is_current_period": period_name in ["This Month", "This Year"]
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error getting period info: {str(e)}")
+        # Provide default current month info
+        today = getdate()
+        start_date = today.replace(day=1)
+        return {
+            "start_date": start_date.strftime('%Y-%m-%d'),
+            "end_date": today.strftime('%Y-%m-%d'),
+            "period_name": "This Month",
+            "days_count": (today - start_date).days + 1,
+            "is_current_period": True
+        }
+
+
+@frappe.whitelist()
+def get_income_filter_options(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
+    """
+    Get all available filter options for income data
+    """
+    try:
+        # Get user's household profile
+        household_profile = frappe.db.get_value(
+            "Household Profile",
+            {"user": frappe.session.user},
+            "name"
+        )
+
+        # Get available income types from user's data
+        income_types = []
+        if household_profile:
+            # Get unique income types from ledger entries
+            income_records = frappe.get_all(
+                "Income",
+                filters={"household_profile": household_profile},
+                fields=["name"]
+            )
+
+            if income_records:
+                for record in income_records:
+                    types = frappe.get_all(
+                        "Income Ledger",
+                        filters={"parent": record.name},
+                        fields=["source_type"],
+                        group_by="source_type"
+                    )
+                    income_types.extend(
+                        [t.source_type for t in types if t.source_type])
+
+        # Remove duplicates and sort
+        income_types = sorted(list(set(income_types)))
+
+        # Get available frequencies
+        frequencies = [
+            {"value": "daily", "label": "Daily"},
+            {"value": "weekly", "label": "Weekly"},
+            {"value": "bi-weekly", "label": "Bi-Weekly"},
+            {"value": "monthly", "label": "Monthly"},
+            {"value": "quarterly", "label": "Quarterly"},
+            {"value": "semi-annually", "label": "Semi-Annually"},
+            {"value": "annually", "label": "Annually"},
+            {"value": "yearly", "label": "Yearly"}
+        ]
+
+        # Get period options
+        periods = [
+            {"value": "this_month", "label": "This Month"},
+            {"value": "last_month", "label": "Last Month"},
+            {"value": "last_3_months", "label": "Last 3 Months"},
+            {"value": "last_6_months", "label": "Last 6 Months"},
+            {"value": "this_year", "label": "This Year"},
+            {"value": "custom", "label": "Custom Date Range"}
+        ]
+
+        # Get sort options
+        sort_options = [
+            {"value": "date", "label": "Date"},
+            {"value": "amount", "label": "Amount"},
+            {"value": "type", "label": "Type"}
+        ]
+
+        return {
+            "income_types": [{"value": t, "label": t} for t in income_types],
+            "frequencies": frequencies,
+            "periods": periods,
+            "sort_options": sort_options,
+            "recurring_options": [
+                {"value": True, "label": "Recurring Only"},
+                {"value": False, "label": "One-time Only"}
+            ]
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error fetching income filter options: {str(e)}")
+        return {
+            "income_types": [],
+            "frequencies": [],
+            "periods": [],
+            "sort_options": [],
+            "recurring_options": []
+        }
 
 
 @frappe.whitelist()
@@ -142,12 +529,8 @@ def get_user_income(filters: Optional[Union[str, Dict]] = None, include_analytic
     - analytics: Computed from ledger entries only
     """
     try:
-        # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        # Get user's household profile using utility function
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             return {
@@ -467,9 +850,9 @@ def get_user_income(filters: Optional[Union[str, Dict]] = None, include_analytic
             else:
                 analytics_data["growth_rate"] = 0
 
-            # Calculate actual monthly income from current month's ledger entries
+            # Calculate actual income from filtered ledger entries
             analytics_data["monthly_recurring_income"] = calculate_monthly_income_from_ledger(
-                household_profile)
+                household_profile, filters)
 
             # Also calculate recurring income potential (what should be earned monthly)
             analytics_data["expected_monthly_income"] = sum(
@@ -491,57 +874,36 @@ def get_user_income(filters: Optional[Union[str, Dict]] = None, include_analytic
         frappe.throw(_("Failed to fetch income records"))
 
 
-def calculate_monthly_income_from_ledger(household_profile: str) -> float:
+def calculate_monthly_income_from_ledger(household_profile: str, filters: Optional[Dict] = None) -> float:
     """
-    Calculate actual monthly income based on ledger entries
-    This provides a more accurate monthly income calculation
+    Calculate actual income based on ledger entries with optional filters using utility function
     """
     try:
-        # Get all income records for the household
-        income_records = frappe.get_all(
-            "Income",
-            filters={"household_profile": household_profile},
-            fields=["name"]
-        )
-
-        if not income_records:
-            return 0.0
-
-        # Get current month's date range
-        today = getdate()
-        start_of_month = today.replace(day=1)
-
-        total_monthly_income = 0.0
-
-        for record in income_records:
-            # Get all ledger entries for this month
-            monthly_entries = frappe.get_all(
-                "Income Ledger",
-                filters={
-                    "parent": record.name,
-                    "date_time": ["between", [start_of_month, today]]
-                },
-                fields=["amount"]
-            )
-
-            for entry in monthly_entries:
-                total_monthly_income += flt(entry.amount)
-
-        return total_monthly_income
-
+        # Use utility function for period income calculation
+        return calculate_period_income(household_profile, filters)
     except Exception as e:
         frappe.log_error(
-            f"Error calculating monthly income from ledger: {str(e)}")
+            f"Error calculating filtered income from ledger: {str(e)}")
         return 0.0
 
 
 @frappe.whitelist()
-def get_monthly_income_summary() -> Dict[str, Union[float, int]]:
+def get_monthly_income_summary(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Union[float, int]]:
     """
-    Get monthly income summary for CHE analysis
+    Get income summary for CHE analysis with filter support
     Calculated from ledger entries to ensure consistency with filtered data
+
+    If no filters provided, defaults to current month for backward compatibility
     """
     try:
+        # Parse filters if provided
+        if isinstance(filters, str):
+            filters = json.loads(filters)
+
+        if not filters:
+            # Default to current month for backward compatibility
+            filters = {"period": "this_month"}
+
         # Get user's household profile
         household_profile = frappe.db.get_value(
             "Household Profile",
@@ -554,81 +916,67 @@ def get_monthly_income_summary() -> Dict[str, Union[float, int]]:
                 "monthly_income": 0,
                 "recurring_income": 0,
                 "one_time_income": 0,
-                "total_sources": 0
+                "total_sources": 0,
+                "period": filters.get("period", "this_month")
             }
 
-        # Get all income records for the household
-        income_records = frappe.get_all(
-            "Income",
-            filters={"household_profile": household_profile},
-            fields=["name"]
+        # Use the existing filtered income calculation
+        analytics_result = get_user_income(
+            filters=json.dumps(filters),
+            include_analytics=True
         )
 
-        if not income_records:
-            return {
-                "monthly_income": 0,
-                "recurring_income": 0,
-                "one_time_income": 0,
-                "total_sources": 0
-            }
+        analytics = analytics_result.get("analytics", {})
 
-        # Calculate totals from current month's ledger entries only
-        today = getdate()
-        start_of_month = today.replace(day=1)
-
-        total_monthly_income = 0
-        total_recurring_income = 0
-        total_one_time_income = 0
-        total_sources = 0
-
-        for record in income_records:
-            # Get income sources for this record (for counting)
-            income_sources = frappe.get_all(
-                "Income Source Type",
-                filters={"parent": record.name},
-                fields=["name"]
-            )
-
-            total_sources += len(income_sources)
-
-            # Get current month's ledger entries for this record
-            ledger_entries = frappe.get_all(
-                "Income Ledger",
-                filters={
-                    "parent": record.name,
-                    "date_time": ["between", [start_of_month, today]]
-                },
-                fields=["amount", "income_type"]
-            )
-
-            for entry in ledger_entries:
-                entry_amount = flt(entry.amount)
-                total_monthly_income += entry_amount
-
-                if entry.income_type == "recurring":
-                    total_recurring_income += entry_amount
-                else:
-                    total_one_time_income += entry_amount
+        # Get period info for display
+        period_info = get_period_info(filters)
 
         return {
-            "monthly_income": total_monthly_income,
-            "recurring_income": total_recurring_income,
-            "one_time_income": total_one_time_income,
-            "total_sources": total_sources
+            "monthly_income": analytics.get("total_income", 0),
+            "recurring_income": analytics.get("recurring_income", 0),
+            "one_time_income": analytics.get("one_time_income", 0),
+            "total_sources": analytics.get("summary", {}).get("total_sources", 0),
+            "expected_monthly_income": analytics.get("expected_monthly_income", 0),
+            "period": filters.get("period", "custom"),
+            "period_name": period_info.get("period_name", ""),
+            "start_date": period_info.get("start_date", ""),
+            "end_date": period_info.get("end_date", ""),
+            "days_in_period": period_info.get("days_count", 0),
+            "filters": filters
         }
 
     except Exception as e:
-        frappe.log_error(f"Error calculating monthly income summary: {str(e)}")
-        frappe.throw(_("Failed to calculate monthly income summary"))
+        frappe.log_error(f"Error calculating income summary: {str(e)}")
+        frappe.throw(_("Failed to calculate income summary"))
 
 
 @frappe.whitelist()
-def get_income_dashboard_metrics(period: str = "this_month") -> Dict[str, Any]:
+def get_income_dashboard_metrics(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
     """
-    Get computed dashboard metrics for income management
+    Get computed dashboard metrics for income management with comprehensive filter support
     Provides all the key metrics needed for dashboard displays
+
+    Filters supported:
+    - period: this_month, last_month, last_3_months, last_6_months, this_year
+    - dateFrom, dateTo: Custom date range
+    - type: Specific income type
+    - isRecurring: True/False for recurring vs one-time
+    - amountMin, amountMax: Amount range filters
+    - searchTerm: Search in income types
+    - sortBy, sortOrder: Sorting options
     """
     try:
+        # Parse filters if provided
+        if isinstance(filters, str):
+            filters = json.loads(filters)
+
+        if not filters:
+            filters = {"period": "this_month"}
+
+        # Ensure we have a default period if none specified
+        if not filters.get("period") and not (filters.get("dateFrom") or filters.get("dateTo")):
+            filters["period"] = "this_month"
+
         # Get user's household profile
         household_profile = frappe.db.get_value(
             "Household Profile",
@@ -639,6 +987,7 @@ def get_income_dashboard_metrics(period: str = "this_month") -> Dict[str, Any]:
         if not household_profile:
             return {
                 "actual_monthly_income": 0,
+                "expected_monthly_income": 0,
                 "recurring_income": 0,
                 "one_time_income": 0,
                 "total_sources": 0,
@@ -647,22 +996,32 @@ def get_income_dashboard_metrics(period: str = "this_month") -> Dict[str, Any]:
                 "top_income_type": "",
                 "income_by_type": {},
                 "monthly_trends": [],
-                "period": period
+                "average_source_amount": 0,
+                "filters": filters,
+                "period": filters.get("period", "custom")
             }
 
-        # Get analytics using existing function
+        # Get analytics using existing function with full filters
         analytics_result = get_user_income(
-            filters=json.dumps({"period": period}),
+            filters=json.dumps(filters),
             include_analytics=True
         )
 
         analytics = analytics_result.get("analytics", {})
 
+        # Calculate actual total income from filtered ledger entries
+        actual_total_income = calculate_monthly_income_from_ledger(
+            household_profile, filters)
+
+        # Get date range info for display
+        period_info = get_period_info(filters)
+
         return {
-            "actual_monthly_income": analytics.get("monthly_recurring_income", 0),
+            "actual_monthly_income": actual_total_income,
             "expected_monthly_income": analytics.get("expected_monthly_income", 0),
             "recurring_income": analytics.get("recurring_income", 0),
             "one_time_income": analytics.get("one_time_income", 0),
+            "total_income": analytics.get("total_income", 0),
             "total_sources": analytics.get("summary", {}).get("total_sources", 0),
             "recurring_percentage": analytics.get("recurring_percentage", 0),
             "growth_rate": analytics.get("growth_rate", 0),
@@ -670,9 +1029,13 @@ def get_income_dashboard_metrics(period: str = "this_month") -> Dict[str, Any]:
             "income_by_type": analytics.get("income_by_type", {}),
             "monthly_trends": analytics.get("monthly_trends", []),
             "average_source_amount": analytics.get("summary", {}).get("average_source_amount", 0),
-            "period": period,
-            "start_date": analytics.get("start_date", ""),
-            "end_date": analytics.get("end_date", "")
+            "filters": filters,
+            "period": filters.get("period", "custom"),
+            "start_date": period_info.get("start_date", ""),
+            "end_date": period_info.get("end_date", ""),
+            "total_ledger_entries": len(analytics_result.get("ledger_entries", [])),
+            "recurring_entries": analytics.get("summary", {}).get("recurring_entries", 0),
+            "one_time_entries": analytics.get("summary", {}).get("one_time_entries", 0)
         }
 
     except Exception as e:
@@ -690,12 +1053,8 @@ def create_or_update_income(income_source: Union[str, List[Dict]], income_name: 
     - When source is updated, existing automatic ledger entries are kept but source is updated
     """
     try:
-        # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        # Get user's household profile using utility function
+        household_profile = get_user_household_profile()
         if not household_profile:
             frappe.throw(_("No household profile found for current user"))
 
@@ -726,137 +1085,96 @@ def create_or_update_income(income_source: Union[str, List[Dict]], income_name: 
             income_doc.income_source = [
                 row for row in income_doc.income_source if row.name != source_name]
 
-            # Delete ALL ledger entries linked to this source
-            frappe.db.delete("Income Ledger", {
-                "parent": income_doc.name,
-                "income_source": source_name
-            })
+            # Remove ledger entries linked to this source from the document
+            # This ensures proper document event handling
+            income_doc.income_ledger = [
+                entry for entry in income_doc.income_ledger
+                if entry.income_source != source_name
+            ]
         elif source_name:
             # Update existing recurring source
+            source_updated = False
             for existing_source in income_doc.income_source:
                 if existing_source.name == source_name:
                     for source in income_source:
+                        # Validate source data using utility function
+                        source_errors = validate_income_source_data(source)
+                        if source_errors:
+                            frappe.throw(_("; ".join(source_errors)))
+
+                        # Update source fields
                         existing_source.type = source.get("type")
                         existing_source.income = flt(source.get("income"))
                         existing_source.recur = True  # Always true for income sources
-                        existing_source.date_time = source.get(
-                            "date_time") or now_datetime()
+                        existing_source.date_time = convert_datetime_format(
+                            source.get("date_time") or now_datetime())
                         existing_source.recur_frequency = source.get(
                             "recur_frequency")
                         existing_source.stop_date = source.get("stop_date")
+
+                        source_updated = True
                     break
+
+            if not source_updated:
+                frappe.throw(
+                    _("Income source not found: {0}").format(source_name))
         else:
             # Add new recurring sources only
             for source in income_source:
+                # Validate source data using utility function
+                source_errors = validate_income_source_data(source)
+                if source_errors:
+                    frappe.throw(_("; ".join(source_errors)))
+
                 income_doc.append("income_source", {
                     "type": source.get("type"),
                     "income": flt(source.get("income")),
                     "recur": True,  # Always true for income sources
-                    "date_time": source.get("date_time") or now_datetime(),
+                    "date_time": convert_datetime_format(source.get("date_time") or now_datetime()),
                     "recur_frequency": source.get("recur_frequency"),
                     "stop_date": source.get("stop_date")
                 })
 
-        # Save the document
+        # Save the document - basic validation only
         income_doc.save()
+
+        # Create ledger entries for new sources via API
+        for source in income_doc.income_source:
+            if source.recur:
+                # Check if this source already has ledger entries
+                existing_entries = frappe.get_all(
+                    "Income Ledger",
+                    filters={
+                        "parent": income_doc.name,
+                        "income_source": source.name
+                    },
+                    limit=1
+                )
+
+                if not existing_entries:
+                    # Create initial entries for new source
+                    create_initial_recurring_entries(
+                        income_doc.name, source.name)
+
+        # Log the operation
+        log_income_operation("create_or_update_income", {
+            "income_name": income_doc.name,
+            "household_profile": income_doc.household_profile,
+            "action": action or "create_or_update",
+            "total_sources": len(income_doc.income_source),
+            "monthly_income": income_doc.monthly_income
+        })
 
         return {
             "name": income_doc.name,
             "household_profile": income_doc.household_profile,
-            "monthly_income": income_doc.monthly_income
+            "monthly_income": income_doc.monthly_income,
+            "total_ledger_entries": len(income_doc.income_ledger),
+            "total_sources": len(income_doc.income_source)
         }
     except Exception as e:
         frappe.log_error(f"Error creating/updating income: {str(e)}")
         frappe.throw(_("Failed to save income record: {0}").format(str(e)))
-
-
-@frappe.whitelist()
-def update_recurring_ledger_entries() -> Dict[str, Any]:
-    """
-    Update ledger entries for recurring income sources without stop dates across all income documents
-    This should be called periodically (e.g., daily) to ensure ledger entries are up to date
-    """
-    try:
-        # Get all income records
-        income_records = frappe.get_all("Income", fields=["name"])
-        updated_count = 0
-
-        for record in income_records:
-            try:
-                income_doc = frappe.get_doc("Income", record.name)
-
-                # Check if any recurring sources need updates
-                needs_update = False
-                today = getdate()
-
-                for source in income_doc.income_source:
-                    if source.recur and not source.stop_date:
-                        # Get the latest ledger entry for this source
-                        source_entries = [
-                            entry for entry in income_doc.income_ledger
-                            if entry.income_source == source.name
-                        ]
-
-                        if source_entries:
-                            latest_date = max(getdate(entry.date_time)
-                                              for entry in source_entries)
-                            if latest_date < today:
-                                needs_update = True
-                                break
-                        else:
-                            # No entries exist, we need updates
-                            needs_update = True
-                            break
-
-                if needs_update:
-                    income_doc.update_future_recurring_entries()
-                    updated_count += 1
-
-            except Exception as e:
-                frappe.log_error(
-                    f"Error updating recurring ledgers for Income {record.name}: {str(e)}")
-                continue
-
-        return {
-            "status": "success",
-            "message": f"Updated recurring ledger entries for {updated_count} income documents",
-            "updated_count": updated_count
-        }
-
-    except Exception as e:
-        frappe.log_error(f"Error updating recurring ledger entries: {str(e)}")
-        frappe.throw(
-            _("Failed to update recurring ledger entries: {0}").format(str(e)))
-
-
-def on_income_source_type_update(doc: Any, method: Optional[str] = None) -> None:
-    """
-    This function is no longer needed as ledger entries are automatically
-    managed by the Income doctype's on_update method
-    """
-    pass
-
-
-@frappe.whitelist()
-def update_all_recurring_ledgers() -> Dict[str, Any]:
-    """
-    Scheduled function to update recurring ledger entries for all income documents
-    Should be set up as a daily scheduled job
-    """
-    try:
-        result = update_recurring_ledger_entries()
-        frappe.log_error(
-            f"Scheduled update of recurring ledgers completed: {result.get('message', 'Unknown result')}",
-            "Income Recurring Ledger Update"
-        )
-        return result
-
-    except Exception as e:
-        frappe.log_error(
-            f"Scheduled recurring ledger update failed: {str(e)}",
-            "Income Recurring Ledger Update Error"
-        )
-        return {"status": "error", "message": str(e)}
 
 
 @frappe.whitelist()
@@ -876,29 +1194,14 @@ def validate_income_data(monthly_income: Union[str, float], income_source: Union
         if isinstance(income_source, str):
             income_source = json.loads(income_source)
 
-        # Validate income sources
+        # Validate income sources using utility function
         if not income_source or len(income_source) == 0:
             errors["income_source"] = "At least one income source is required"
         else:
             for i, source in enumerate(income_source):
-                if not source.get("type"):
-                    errors[f"income_source_{i}_type"] = "Income type is required"
-
-                if flt(source.get("income", 0)) <= 0:
-                    errors[f"income_source_{i}_income"] = "Income amount must be greater than 0"
-
-                if source.get("recur") and not source.get("recur_frequency"):
-                    errors[f"income_source_{i}_frequency"] = "Frequency is required for recurring income"
-
-                # Validate frequency values
-                if source.get("recur_frequency"):
-                    valid_frequencies = [
-                        'daily', 'weekly', 'bi-weekly', 'monthly',
-                        'quarterly', 'semi-annually', 'annually', 'yearly'
-                    ]
-                    if source.get("recur_frequency") not in valid_frequencies:
-                        errors[
-                            f"income_source_{i}_frequency"] = f"Invalid frequency. Must be one of: {', '.join(valid_frequencies)}"
+                source_errors = validate_income_source_data(source)
+                if source_errors:
+                    errors[f"income_source_{i}"] = "; ".join(source_errors)
 
         return {
             "is_valid": len(errors) == 0,
@@ -911,6 +1214,69 @@ def validate_income_data(monthly_income: Union[str, float], income_source: Union
             "is_valid": False,
             "errors": {"general": "Validation failed"}
         }
+
+
+@frappe.whitelist()
+def get_income_analytics(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
+    """
+    Get comprehensive income analytics with advanced filtering
+    Combines dashboard metrics, user income data, and insights
+    """
+    try:
+        # Parse filters if provided
+        if isinstance(filters, str):
+            filters = json.loads(filters)
+
+        if not filters:
+            filters = {"period": "this_month"}
+
+        # Get user's household profile
+        household_profile = frappe.db.get_value(
+            "Household Profile",
+            {"user": frappe.session.user},
+            "name"
+        )
+
+        if not household_profile:
+            return {
+                "status": "error",
+                "message": "No household profile found for current user"
+            }
+
+        # Get comprehensive data
+        user_income_result = get_user_income(
+            filters=json.dumps(filters),
+            include_analytics=True
+        )
+
+        dashboard_metrics = get_income_dashboard_metrics(filters)
+        income_summary = get_monthly_income_summary(filters)
+        period_info = get_period_info(filters)
+
+        # Combine all data
+        return {
+            "status": "success",
+            "filters": filters,
+            "period_info": period_info,
+            "dashboard_metrics": dashboard_metrics,
+            "income_summary": income_summary,
+            "recurring_sources": user_income_result.get("recurring_sources", []),
+            "ledger_entries": user_income_result.get("ledger_entries", []),
+            "analytics": user_income_result.get("analytics", {}),
+            "totals": {
+                "total_entries": len(user_income_result.get("ledger_entries", [])),
+                "total_sources": len(user_income_result.get("recurring_sources", [])),
+                "total_income": user_income_result.get("analytics", {}).get("total_income", 0),
+                "average_per_day": (
+                    user_income_result.get("analytics", {}).get("total_income", 0) /
+                    max(1, period_info.get("days_count", 1))
+                )
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error getting income analytics: {str(e)}")
+        frappe.throw(_("Failed to get income analytics"))
 
 
 @frappe.whitelist()
@@ -1067,14 +1433,25 @@ def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], n
         original_amount = ledger_entry.amount
         original_type = ledger_entry.income_type
 
-        # Update the ledger entry
+        # Update the ledger entry with proper datetime format
         ledger_entry.amount = flt(new_amount)
-        ledger_entry.date_time = new_date
+
+        # Use utility function for datetime conversion
+        ledger_entry.date_time = convert_datetime_format(new_date)
+
         if new_type:
             ledger_entry.income_type = new_type
 
         # Save the ledger entry (do NOT update the source)
         ledger_entry.save()
+
+        # Log the operation
+        log_income_operation("update_ledger_entry", {
+            "ledger_entry_name": ledger_entry_name,
+            "original_amount": original_amount,
+            "new_amount": ledger_entry.amount,
+            "income_type": ledger_entry.income_type
+        })
 
         # Note: We intentionally do NOT update the income source
         # This allows editing specific occurrences without affecting the recurring pattern
@@ -1124,6 +1501,12 @@ def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
         # Delete the ledger entry only (do NOT delete the source)
         frappe.delete_doc("Income Ledger", ledger_entry_name)
 
+        # Log the operation
+        log_income_operation("delete_ledger_entry", {
+            "ledger_entry_name": ledger_entry_name,
+            "income_type": income_type
+        })
+
         # Note: We intentionally do NOT delete the income source
         # - For recurring entries: Source should remain to continue generating future entries
         # - For one-time entries: No source exists anyway
@@ -1146,12 +1529,8 @@ def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date
     This is for freelance work, bonuses, gifts, etc. that don't need recurring tracking
     """
     try:
-        # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        # Get user's household profile using utility function
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             frappe.throw(_("No household profile found for current user"))
@@ -1168,16 +1547,28 @@ def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date
         else:
             income_doc = frappe.new_doc("Income")
             income_doc.household_profile = household_profile
-            income_doc.save()  # Save first to get the document name
-            income_doc = frappe.get_doc("Income", income_doc.name)  # Reload
+            # Save first to get the document name - this triggers validation
+            income_doc.save()
+            # Reload to get fresh document with proper initialization
+            income_doc = frappe.get_doc("Income", income_doc.name)
 
-        # Use the new doctype method for better consistency
-        entry_name = income_doc.add_direct_ledger_entry(
-            income_type=income_type,
-            amount=flt(amount),
-            date_time=date_time,
-            description=description or f"One-time {income_type} income"
-        )
+        # Use utility function to create ledger entry
+        entry_data = {
+            "income_source": None,  # No source for direct entries
+            "income_type": "one-time",
+            "date_time": date_time,  # Utility will handle conversion
+            "amount": flt(amount),
+            "source_type": income_type,
+            "description": description or f"One-time {income_type} income"
+        }
+
+        entry_name = create_ledger_entry(income_doc.name, entry_data)
+
+        log_income_operation("create_direct_ledger_entry", {
+            "income_name": income_doc.name,
+            "amount": flt(amount),
+            "income_type": income_type
+        })
 
         return {
             "status": "success",
@@ -1192,46 +1583,243 @@ def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date
 
 
 @frappe.whitelist()
-def create_ledger_entry(income_source_name: str, amount: Union[str, float], date_time: str, income_type: str = "one-time") -> Dict[str, Any]:
+def get_income_summary() -> Dict[str, Any]:
     """
-    Create a new ledger entry for an existing income source
+    Get comprehensive income summary for the current user's household
     """
     try:
-        # Get the source document to get parent income
-        source_doc = frappe.db.get_value(
-            "Income Source Type",
-            {"name": income_source_name},
-            ["parent"],
-            as_dict=True
+        # Get user's household profile
+        household_profile = frappe.db.get_value(
+            "Household Profile",
+            {"user": frappe.session.user},
+            "name"
         )
 
-        if not source_doc:
-            frappe.throw(_("Income source not found"))
+        if not household_profile:
+            return {
+                "status": "error",
+                "message": "No household profile found for current user"
+            }
 
-        # Get the income document
-        income_doc = frappe.get_doc("Income", source_doc.parent)
+        # Find the Income record for this household
+        income_name = frappe.db.get_value(
+            "Income",
+            {"household_profile": household_profile},
+            "name"
+        )
 
-        # Create new ledger entry
-        new_entry = {
-            "income_source": income_source_name,
-            "income_type": income_type,
-            "date_time": date_time,
-            "amount": flt(amount)
-        }
+        if not income_name:
+            return {
+                "status": "success",
+                "summary": {
+                    "monthly_income": 0,
+                    "total_sources": 0,
+                    "total_ledger_entries": 0,
+                    "recurring_entries": 0,
+                    "one_time_entries": 0,
+                    "total_actual_income": 0,
+                    "income_by_type": {},
+                    "latest_entry_date": None,
+                    "earliest_entry_date": None
+                }
+            }
 
-        # Add to ledger
-        income_doc.append("income_ledger", new_entry)
-
-        # Recalculate and save
-        income_doc.validate()
-        income_doc.save()
+        # Use utility function to get comprehensive summary stats
+        summary = get_income_summary_stats(household_profile)
 
         return {
             "status": "success",
-            "message": "Ledger entry created successfully",
-            "entry_name": income_doc.income_ledger[-1].name
+            "summary": summary
         }
 
     except Exception as e:
-        frappe.log_error(f"Error creating ledger entry: {str(e)}")
-        frappe.throw(_("Failed to create ledger entry: {0}").format(str(e)))
+        frappe.log_error(f"Error getting income summary: {str(e)}")
+        frappe.throw(_("Failed to get income summary: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def cleanup_income_data() -> Dict[str, Any]:
+    """
+    Clean up income data for the current user's household
+    Removes orphaned ledger entries and validates data consistency
+    """
+    try:
+        # Get user's household profile
+        household_profile = frappe.db.get_value(
+            "Household Profile",
+            {"user": frappe.session.user},
+            "name"
+        )
+
+        if not household_profile:
+            return {
+                "status": "error",
+                "message": "No household profile found for current user",
+                "cleanup_summary": {
+                    "orphaned_entries_removed": 0,
+                    "duplicate_entries_merged": 0,
+                    "invalid_dates_fixed": 0,
+                    "empty_sources_removed": 0,
+                }
+            }
+
+        # Find the Income record for this household
+        income_name = frappe.db.get_value(
+            "Income",
+            {"household_profile": household_profile},
+            "name"
+        )
+
+        if not income_name:
+            return {
+                "status": "success",
+                "message": "No income data to clean up",
+                "cleanup_summary": {
+                    "orphaned_entries_removed": 0,
+                    "duplicate_entries_merged": 0,
+                    "invalid_dates_fixed": 0,
+                    "empty_sources_removed": 0,
+                }
+            }
+
+        # Initialize cleanup counters
+        cleanup_summary = {
+            "orphaned_entries_removed": 0,
+            "duplicate_entries_merged": 0,
+            "invalid_dates_fixed": 0,
+            "empty_sources_removed": 0,
+        }
+
+        # Use API function for cleanup
+        cleanup_result = cleanup_orphaned_ledger_entries_for_income(
+            income_name)
+        orphaned_count = cleanup_result.get("cleaned_count", 0)
+
+        cleanup_summary["orphaned_entries_removed"] = orphaned_count
+        total_cleaned = orphaned_count
+
+        # Log cleanup operation
+        log_income_operation("cleanup_income_data", {
+            "household_profile": household_profile,
+            "income_name": income_name,
+            "total_cleaned": total_cleaned
+        })
+
+        return {
+            "status": "success",
+            "message": f"Cleaned up {total_cleaned} issues in income data",
+            "cleanup_summary": cleanup_summary
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error cleaning up income data: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to clean up income data: {str(e)}",
+            "cleanup_summary": {
+                "orphaned_entries_removed": 0,
+                "duplicate_entries_merged": 0,
+                "invalid_dates_fixed": 0,
+                "empty_sources_removed": 0,
+            }
+        }
+
+
+@frappe.whitelist()
+def trigger_ledger_update(income_name: str = None) -> Dict[str, Any]:
+    """
+    Manually trigger ledger updates for income records
+    This is useful when ledger entries need to be updated outside of scheduled tasks
+    """
+    try:
+        if income_name:
+            # Update specific income record
+            if not frappe.db.exists("Income", income_name):
+                frappe.throw(_("Income record not found"))
+
+            income_doc = frappe.get_doc("Income", income_name)
+
+            # Check permission
+            if not income_doc.has_permission("write"):
+                frappe.throw(
+                    _("Insufficient permissions to update this income record"))
+
+            # Get current count of ledger entries
+            entries_before = frappe.db.count(
+                "Income Ledger", {"parent": income_name})
+
+            # Update using API method
+            update_result = update_recurring_ledger_entries_for_income(
+                income_name)
+            entries_added = update_result.get("entries_added", 0)
+
+            entries_after = frappe.db.count(
+                "Income Ledger", {"parent": income_name})
+
+            log_income_operation("trigger_ledger_update", {
+                "income_name": income_name,
+                "entries_added": entries_added,
+                "total_entries": entries_after
+            })
+
+            return {
+                "status": "success",
+                "message": f"Updated Income {income_name}: Added {entries_added} ledger entries",
+                "entries_added": entries_added,
+                "total_entries": entries_after
+            }
+        else:
+            # Get user's household profile
+            household_profile = frappe.db.get_value(
+                "Household Profile",
+                {"user": frappe.session.user},
+                "name"
+            )
+
+            if not household_profile:
+                frappe.throw(_("No household profile found for current user"))
+
+            # Find the Income record for this household
+            income_name_db = frappe.db.get_value(
+                "Income",
+                {"household_profile": household_profile},
+                "name"
+            )
+
+            if not income_name_db:
+                return {
+                    "status": "success",
+                    "message": "No income record found to update",
+                    "entries_added": 0,
+                    "total_entries": 0
+                }
+
+            # Update the user's income record using API method
+            entries_before = frappe.db.count(
+                "Income Ledger", {"parent": income_name_db})
+
+            # Update using API method
+            update_result = update_recurring_ledger_entries_for_income(
+                income_name_db)
+            entries_added = update_result.get("entries_added", 0)
+
+            entries_after = frappe.db.count(
+                "Income Ledger", {"parent": income_name_db})
+
+            log_income_operation("trigger_ledger_update_user", {
+                "household_profile": household_profile,
+                "income_name": income_name_db,
+                "entries_added": entries_added,
+                "total_entries": entries_after
+            })
+
+            return {
+                "status": "success",
+                "message": f"Updated your income record: Added {entries_added} ledger entries",
+                "entries_added": entries_added,
+                "total_entries": entries_after
+            }
+
+    except Exception as e:
+        frappe.log_error(f"Error triggering ledger update: {str(e)}")
+        frappe.throw(_("Failed to update ledger entries: {0}").format(str(e)))

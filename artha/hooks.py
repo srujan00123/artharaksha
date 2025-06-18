@@ -157,23 +157,14 @@ has_permission = {
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"artha.tasks.all"
-# 	],
-# 	"daily": [
-# 		"artha.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"artha.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"artha.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"artha.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+    "daily": [
+        "artha.tasks.update_all_recurring_income_ledgers"
+    ],
+    "hourly": [
+        "artha.tasks.update_recent_recurring_income_ledgers"
+    ],
+}
 
 # Testing
 # -------

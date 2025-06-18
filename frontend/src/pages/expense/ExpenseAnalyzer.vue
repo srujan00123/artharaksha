@@ -482,7 +482,11 @@ import {
 	Trash2,
 } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
-import type { ExpenseFilters, FlattenedExpenseEntry, ProcessedExpenseItem } from "../../types/expense"
+import type {
+	ExpenseFilters,
+	FlattenedExpenseEntry,
+	ProcessedExpenseItem,
+} from "../../types/expense"
 
 // Components
 import { ExpenseFilter, ExpenseForm } from "../../components"
@@ -492,14 +496,8 @@ import { useExpense } from "../../composables/useExpense"
 import { useHousehold } from "../../composables/useHousehold"
 
 // Initialize the expense composable with new system
-const {
-	expenses,
-	analytics,
-	loading,
-	error,
-	initialize,
-	refreshData,
-} = useExpense()
+const { expenses, analytics, loading, error, initialize, refreshData } =
+	useExpense()
 
 // Initialize household composable
 const household = useHousehold()
@@ -514,58 +512,86 @@ const showExpenseForm = ref(false)
 const editingExpense = ref<ProcessedExpenseItem | null>(null)
 
 // Household profile status
-const showProfileWarning = computed(() => !household.hasProfile.value && !household.isLoadingProfile.value)
+const showProfileWarning = computed(
+	() => !household.hasProfile.value && !household.isLoadingProfile.value,
+)
 
 // Computed properties for filtered and grouped expenses
 const medicalExpenses = computed(() => {
-	return expenses.value.filter((expense: FlattenedExpenseEntry) => expense.type === 'medical')
+	return expenses.value.filter(
+		(expense: FlattenedExpenseEntry) => expense.type === "medical",
+	)
 })
 
 const otherExpenses = computed(() => {
-	return expenses.value.filter((expense: FlattenedExpenseEntry) => expense.type === 'other')
+	return expenses.value.filter(
+		(expense: FlattenedExpenseEntry) => expense.type === "other",
+	)
 })
 
 const directMedicalExpenses = computed(() => {
-	return medicalExpenses.value.filter((expense: FlattenedExpenseEntry) => expense.is_direct === true)
+	return medicalExpenses.value.filter(
+		(expense: FlattenedExpenseEntry) => expense.is_direct === true,
+	)
 })
 
 const indirectMedicalExpenses = computed(() => {
-	return medicalExpenses.value.filter((expense: FlattenedExpenseEntry) => expense.is_direct === false)
+	return medicalExpenses.value.filter(
+		(expense: FlattenedExpenseEntry) => expense.is_direct === false,
+	)
 })
 
 // Amount calculations
 const totalAmount = computed(() => {
-	return expenses.value.reduce((sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount, 0)
+	return expenses.value.reduce(
+		(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
+		0,
+	)
 })
 
 const medicalAmount = computed(() => {
-	return medicalExpenses.value.reduce((sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount, 0)
+	return medicalExpenses.value.reduce(
+		(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
+		0,
+	)
 })
 
 const otherAmount = computed(() => {
-	return otherExpenses.value.reduce((sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount, 0)
+	return otherExpenses.value.reduce(
+		(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
+		0,
+	)
 })
 
 const directMedicalAmount = computed(() => {
-	return directMedicalExpenses.value.reduce((sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount, 0)
+	return directMedicalExpenses.value.reduce(
+		(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
+		0,
+	)
 })
 
 const indirectMedicalAmount = computed(() => {
-	return indirectMedicalExpenses.value.reduce((sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount, 0)
+	return indirectMedicalExpenses.value.reduce(
+		(sum: number, expense: FlattenedExpenseEntry) => sum + expense.amount,
+		0,
+	)
 })
 
 const expenseCount = computed(() => expenses.value.length)
 
 // Convert FlattenedExpenseEntry to ProcessedExpenseItem for compatibility
-const processExpense = (expense: FlattenedExpenseEntry, index: number = 0): ProcessedExpenseItem => {
+const processExpense = (
+	expense: FlattenedExpenseEntry,
+	index = 0,
+): ProcessedExpenseItem => {
 	return {
 		id: expense.name,
 		name: expense.name,
 		type: expense.type,
 		category: expense.category,
-		description: expense.description || '',
+		description: expense.description || "",
 		amount: expense.amount,
-		date: expense.date_time.split(' ')[0], // Extract date part
+		date: expense.date_time.split(" ")[0], // Extract date part
 		hasReceipt: !!expense.proof_of_payment,
 		receiptUrl: expense.proof_of_payment || null,
 		isDirect: expense.is_direct,
@@ -663,9 +689,9 @@ const formatDate = (dateString: string) => {
 const handleRefresh = async () => {
 	try {
 		// Force refresh bypassing cache
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: false 
+		await refreshData({
+			withAnalytics: true,
+			useCache: false,
 		})
 	} catch (error) {
 		console.error("Failed to refresh expenses:", error)
@@ -678,9 +704,9 @@ const handleFiltersUpdate = async (newFilters: Partial<ExpenseFilters>) => {
 		medicalPage.value = 1
 		otherPage.value = 1
 		// Refresh with new filters
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: true 
+		await refreshData({
+			withAnalytics: true,
+			useCache: true,
 		})
 	} catch (error) {
 		console.error("Failed to update filters:", error)
@@ -693,9 +719,9 @@ const handleFiltersReset = async () => {
 		medicalPage.value = 1
 		otherPage.value = 1
 		// Refresh with cleared filters
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: true 
+		await refreshData({
+			withAnalytics: true,
+			useCache: true,
 		})
 	} catch (error) {
 		console.error("Failed to reset filters:", error)
@@ -705,15 +731,17 @@ const handleFiltersReset = async () => {
 const handleCacheInvalidated = async () => {
 	try {
 		// Force refresh bypassing cache
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: false 
+		await refreshData({
+			withAnalytics: true,
+			useCache: false,
 		})
 	} catch (error) {
 		console.error("Failed to invalidate and refresh cache:", error)
 		// If it's a household profile error, show a more user-friendly message
 		if (error.message && error.message.includes("No household profile found")) {
-			console.warn("ExpenseAnalyzer: No household profile found, please ensure your profile is set up correctly")
+			console.warn(
+				"ExpenseAnalyzer: No household profile found, please ensure your profile is set up correctly",
+			)
 		}
 	}
 }
@@ -734,9 +762,9 @@ const handleDeleteExpense = async (expense: ProcessedExpenseItem) => {
 			// TODO: Implement delete functionality in the new system
 			console.log("Delete expense:", expense)
 			// After successful deletion, refresh data
-			await refreshData({ 
-				withAnalytics: true, 
-				useCache: false 
+			await refreshData({
+				withAnalytics: true,
+				useCache: false,
 			})
 		} catch (error) {
 			console.error("Failed to delete expense:", error)
@@ -752,9 +780,9 @@ const handleCloseExpenseForm = () => {
 const handleExpenseFormSuccess = async () => {
 	try {
 		// Refresh data after successful form submission
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: false 
+		await refreshData({
+			withAnalytics: true,
+			useCache: false,
 		})
 		// Close form
 		handleCloseExpenseForm()
@@ -768,17 +796,17 @@ onMounted(async () => {
 	try {
 		// Load household profile first
 		await household.loadProfile()
-		
+
 		// If no profile exists, show warning but don't load expenses
 		if (!household.profile.value) {
 			console.warn("No household profile found")
 			return
 		}
-		
+
 		// Initialize expenses with analytics
-		await initialize({ 
-			withAnalytics: true, 
-			period: "this_month" 
+		await initialize({
+			withAnalytics: true,
+			period: "this_month",
 		})
 	} catch (error) {
 		console.error("Failed to initialize ExpenseAnalyzer:", error)

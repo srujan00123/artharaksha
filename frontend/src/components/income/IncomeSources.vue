@@ -204,29 +204,29 @@ import { DollarSign, Edit2, Plus, Trash2 } from "lucide-vue-next"
 import type { IncomeSourceRecord } from "../../types/income"
 
 interface Props {
-  sources: IncomeSourceRecord[]
-  totalCount: number
-  monthlyTotal: number
-  selectedItems: string[]
-  loading?: boolean
+	sources: IncomeSourceRecord[]
+	totalCount: number
+	monthlyTotal: number
+	selectedItems: string[]
+	loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  sources: () => [],
-  totalCount: 0,
-  monthlyTotal: 0,
-  selectedItems: () => [],
-  loading: false
+	sources: () => [],
+	totalCount: 0,
+	monthlyTotal: 0,
+	selectedItems: () => [],
+	loading: false,
 })
 
 // Emits
 const emit = defineEmits<{
-  'add-source': []
-  'edit-source': [source: IncomeSourceRecord]
-  'delete-source': [source: IncomeSourceRecord]
-  'source-selection': [source: IncomeSourceRecord, selected: boolean]
-  'toggle-select-all': [selected: boolean]
-  'clear-filters': []
+	"add-source": []
+	"edit-source": [source: IncomeSourceRecord]
+	"delete-source": [source: IncomeSourceRecord]
+	"source-selection": [source: IncomeSourceRecord, selected: boolean]
+	"toggle-select-all": [selected: boolean]
+	"clear-filters": []
 }>()
 
 // Local state
@@ -234,36 +234,36 @@ const hasData = props.sources.length > 0
 
 // Utility functions
 const formatDate = (dateString: string) => {
-  if (!dateString) return "N/A"
-  try {
-    return new Date(dateString).toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
-  } catch {
-    return "N/A"
-  }
+	if (!dateString) return "N/A"
+	try {
+		return new Date(dateString).toLocaleDateString("en-IN", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+		})
+	} catch {
+		return "N/A"
+	}
 }
 
 const formatFrequency = (frequency?: string) => {
-  if (!frequency) return "Monthly"
+	if (!frequency) return "Monthly"
 
-  const frequencyMap: Record<string, string> = {
-    daily: "Daily",
-    weekly: "Weekly",
-    "bi-weekly": "Bi-weekly",
-    monthly: "Monthly",
-    quarterly: "Quarterly",
-    "semi-annually": "Semi-annually",
-    annually: "Annually",
-    yearly: "Yearly",
-  }
+	const frequencyMap: Record<string, string> = {
+		daily: "Daily",
+		weekly: "Weekly",
+		"bi-weekly": "Bi-weekly",
+		monthly: "Monthly",
+		quarterly: "Quarterly",
+		"semi-annually": "Semi-annually",
+		annually: "Annually",
+		yearly: "Yearly",
+	}
 
-  return (
-    frequencyMap[frequency] ||
-    frequency.charAt(0).toUpperCase() + frequency.slice(1)
-  )
+	return (
+		frequencyMap[frequency] ||
+		frequency.charAt(0).toUpperCase() + frequency.slice(1)
+	)
 }
 </script>
 

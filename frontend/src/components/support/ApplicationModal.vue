@@ -319,8 +319,8 @@
 
 <script setup>
 import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
-import { useSupport } from "@/composables/useSupport"
 import { useHousehold } from "@/composables/useHousehold"
+import { useSupport } from "@/composables/useSupport"
 import { Button } from "frappe-ui"
 import { AlertTriangle, Building, Plus, Trash2, X } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"

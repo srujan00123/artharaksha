@@ -105,83 +105,90 @@
 
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue"
-import type { FlattenedLedgerEntry, LedgerEntryFormData } from "../../types/income"
+import type {
+	FlattenedLedgerEntry,
+	LedgerEntryFormData,
+} from "../../types/income"
 
 interface Props {
-  isOpen: boolean
-  entry: FlattenedLedgerEntry | null
-  loading?: boolean
+	isOpen: boolean
+	entry: FlattenedLedgerEntry | null
+	loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isOpen: false,
-  entry: null,
-  loading: false
+	isOpen: false,
+	entry: null,
+	loading: false,
 })
 
 // Emits
 const emit = defineEmits<{
-  'close': []
-  'submit': [formData: LedgerEntryFormData, entryName: string]
+	close: []
+	submit: [formData: LedgerEntryFormData, entryName: string]
 }>()
 
 // Form data
 const formData = reactive<LedgerEntryFormData>({
-  amount: 0,
-  date: '',
-  income_type: 'one-time',
-  source_type: ''
+	amount: 0,
+	date: "",
+	income_type: "one-time",
+	source_type: "",
 })
 
 // Form validation
 const isFormValid = computed(() => {
-  return formData.amount > 0 && 
-         formData.date !== '' && 
-         formData.income_type !== ''
+	return (
+		formData.amount > 0 && formData.date !== "" && formData.income_type !== ""
+	)
 })
 
 // Utility function to format date for input
 const formatDateForInput = (dateString: string) => {
-  if (!dateString) return ""
-  try {
-    const date = new Date(dateString)
-    return date.toISOString().split('T')[0]
-  } catch {
-    return ""
-  }
+	if (!dateString) return ""
+	try {
+		const date = new Date(dateString)
+		return date.toISOString().split("T")[0]
+	} catch {
+		return ""
+	}
 }
 
 // Watch for entry changes to populate form
-watch(() => props.entry, (newEntry) => {
-  if (newEntry) {
-    formData.amount = Number(newEntry.amount) || 0
-    formData.date = formatDateForInput(newEntry.date_time)
-    formData.income_type = newEntry.income_type || 'one-time'
-    formData.source_type = newEntry.source_type || ''
-  }
-}, { immediate: true })
+watch(
+	() => props.entry,
+	(newEntry) => {
+		if (newEntry) {
+			formData.amount = Number(newEntry.amount) || 0
+			formData.date = formatDateForInput(newEntry.date_time)
+			formData.income_type = newEntry.income_type || "one-time"
+			formData.source_type = newEntry.source_type || ""
+		}
+	},
+	{ immediate: true },
+)
 
 // Handle form submission
 const handleSubmit = () => {
-  if (isFormValid.value && props.entry) {
-    emit('submit', { ...formData }, props.entry.name)
-  }
+	if (isFormValid.value && props.entry) {
+		emit("submit", { ...formData }, props.entry.name)
+	}
 }
 
 // Utility function to format frequency
 const formatFrequency = (frequency?: string) => {
-  if (!frequency) return ""
-  const frequencyMap: Record<string, string> = {
-    daily: "Daily",
-    weekly: "Weekly",
-    "bi-weekly": "Bi-weekly",
-    monthly: "Monthly",
-    quarterly: "Quarterly",
-    "semi-annually": "Semi-annually",
-    annually: "Annually",
-    yearly: "Yearly",
-  }
-  return frequencyMap[frequency] || frequency
+	if (!frequency) return ""
+	const frequencyMap: Record<string, string> = {
+		daily: "Daily",
+		weekly: "Weekly",
+		"bi-weekly": "Bi-weekly",
+		monthly: "Monthly",
+		quarterly: "Quarterly",
+		"semi-annually": "Semi-annually",
+		annually: "Annually",
+		yearly: "Yearly",
+	}
+	return frequencyMap[frequency] || frequency
 }
 </script>
 

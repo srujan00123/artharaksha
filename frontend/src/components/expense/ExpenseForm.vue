@@ -221,10 +221,7 @@ import type {
 	FlattenedExpenseEntry,
 } from "../../types/expense"
 // Remove hardcoded categories - we'll use API data instead
-import {
-	getClientDateTimeString,
-	getClientTime,
-} from "../../utils/date"
+import { getClientDateTimeString, getClientTime } from "../../utils/date"
 
 // Props
 interface Props {
@@ -274,14 +271,15 @@ const isEditing = computed(() => !!props.expense)
 
 const availableCategories = computed(() => {
 	if (!expenseTypes.value) return []
-	
-	const types = formData.value.type === "medical" 
-		? expenseTypes.value.medical_types 
-		: expenseTypes.value.other_types
-	
-	return types.map(type => ({
+
+	const types =
+		formData.value.type === "medical"
+			? expenseTypes.value.medical_types
+			: expenseTypes.value.other_types
+
+	return types.map((type) => ({
 		value: type.expense_type,
-		label: type.expense_type
+		label: type.expense_type,
 	}))
 })
 
@@ -457,10 +455,14 @@ watch(
 				category: newExpense.category || "",
 				description: newExpense.description || "",
 				amount: newExpense.amount?.toString() || "",
-				date_time: newExpense.date_time?.slice(0, 16) || getClientDateTimeString(),
+				date_time:
+					newExpense.date_time?.slice(0, 16) || getClientDateTimeString(),
 				proof_of_payment: newExpense.proof_of_payment || "",
-				is_direct: newExpense.type === "medical" 
-					? (newExpense.is_direct !== undefined ? newExpense.is_direct : true)
+				is_direct:
+					newExpense.type === "medical"
+						? newExpense.is_direct !== undefined
+							? newExpense.is_direct
+							: true
 						: false,
 			}
 		}
@@ -473,13 +475,17 @@ onMounted(async () => {
 	initialLoading.value = true
 	try {
 		// Fetch expense types if not already loaded
-		if (!expenseTypes.value || 
-			(!expenseTypes.value.medical_types?.length && !expenseTypes.value.other_types?.length)) {
+		if (
+			!expenseTypes.value ||
+			(!expenseTypes.value.medical_types?.length &&
+				!expenseTypes.value.other_types?.length)
+		) {
 			await fetchExpenseTypes()
 		}
 	} catch (error) {
 		console.error("Failed to load expense types:", error)
-		submitError.value = "Failed to load expense categories. Please refresh and try again."
+		submitError.value =
+			"Failed to load expense categories. Please refresh and try again."
 	} finally {
 		initialLoading.value = false
 	}

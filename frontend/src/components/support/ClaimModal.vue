@@ -323,8 +323,8 @@
 
 <script setup>
 import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
-import { useSupport } from "@/composables/useSupport"
 import { useHousehold } from "@/composables/useHousehold"
+import { useSupport } from "@/composables/useSupport"
 import { Button } from "frappe-ui"
 import { AlertTriangle, Plus, Shield, Trash2, X } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
@@ -428,10 +428,7 @@ async function submitClaim() {
 
 		let response
 		if (isEditing.value) {
-			response = await support.updateClaim(
-				props.claim.name,
-				claimData,
-			)
+			response = await support.updateClaim(props.claim.name, claimData)
 		} else {
 			response = await support.createClaim(claimData)
 		}

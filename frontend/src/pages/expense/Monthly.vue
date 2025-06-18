@@ -208,14 +208,8 @@ import type { FlattenedExpenseEntry } from "../../types/expense"
 import { useExpense } from "../../composables/useExpense"
 
 // Initialize composables with new system
-const {
-	expenses,
-	analytics,
-	loading,
-	error,
-	initialize,
-	refreshData,
-} = useExpense()
+const { expenses, analytics, loading, error, initialize, refreshData } =
+	useExpense()
 
 // Local state
 const refreshing = ref(false)
@@ -458,7 +452,10 @@ const recentExpenses = computed(() => {
 				expenseDate.getFullYear() === currentYear
 			)
 		})
-		.sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
+		.sort(
+			(a, b) =>
+				new Date(b.date_time).getTime() - new Date(a.date_time).getTime(),
+		)
 		.slice(0, 5)
 })
 
@@ -493,9 +490,9 @@ async function handleRefresh() {
 	refreshing.value = true
 	try {
 		// Force refresh bypassing cache
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: false 
+		await refreshData({
+			withAnalytics: true,
+			useCache: false,
 		})
 		console.log("Monthly expense data refreshed successfully")
 	} catch (err) {
@@ -508,9 +505,9 @@ async function handleRefresh() {
 // Lifecycle
 onMounted(async () => {
 	// Initialize with analytics and this month period
-	await initialize({ 
-		withAnalytics: true, 
-		period: "this_month" 
+	await initialize({
+		withAnalytics: true,
+		period: "this_month",
 	})
 })
 </script>

@@ -1,9 +1,9 @@
-import { TargetGroupChild } from './TargetGroupChild'
-import { SchemeEligibility } from './SchemeEligibility'
-import { SchemeBenefit } from './SchemeBenefit'
-import { SchemeDocument } from './SchemeDocument'
+import type { SchemeBenefit } from "./SchemeBenefit"
+import type { SchemeDocument } from "./SchemeDocument"
+import type { SchemeEligibility } from "./SchemeEligibility"
+import type { TargetGroupChild } from "./TargetGroupChild"
 
-export interface WelfareScheme{
+export interface WelfareScheme {
 	name: string
 	creation: string
 	modified: string

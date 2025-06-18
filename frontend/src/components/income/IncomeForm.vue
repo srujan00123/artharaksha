@@ -74,8 +74,22 @@
             <p v-if="validationErrors.amount" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ validationErrors.amount }}</p>
           </div>
 
-          <!-- Recurring Toggle - Only show for source mode -->
+          <!-- Recurring Toggle - Enforced for source mode -->
           <div v-if="mode === 'source'">
+            <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+              <div class="flex items-center space-x-2">
+                <Repeat class="w-5 h-5 text-green-600 dark:text-green-400" />
+                <span class="text-sm font-medium text-green-900 dark:text-green-200">Recurring Income Source</span>
+              </div>
+              <p class="text-sm text-green-700 dark:text-green-300 mt-1">
+                Income sources must be recurring in nature (salary, rent, business income, etc.). 
+                For one-time income, use "Add Income" in the Ledger view.
+              </p>
+            </div>
+          </div>
+          
+          <!-- Recurring Toggle - Only show for direct mode -->
+          <div v-if="mode === 'direct'">
             <label class="flex items-center space-x-3 cursor-pointer">
               <input
                 v-model="formData.isRecurring"
@@ -85,7 +99,7 @@
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">This is recurring income</span>
             </label>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-200 dark:text-gray-500">
-              Check this if this income repeats regularly (salary, rent, etc.)
+              Check this if this income repeats regularly. Leave unchecked for one-time income.
             </p>
           </div>
           
@@ -195,7 +209,7 @@
 
 <script setup lang="ts">
 import { Button } from "frappe-ui"
-import { Calculator, Calendar, Save, X } from "lucide-vue-next"
+import { Calculator, Calendar, Repeat, Save, X } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
 import { useIncome } from "../../composables/useIncome"
 import type {
@@ -210,13 +224,13 @@ import type {
 interface Props {
 	isOpen: boolean
 	editingSource?: ProcessedIncomeItem | null
-	mode?: 'source' | 'direct'
+	mode?: "source" | "direct"
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	isOpen: false,
 	editingSource: null,
-	mode: 'source',
+	mode: "source",
 })
 
 // Emits
@@ -324,9 +338,15 @@ const validateForm = (): IncomeValidationResult => {
 		errors.frequency = "Frequency is required for recurring income"
 	}
 
-	// For source mode, isRecurring must be true
-	if (props.mode === 'source' && !formData.value.isRecurring) {
-		errors.isRecurring = "Income sources must be recurring"
+	// For source mode, isRecurring must ALWAYS be true
+	if (props.mode === "source") {
+		if (!formData.value.isRecurring) {
+			errors.isRecurring = "Income sources must be recurring"
+		}
+		// Ensure frequency is always required for source mode
+		if (!formData.value.frequency) {
+			errors.frequency = "Frequency is required for income sources"
+		}
 	}
 
 	// Validate frequency is from supported list
@@ -348,7 +368,7 @@ const resetForm = () => {
 	formData.value = {
 		type: "",
 		amount: 0,
-		isRecurring: props.mode === 'source', // Default to true for source mode, false for direct
+		isRecurring: props.mode === "source", // Always true for source mode, user choice for direct mode
 		dateTime: "",
 		frequency: undefined,
 		stop_date: undefined,
@@ -404,9 +424,9 @@ const handleOverlayClick = () => {
 
 const getFormTitle = () => {
 	if (isEditing.value) {
-		return props.mode === 'direct' ? 'Edit Income Entry' : 'Edit Income Source'
+		return props.mode === "direct" ? "Edit Income Entry" : "Edit Income Source"
 	}
-	return props.mode === 'direct' ? 'Add Income Entry' : 'Add Income Source'
+	return props.mode === "direct" ? "Add Income Entry" : "Add Income Source"
 }
 
 const loadIncomeTypes = async () => {
@@ -439,6 +459,18 @@ watch(
 			delete validationErrors.value.frequency
 		}
 	},
+)
+
+// Watch for mode changes to enforce source mode rules
+watch(
+	() => props.mode,
+	(mode) => {
+		if (mode === "source") {
+			// Force recurring to true for source mode
+			formData.value.isRecurring = true
+		}
+	},
+	{ immediate: true },
 )
 
 // Initialize

@@ -3,490 +3,582 @@
  * Only add/update/delete IncomeSourceType, ledger is backend-only
  */
 
-import { computed } from "vue";
-import { useIncomeStore } from "../stores/income-store";
+import { computed } from "vue"
+import { useIncomeStore } from "../stores/income-store"
 import type {
-  AddIncomeSourcePayload,
-  CreateDirectLedgerEntryPayload,
-  CreateLedgerEntryPayload,
-  DeleteIncomeSourcePayload,
-  DeleteLedgerEntryPayload,
-  FlattenedLedgerEntry,
-  IncomeAnalytics,
-  IncomeFilters,
-  IncomeRecord,
-  IncomeServiceOptions,
-  LedgerFilters,
-  UpdateIncomeSourcePayload,
-  UpdateLedgerEntryPayload,
-} from "../types/income";
+	AddIncomeSourcePayload,
+	CreateDirectLedgerEntryPayload,
+	CreateLedgerEntryPayload,
+	DeleteIncomeSourcePayload,
+	DeleteLedgerEntryPayload,
+	FlattenedLedgerEntry,
+	IncomeAnalytics,
+	IncomeFilters,
+	IncomeRecord,
+	IncomeServiceOptions,
+	LedgerFilters,
+	UpdateIncomeSourcePayload,
+	UpdateLedgerEntryPayload,
+} from "../types/income"
 
 // Add initialization options type
 interface InitializeOptions {
-  withAnalytics?: boolean;
-  forceRefresh?: boolean;
-  period?:
-    | "this_month"
-    | "last_month"
-    | "last_3_months"
-    | "last_6_months"
-    | "this_year";
+	withAnalytics?: boolean
+	forceRefresh?: boolean
+	period?:
+		| "this_month"
+		| "last_month"
+		| "last_3_months"
+		| "last_6_months"
+		| "this_year"
 }
 
 // Cache invalidation options
 interface CacheInvalidationOptions {
-  incomeData?: boolean;
-  analytics?: boolean;
-  ledgerData?: boolean;
-  incomeTypes?: boolean;
-  all?: boolean;
+	incomeData?: boolean
+	analytics?: boolean
+	ledgerData?: boolean
+	incomeTypes?: boolean
+	all?: boolean
 }
 
 export function useIncome() {
-  const store = useIncomeStore();
+	const store = useIncomeStore()
 
-  // Reactive state from store
-  const incomes = computed(() => store.incomes);
-  const incomeTypes = computed(() => store.incomeTypes);
-  const ledgerEntries = computed(() => store.ledgerEntries);
-  const analytics = computed(() => store.analytics);
-  const dashboardMetrics = computed(() => store.dashboardMetrics);
-  const monthlyIncomeSummary = computed(() => store.monthlyIncomeSummary);
-  const incomeInsights = computed(() => store.incomeInsights);
-  const loading = computed(() => store.loading);
-  const error = computed(() => store.error);
-  const filters = computed(() => store.filters);
-  const ledgerFilters = computed(() => store.ledgerFilters);
+	// Reactive state from store
+	const incomes = computed(() => store.incomes)
+	const incomeTypes = computed(() => store.incomeTypes)
+	const ledgerEntries = computed(() => store.ledgerEntries)
+	const analytics = computed(() => store.analytics)
+	const dashboardMetrics = computed(() => store.dashboardMetrics)
+	const monthlyIncomeSummary = computed(() => store.monthlyIncomeSummary)
+	const incomeInsights = computed(() => store.incomeInsights)
+	const loading = computed(() => store.loading)
+	const error = computed(() => store.error)
+	const filters = computed(() => store.filters)
+	const ledgerFilters = computed(() => store.ledgerFilters)
 
-  // Computed totals from store
-  const totalIncome = computed(() => store.totalIncome);
-  const recurringIncome = computed(() => store.recurringIncome);
-  const oneTimeIncome = computed(() => store.oneTimeIncome);
-  const totalSources = computed(() => store.totalSources);
-  const allSources = computed(() => store.allSources);
-  // Recurring sources are NEVER filtered - always show all
-  const filteredSources = computed(() => store.recurringSources);
-  // Ledger entries are filtered based on store filters
-  const filteredLedgerEntries = computed(() => {
-    let entries = store.ledgerEntries;
-    const currentFilters = store.filters;
+	// Computed totals from store
+	const totalIncome = computed(() => store.totalIncome)
+	const recurringIncome = computed(() => store.recurringIncome)
+	const oneTimeIncome = computed(() => store.oneTimeIncome)
+	const totalSources = computed(() => store.totalSources)
+	const allSources = computed(() => store.allSources)
+	// Recurring sources are NEVER filtered - always show all
+	const filteredSources = computed(() => store.recurringSources)
+	// Ledger entries are filtered based on store filters
+	const filteredLedgerEntries = computed(() => {
+		let entries = store.ledgerEntries
+		const currentFilters = store.filters
 
-    // Apply filters to ledger entries
-    if (currentFilters.type) {
-      entries = entries.filter(
-        (entry) => entry.source_type === currentFilters.type,
-      );
-    }
+		// Apply filters to ledger entries
+		if (currentFilters.type) {
+			entries = entries.filter(
+				(entry) => entry.source_type === currentFilters.type,
+			)
+		}
 
-    if (currentFilters.isRecurring !== undefined) {
-      if (currentFilters.isRecurring) {
-        entries = entries.filter((entry) => entry.income_type === "recurring");
-      } else {
-        entries = entries.filter((entry) => entry.income_type === "one-time");
-      }
-    }
+		if (currentFilters.isRecurring !== undefined) {
+			if (currentFilters.isRecurring) {
+				entries = entries.filter((entry) => entry.income_type === "recurring")
+			} else {
+				entries = entries.filter((entry) => entry.income_type === "one-time")
+			}
+		}
 
-    if (currentFilters.dateFrom) {
-      const fromDate = new Date(currentFilters.dateFrom);
-      entries = entries.filter(
-        (entry) => new Date(entry.date_time) >= fromDate,
-      );
-    }
+		if (currentFilters.dateFrom) {
+			const fromDate = new Date(currentFilters.dateFrom)
+			entries = entries.filter((entry) => new Date(entry.date_time) >= fromDate)
+		}
 
-    if (currentFilters.dateTo) {
-      const toDate = new Date(currentFilters.dateTo);
-      entries = entries.filter((entry) => new Date(entry.date_time) <= toDate);
-    }
+		if (currentFilters.dateTo) {
+			const toDate = new Date(currentFilters.dateTo)
+			entries = entries.filter((entry) => new Date(entry.date_time) <= toDate)
+		}
 
-    if (currentFilters.amountMin !== undefined) {
-      entries = entries.filter(
-        (entry) => Number(entry.amount || 0) >= currentFilters.amountMin!,
-      );
-    }
+		if (currentFilters.amountMin !== undefined) {
+			entries = entries.filter(
+				(entry) => Number(entry.amount || 0) >= currentFilters.amountMin!,
+			)
+		}
 
-    if (currentFilters.amountMax !== undefined) {
-      entries = entries.filter(
-        (entry) => Number(entry.amount || 0) <= currentFilters.amountMax!,
-      );
-    }
+		if (currentFilters.amountMax !== undefined) {
+			entries = entries.filter(
+				(entry) => Number(entry.amount || 0) <= currentFilters.amountMax!,
+			)
+		}
 
-    if (currentFilters.searchTerm) {
-      const term = currentFilters.searchTerm.toLowerCase();
-      entries = entries.filter((entry) =>
-        entry.source_type?.toLowerCase().includes(term),
-      );
-    }
+		if (currentFilters.searchTerm) {
+			const term = currentFilters.searchTerm.toLowerCase()
+			entries = entries.filter((entry) =>
+				entry.source_type?.toLowerCase().includes(term),
+			)
+		}
 
-    // Sorting
-    if (currentFilters.sortBy) {
-      entries = [...entries].sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
+		// Sorting
+		if (currentFilters.sortBy) {
+			entries = [...entries].sort((a, b) => {
+				let aValue: any
+				let bValue: any
 
-        if (currentFilters.sortBy === "date") {
-          aValue = new Date(a.date_time || 0).getTime();
-          bValue = new Date(b.date_time || 0).getTime();
-        } else if (currentFilters.sortBy === "amount") {
-          aValue = Number(a.amount || 0);
-          bValue = Number(b.amount || 0);
-        } else if (currentFilters.sortBy === "type") {
-          aValue = (a.source_type || "").toLowerCase();
-          bValue = (b.source_type || "").toLowerCase();
-          if (currentFilters.sortOrder === "desc") {
-            return bValue.localeCompare(aValue);
-          }
-          return aValue.localeCompare(bValue);
-        } else {
-          return 0;
-        }
+				if (currentFilters.sortBy === "date") {
+					aValue = new Date(a.date_time || 0).getTime()
+					bValue = new Date(b.date_time || 0).getTime()
+				} else if (currentFilters.sortBy === "amount") {
+					aValue = Number(a.amount || 0)
+					bValue = Number(b.amount || 0)
+				} else if (currentFilters.sortBy === "type") {
+					aValue = (a.source_type || "").toLowerCase()
+					bValue = (b.source_type || "").toLowerCase()
+					if (currentFilters.sortOrder === "desc") {
+						return bValue.localeCompare(aValue)
+					}
+					return aValue.localeCompare(bValue)
+				} else {
+					return 0
+				}
 
-        if (
-          currentFilters.sortBy === "date" ||
-          currentFilters.sortBy === "amount"
-        ) {
-          if (currentFilters.sortOrder === "desc") {
-            return bValue - aValue;
-          }
-          return aValue - bValue;
-        }
-        return 0;
-      });
-    }
+				if (
+					currentFilters.sortBy === "date" ||
+					currentFilters.sortBy === "amount"
+				) {
+					if (currentFilters.sortOrder === "desc") {
+						return bValue - aValue
+					}
+					return aValue - bValue
+				}
+				return 0
+			})
+		}
 
-    return entries;
-  });
-  const recentSources = computed(() => store.recentSources);
-  const topIncomeTypes = computed(() => store.topIncomeTypes);
-  const incomeByType = computed(() => store.incomeByType);
+		return entries
+	})
+	const recentSources = computed(() => store.recentSources)
+	const topIncomeTypes = computed(() => store.topIncomeTypes)
+	const incomeByType = computed(() => store.incomeByType)
 
-  // Add error handling wrapper
-  const handleError = (error: unknown, message: string) => {
-    console.error(message, error);
-    throw error instanceof Error ? error : new Error(message);
-  };
+	// Add error handling wrapper
+	const handleError = (error: unknown, message: string) => {
+		console.error(message, error)
 
-  // Actions with modern IncomeServiceOptions only
-  const fetchIncome = async (options: IncomeServiceOptions = {}) => {
-    await store.fetchIncome(options);
-  };
+		// Extract meaningful error message
+		let errorMessage = message
+		if (error instanceof Error) {
+			if (error.message.includes("household profile")) {
+				errorMessage =
+					"Please create a household profile first before managing income."
+			} else if (error.message.includes("required")) {
+				errorMessage = "Please fill in all required fields."
+			} else if (error.message.includes("validation")) {
+				errorMessage = "Please check your input values and try again."
+			} else if (error.message.includes("permission")) {
+				errorMessage = "You don't have permission to perform this action."
+			} else if (
+				error.message.includes("network") ||
+				error.message.includes("fetch")
+			) {
+				errorMessage =
+					"Network error. Please check your connection and try again."
+			} else {
+				errorMessage = `${message}: ${error.message}`
+			}
+		}
 
-  const fetchIncomeWithAnalytics = async (
-    options: IncomeServiceOptions = {},
-  ) => {
-    await store.fetchIncomeWithAnalytics(options);
-  };
+		throw new Error(errorMessage)
+	}
 
-  const fetchIncomeLedger = async (
-    filters?: LedgerFilters,
-    options: IncomeServiceOptions = {},
-  ) => {
-    // Ledger entries are now fetched as part of the main API
-    // Just update the filters and refresh data
-    if (filters) {
-      updateFilters(filters);
-    }
-    await refreshData({ withAnalytics: true });
-  };
+	// Actions with modern IncomeServiceOptions only
+	const fetchIncome = async (options: IncomeServiceOptions = {}) => {
+		await store.fetchIncome(options)
+	}
 
-  const fetchIncomeTypes = async (options: IncomeServiceOptions = {}) => {
-    await store.fetchIncomeTypes(options);
-  };
+	const fetchIncomeWithAnalytics = async (
+		options: IncomeServiceOptions = {},
+	) => {
+		await store.fetchIncomeWithAnalytics(options)
+	}
 
-  const fetchMonthlyIncomeSummary = async (
-    options: IncomeServiceOptions = {},
-  ) => {
-    await store.fetchMonthlyIncomeSummary(options);
-  };
+	const fetchIncomeLedger = async (
+		filters?: LedgerFilters,
+		options: IncomeServiceOptions = {},
+	) => {
+		// Ledger entries are now fetched as part of the main API
+		// Just update the filters and refresh data
+		if (filters) {
+			updateFilters(filters)
+		}
+		await refreshData({ withAnalytics: true })
+	}
 
-  const fetchIncomeInsights = async (options: IncomeServiceOptions = {}) => {
-    await store.fetchIncomeInsights(options);
-  };
+	const fetchIncomeTypes = async (options: IncomeServiceOptions = {}) => {
+		await store.fetchIncomeTypes(options)
+	}
 
-  const fetchDashboardMetrics = async (
-    period: string = "this_month",
-    options: IncomeServiceOptions = {},
-  ) => {
-    await store.fetchDashboardMetrics(period, options);
-  };
+	const fetchMonthlyIncomeSummary = async (
+		options: IncomeServiceOptions = {},
+	) => {
+		await store.fetchMonthlyIncomeSummary(options)
+	}
 
-  const addIncomeSource = async (payload: AddIncomeSourcePayload) => {
-    await store.addIncomeSource(payload);
-  };
+	const fetchIncomeInsights = async (options: IncomeServiceOptions = {}) => {
+		await store.fetchIncomeInsights(options)
+	}
 
-  const addDirectLedgerEntry = async (
-    payload: CreateDirectLedgerEntryPayload,
-  ) => {
-    await store.addDirectLedgerEntry(payload);
-  };
+	const fetchDashboardMetrics = async (
+		period = "this_month",
+		options: IncomeServiceOptions = {},
+	) => {
+		await store.fetchDashboardMetrics(period, options)
+	}
 
-  const updateIncomeSource = async (payload: UpdateIncomeSourcePayload) => {
-    await store.updateIncomeSource(payload);
-  };
+	// 🚀 NEW: Enhanced analytics and filter methods
+	const fetchIncomeAnalytics = async (
+		filters?: IncomeFilters,
+		options: IncomeServiceOptions = {},
+	) => {
+		await store.fetchIncomeAnalytics(filters, options)
+	}
 
-  const deleteIncome = async (incomeId: string) => {
-    await store.deleteIncome(incomeId);
-  };
+	const fetchIncomeFilterOptions = async (
+		options: IncomeServiceOptions = {},
+	) => {
+		return await store.fetchIncomeFilterOptions(options)
+	}
 
-  const deleteIncomeSource = async (payload: DeleteIncomeSourcePayload) => {
-    await store.deleteIncomeSource(payload);
-  };
+	const fetchPeriodInfo = async (
+		filters?: IncomeFilters,
+		options: IncomeServiceOptions = {},
+	) => {
+		return await store.fetchPeriodInfo(filters, options)
+	}
 
-  const updateRecurringLedgerEntries = async () => {
-    return await store.updateRecurringLedgerEntries();
-  };
+	const cleanupIncomeData = async () => {
+		return await store.cleanupIncomeData()
+	}
 
-  const updateLedgerEntry = async (payload: UpdateLedgerEntryPayload) => {
-    return await store.updateLedgerEntry(payload);
-  };
+	const addIncomeSource = async (payload: AddIncomeSourcePayload) => {
+		await store.addIncomeSource(payload)
+	}
 
-  const deleteLedgerEntry = async (payload: DeleteLedgerEntryPayload) => {
-    return await store.deleteLedgerEntry(payload);
-  };
+	const addDirectLedgerEntry = async (
+		payload: CreateDirectLedgerEntryPayload,
+	) => {
+		await store.addDirectLedgerEntry(payload)
+	}
 
-  const createLedgerEntry = async (payload: CreateLedgerEntryPayload) => {
-    return await store.createLedgerEntry(payload);
-  };
+	const updateIncomeSource = async (payload: UpdateIncomeSourcePayload) => {
+		await store.updateIncomeSource(payload)
+	}
 
-  const updateFilters = (newFilters: Partial<IncomeFilters>) => {
-    store.updateFilters(newFilters);
-  };
+	const deleteIncome = async (incomeId: string) => {
+		await store.deleteIncome(incomeId)
+	}
 
-  const updateLedgerFilters = (newFilters: Partial<LedgerFilters>) => {
-    store.updateLedgerFilters(newFilters);
-  };
+	const deleteIncomeSource = async (payload: DeleteIncomeSourcePayload) => {
+		await store.deleteIncomeSource(payload)
+	}
 
-  const clearFilters = () => {
-    store.clearFilters();
-  };
+	const updateRecurringLedgerEntries = async () => {
+		return await store.updateRecurringLedgerEntries()
+	}
 
-  const clearLedgerFilters = () => {
-    store.clearLedgerFilters();
-  };
+	const updateLedgerEntry = async (payload: UpdateLedgerEntryPayload) => {
+		return await store.updateLedgerEntry(payload)
+	}
 
-  const clearError = () => {
-    store.clearError();
-  };
+	const deleteLedgerEntry = async (payload: DeleteLedgerEntryPayload) => {
+		return await store.deleteLedgerEntry(payload)
+	}
 
-  // Cache management methods
-  const clearCache = () => {
-    store.clearCache();
-  };
+	const createLedgerEntry = async (payload: CreateLedgerEntryPayload) => {
+		return await store.createLedgerEntry(payload)
+	}
 
-  const invalidateCache = async (options: CacheInvalidationOptions = {}) => {
-    const {
-      incomeData = false,
-      analytics = false,
-      ledgerData = false,
-      incomeTypes = false,
-      all = false,
-    } = options;
+	const updateFilters = (newFilters: Partial<IncomeFilters>) => {
+		store.updateFilters(newFilters)
+	}
 
-    try {
-      if (all) {
-        store.clearCache();
-        await initialize({ withAnalytics: true, forceRefresh: true });
-        return;
-      }
+	const updateLedgerFilters = (newFilters: Partial<LedgerFilters>) => {
+		store.updateLedgerFilters(newFilters)
+	}
 
-      // Selective cache invalidation with better error handling
-      if (incomeData || analytics) {
-        // Clear income and analytics cache, then refetch
-        store.clearCache();
-        await fetchIncomeWithAnalytics({ forceRefresh: true });
-      }
+	const clearFilters = () => {
+		store.clearFilters()
+	}
 
-      if (ledgerData) {
-        // Refetch ledger data
-        await fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true });
-      }
+	const clearLedgerFilters = () => {
+		store.clearLedgerFilters()
+	}
 
-      if (incomeTypes) {
-        // Refetch income types
-        await fetchIncomeTypes({ forceRefresh: true });
-      }
-    } catch (error) {
-      handleError(error, "Failed to invalidate cache");
-    }
-  };
+	const clearError = () => {
+		store.clearError()
+	}
 
-  const refreshData = async (
-    options: {
-      withAnalytics?: boolean;
-      withLedger?: boolean;
-      withSummary?: boolean;
-      withInsights?: boolean;
-      withDashboard?: boolean;
-      useCache?: boolean;
-    } = {},
-  ) => {
-    const {
-      withAnalytics = true,
-      withLedger = false,
-      withSummary = false,
-      withInsights = false,
-      withDashboard = true,
-      useCache = false,
-    } = options;
+	// Cache management methods
+	const clearCache = () => {
+		store.clearCache()
+	}
 
-    try {
-      const forceRefresh = !useCache;
+	const invalidateCache = async (options: CacheInvalidationOptions = {}) => {
+		const {
+			incomeData = false,
+			analytics = false,
+			ledgerData = false,
+			incomeTypes = false,
+			all = false,
+		} = options
 
-      // Always refresh income types first (but respect cache if useCache is true)
-      await fetchIncomeTypes({ forceRefresh, useCache });
+		try {
+			if (all) {
+				store.clearCache()
+				await initialize({ withAnalytics: true, forceRefresh: true })
+				return
+			}
 
-      // Fetch income data with proper error handling
-      if (withAnalytics) {
-        await fetchIncomeWithAnalytics({ forceRefresh, useCache });
-      } else {
-        await fetchIncome({ forceRefresh, useCache });
-      }
+			// Selective cache invalidation with better error handling
+			if (incomeData || analytics) {
+				// Clear income and analytics cache, then refetch
+				store.clearCache()
+				await fetchIncomeWithAnalytics({ forceRefresh: true })
+			}
 
-      // Optionally fetch additional data in parallel when possible
-      const additionalFetches: Promise<any>[] = [];
+			if (ledgerData) {
+				// Refetch ledger data
+				await fetchIncomeLedger(ledgerFilters.value, { forceRefresh: true })
+			}
 
-      if (withLedger) {
-        additionalFetches.push(
-          fetchIncomeLedger(ledgerFilters.value, { forceRefresh, useCache }),
-        );
-      }
+			if (incomeTypes) {
+				// Refetch income types
+				await fetchIncomeTypes({ forceRefresh: true })
+			}
+		} catch (error) {
+			handleError(error, "Failed to invalidate cache")
+		}
+	}
 
-      if (withSummary) {
-        additionalFetches.push(
-          fetchMonthlyIncomeSummary({ forceRefresh, useCache }),
-        );
-      }
+	const refreshData = async (
+		options: {
+			withAnalytics?: boolean
+			withLedger?: boolean
+			withSummary?: boolean
+			withInsights?: boolean
+			withDashboard?: boolean
+			useCache?: boolean
+		} = {},
+	) => {
+		const {
+			withAnalytics = true,
+			withLedger = false,
+			withSummary = false,
+			withInsights = false,
+			withDashboard = true,
+			useCache = false,
+		} = options
 
-      if (withInsights) {
-        additionalFetches.push(fetchIncomeInsights({ forceRefresh, useCache }));
-      }
+		try {
+			const forceRefresh = !useCache
 
-      if (withDashboard) {
-        additionalFetches.push(
-          fetchDashboardMetrics("this_month", { forceRefresh, useCache }),
-        );
-      }
+			// Always refresh income types first (but respect cache if useCache is true)
+			await fetchIncomeTypes({ forceRefresh, useCache })
 
-      // Execute additional fetches in parallel
-      if (additionalFetches.length > 0) {
-        await Promise.allSettled(additionalFetches);
-      }
-    } catch (error) {
-      handleError(error, "Failed to refresh income data");
-    }
-  };
+			// Fetch income data with proper error handling
+			if (withAnalytics) {
+				await fetchIncomeWithAnalytics({ forceRefresh, useCache })
+			} else {
+				await fetchIncome({ forceRefresh, useCache })
+			}
 
-  // Update initialization helper with better error handling and options
-  const initialize = async (options: InitializeOptions = {}) => {
-    const { withAnalytics = false, forceRefresh = false, period } = options;
-    try {
-      // Set default period to this_month if no period is provided
-      const defaultPeriod = period || "this_month";
-      store.updateFilters({ period: defaultPeriod });
+			// Optionally fetch additional data in parallel when possible
+			const additionalFetches: Promise<any>[] = []
 
-      // Always fetch income types first
-      await store.fetchIncomeTypes({ forceRefresh });
+			if (withLedger) {
+				additionalFetches.push(
+					fetchIncomeLedger(ledgerFilters.value, { forceRefresh, useCache }),
+				)
+			}
 
-      // Fetch income data with analytics by default for better UX
-      if (withAnalytics) {
-        await store.fetchIncomeWithAnalytics({ forceRefresh });
-      } else {
-        await store.fetchIncome({ forceRefresh });
-      }
-    } catch (error) {
-      handleError(error, "Failed to initialize income data");
-    }
-  };
+			if (withSummary) {
+				additionalFetches.push(
+					fetchMonthlyIncomeSummary({ forceRefresh, useCache }),
+				)
+			}
 
-  // Add analytics helper
-  const getAnalytics = computed(() => {
-    if (!analytics.value) return null;
-    return {
-      totalIncome: analytics.value.total_income || 0,
-      recurringIncome: analytics.value.recurring_income || 0,
-      oneTimeIncome: analytics.value.one_time_income || 0,
-      monthlyTrends: analytics.value.monthly_trends || [],
-      incomeByType: analytics.value.income_by_type || {},
-      summary: analytics.value.summary || {
-        total_sources: 0,
-        average_source_amount: 0,
-        top_income_type: "",
-      },
-    };
-  });
+			if (withInsights) {
+				additionalFetches.push(fetchIncomeInsights({ forceRefresh, useCache }))
+			}
 
-  // Add period helper
-  const setPeriod = async (period: InitializeOptions["period"]) => {
-    try {
-      store.updateFilters({ period });
-      await store.fetchIncomeWithAnalytics({ forceRefresh: true });
-    } catch (error) {
-      handleError(error, "Failed to update period");
-    }
-  };
+			if (withDashboard) {
+				additionalFetches.push(
+					fetchDashboardMetrics("this_month", { forceRefresh, useCache }),
+				)
+			}
 
-  // Helper methods for common operations
-  const hasData = computed(() => store.hasData);
-  const isCacheValid = computed(() => store.isCacheValid);
+			// Execute additional fetches in parallel
+			if (additionalFetches.length > 0) {
+				await Promise.allSettled(additionalFetches)
+			}
+		} catch (error) {
+			handleError(error, "Failed to refresh income data")
+		}
+	}
 
-  return {
-    // State
-    incomes,
-    incomeTypes,
-    ledgerEntries,
-    analytics,
-    dashboardMetrics,
-    monthlyIncomeSummary,
-    incomeInsights,
-    loading,
-    error,
-    filters,
-    ledgerFilters,
+	// Update initialization helper with better error handling and options
+	const initialize = async (options: InitializeOptions = {}) => {
+		const { withAnalytics = false, forceRefresh = false, period } = options
+		try {
+			// Set default period to this_month if no period is provided
+			const defaultPeriod = period || "this_month"
+			store.updateFilters({ period: defaultPeriod })
 
-    // Computed values
-    totalIncome,
-    recurringIncome,
-    oneTimeIncome,
-    totalSources,
-    allSources,
-    filteredSources,
-    filteredLedgerEntries,
-    recentSources,
-    topIncomeTypes,
-    incomeByType,
-    hasData,
-    isCacheValid,
+			// Always fetch income types first
+			await store.fetchIncomeTypes({ forceRefresh })
 
-    // Actions
-    fetchIncome,
-    fetchIncomeWithAnalytics,
-    fetchIncomeLedger,
-    fetchIncomeTypes,
-    fetchMonthlyIncomeSummary,
-    fetchIncomeInsights,
-    fetchDashboardMetrics,
-    addIncomeSource,
-    addDirectLedgerEntry,
-    updateIncomeSource,
-    deleteIncome,
-    deleteIncomeSource,
-    updateRecurringLedgerEntries,
-    updateLedgerEntry,
-    deleteLedgerEntry,
-    createLedgerEntry,
-    updateFilters,
-    updateLedgerFilters,
-    clearFilters,
-    clearLedgerFilters,
-    clearError,
+			// Fetch income data with analytics by default for better UX
+			if (withAnalytics) {
+				await store.fetchIncomeWithAnalytics({ forceRefresh })
+			} else {
+				await store.fetchIncome({ forceRefresh })
+			}
+		} catch (error) {
+			handleError(error, "Failed to initialize income data")
+		}
+	}
 
-    // Cache management
-    clearCache,
-    invalidateCache,
-    refreshData,
+	// Add analytics helper
+	const getAnalytics = computed(() => {
+		if (!analytics.value) return null
+		return {
+			totalIncome: analytics.value.total_income || 0,
+			recurringIncome: analytics.value.recurring_income || 0,
+			oneTimeIncome: analytics.value.one_time_income || 0,
+			monthlyTrends: analytics.value.monthly_trends || [],
+			incomeByType: analytics.value.income_by_type || {},
+			summary: analytics.value.summary || {
+				total_sources: 0,
+				average_source_amount: 0,
+				top_income_type: "",
+			},
+		}
+	})
 
-    // Utilities
-    initialize,
-    getAnalytics,
-    setPeriod,
-  };
+	// Add period helper
+	const setPeriod = async (period: InitializeOptions["period"]) => {
+		try {
+			store.updateFilters({ period })
+			await store.fetchIncomeWithAnalytics({ forceRefresh: true })
+		} catch (error) {
+			handleError(error, "Failed to update period")
+		}
+	}
+
+	// Helper methods for common operations
+	const hasData = computed(() => store.hasData)
+	const isCacheValid = computed(() => store.isCacheValid)
+
+	// Add household profile check helper
+	const checkHouseholdProfile = async () => {
+		try {
+			// Try to fetch income data which will verify household profile exists
+			await store.fetchIncome({ forceRefresh: true })
+			return true
+		} catch (error: any) {
+			if (error.message?.includes("household profile")) {
+				return false
+			}
+			// Re-throw other errors
+			throw error
+		}
+	}
+
+	// Helper to get user-friendly error message
+	const getErrorMessage = (error: unknown): string => {
+		if (error instanceof Error) {
+			if (error.message.includes("household profile")) {
+				return "Please create a household profile first before managing income."
+			} else if (error.message.includes("required")) {
+				return "Please fill in all required fields."
+			} else if (error.message.includes("validation")) {
+				return "Please check your input values and try again."
+			} else if (error.message.includes("permission")) {
+				return "You don't have permission to perform this action."
+			} else if (
+				error.message.includes("network") ||
+				error.message.includes("fetch")
+			) {
+				return "Network error. Please check your connection and try again."
+			}
+			return error.message
+		}
+		return "An unexpected error occurred. Please try again."
+	}
+
+	return {
+		// State
+		incomes,
+		incomeTypes,
+		ledgerEntries,
+		analytics,
+		dashboardMetrics,
+		monthlyIncomeSummary,
+		incomeInsights,
+		loading,
+		error,
+		filters,
+		ledgerFilters,
+
+		// Computed values
+		totalIncome,
+		recurringIncome,
+		oneTimeIncome,
+		totalSources,
+		allSources,
+		filteredSources,
+		filteredLedgerEntries,
+		recentSources,
+		topIncomeTypes,
+		incomeByType,
+		hasData,
+		isCacheValid,
+
+		// Actions
+		fetchIncome,
+		fetchIncomeWithAnalytics,
+		fetchIncomeLedger,
+		fetchIncomeTypes,
+		fetchMonthlyIncomeSummary,
+		fetchIncomeInsights,
+		fetchDashboardMetrics,
+		fetchIncomeAnalytics,
+		fetchIncomeFilterOptions,
+		fetchPeriodInfo,
+		cleanupIncomeData,
+		addIncomeSource,
+		addDirectLedgerEntry,
+		updateIncomeSource,
+		deleteIncome,
+		deleteIncomeSource,
+		updateRecurringLedgerEntries,
+		updateLedgerEntry,
+		deleteLedgerEntry,
+		createLedgerEntry,
+		updateFilters,
+		updateLedgerFilters,
+		clearFilters,
+		clearLedgerFilters,
+		clearError,
+
+		// Cache management
+		clearCache,
+		invalidateCache,
+		refreshData,
+
+		// Utilities
+		initialize,
+		getAnalytics,
+		setPeriod,
+
+		// New helpers
+		checkHouseholdProfile,
+		getErrorMessage,
+	}
 }

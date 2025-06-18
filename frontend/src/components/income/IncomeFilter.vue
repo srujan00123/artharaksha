@@ -187,9 +187,9 @@ import {
 	SlidersHorizontal,
 } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
+import { useIncome } from "../../composables/useIncome"
 import type { IncomeFilters, IncomeTypeRecord } from "../../types/income"
 import { getClientDateString, getClientTime } from "../../utils/date"
-import { useIncome } from "../../composables/useIncome"
 
 // Quick date filter interface
 interface QuickDateFilter {
@@ -211,14 +211,14 @@ interface Props {
 	totalCount: number
 	filteredCount: number
 	incomeTypes: IncomeTypeRecord[]
-	currentView?: 'sources' | 'ledger' | 'insights'
+	currentView?: "sources" | "ledger" | "insights"
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	totalCount: 0,
 	filteredCount: 0,
 	incomeTypes: () => [],
-	currentView: 'sources'
+	currentView: "sources",
 })
 
 // Use income composable for complete self-contained filtering
@@ -229,7 +229,7 @@ const {
 	loading,
 	filters,
 	isCacheValid,
-	clearCache
+	clearCache,
 } = useIncome()
 
 // Local state
@@ -421,7 +421,7 @@ function formatAmountRange(): string {
 async function onFilterChange() {
 	// Update filters directly in the store
 	updateFilters({ ...localFilters.value })
-	
+
 	// Let the cache service handle whether to fetch fresh data or use cache
 	try {
 		await refreshData({ withAnalytics: true, useCache: true })
@@ -436,9 +436,19 @@ async function applyQuickDateFilter(period: string) {
 		localFilters.value.dateFrom = filter.dateFrom
 		localFilters.value.dateTo = filter.dateTo
 		// Direct period assignment (values now match IncomeFilters type)
-		const validPeriods = ["today", "this_week", "this_month", "last_month", "last_3_months", "last_6_months", "this_year", "all", "custom"] as const
+		const validPeriods = [
+			"today",
+			"this_week",
+			"this_month",
+			"last_month",
+			"last_3_months",
+			"last_6_months",
+			"this_year",
+			"all",
+			"custom",
+		] as const
 		if (validPeriods.includes(period as any)) {
-			localFilters.value.period = period as typeof validPeriods[number]
+			localFilters.value.period = period as (typeof validPeriods)[number]
 		}
 		activePeriod.value = period
 		// Directly apply the filter with cache invalidation
@@ -485,14 +495,14 @@ onMounted(async () => {
 	if (filters.value) {
 		localFilters.value = { ...filters.value }
 	}
-	
+
 	// Set default period to this month if no period is set
 	if (!localFilters.value.period) {
 		localFilters.value.period = "this_month"
 		localFilters.value.dateFrom = getMonthStart()
 		localFilters.value.dateTo = getClientDateString()
 		activePeriod.value = "this_month"
-		
+
 		// Apply the filter without triggering a separate API call
 		// since the parent component will handle the initial data loading
 		updateFilters({ ...localFilters.value })

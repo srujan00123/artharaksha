@@ -137,8 +137,8 @@
 
 <script setup>
 import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
-import { useSupport } from "@/composables/useSupport"
 import { useHousehold } from "@/composables/useHousehold"
+import { useSupport } from "@/composables/useSupport"
 import { X } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
 

@@ -42,28 +42,23 @@ import { useExpense } from "../../composables/useExpense"
 const refreshing = ref(false)
 
 // Initialize expense composable with analytics
-const { 
-  loading, 
-  error, 
-  initialize, 
-  refreshData 
-} = useExpense()
+const { loading, error, initialize, refreshData } = useExpense()
 
 // Event handlers
 const handleRefresh = async () => {
-  refreshing.value = true
-  try {
-    // Force refresh bypassing cache for analytics
-    await refreshData({ 
-      withAnalytics: true, 
-      useCache: false 
-    })
-    console.log("Analytics data refreshed successfully")
-  } catch (err) {
-    console.error("Failed to refresh analytics:", err)
-  } finally {
-    refreshing.value = false
-  }
+	refreshing.value = true
+	try {
+		// Force refresh bypassing cache for analytics
+		await refreshData({
+			withAnalytics: true,
+			useCache: false,
+		})
+		console.log("Analytics data refreshed successfully")
+	} catch (err) {
+		console.error("Failed to refresh analytics:", err)
+	} finally {
+		refreshing.value = false
+	}
 }
 
 // Provide shared refresh function to child components
@@ -71,11 +66,11 @@ provide("analyticsRefresh", handleRefresh)
 
 // Lifecycle
 onMounted(async () => {
-  // Initialize analytics with comprehensive data
-  await initialize({ 
-    withAnalytics: true, 
-    period: "this_month" 
-  })
+	// Initialize analytics with comprehensive data
+	await initialize({
+		withAnalytics: true,
+		period: "this_month",
+	})
 })
 </script>
 

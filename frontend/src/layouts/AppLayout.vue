@@ -322,12 +322,12 @@ const currentSecondaryItems = computed(() => {
 	return secondaryItems[currentSection.value] || secondaryItems.dashboard
 })
 
-function getCurrentPageTitle() {
+const currentPageTitle = computed(() => {
 	const currentItem = currentSecondaryItems.value.find(
 		(item) => item.path === route.path,
 	)
 	return currentItem ? currentItem.label : "Page"
-}
+})
 
 function isActiveRoute(path) {
 	return route.path === path

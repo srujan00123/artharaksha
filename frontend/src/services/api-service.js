@@ -18,6 +18,10 @@ export const API_ENDPOINTS = {
 		DELETE_LEDGER_ENTRY: "artha.api.income.delete_ledger_entry",
 		CREATE_LEDGER_ENTRY: "artha.api.income.create_ledger_entry",
 		UPDATE_RECURRING_LEDGER: "artha.api.income.update_recurring_ledger_entries",
+		ANALYTICS: "artha.api.income.get_income_analytics",
+		FILTER_OPTIONS: "artha.api.income.get_income_filter_options",
+		PERIOD_INFO: "artha.api.income.get_period_info",
+		CLEANUP_DATA: "artha.api.income.cleanup_income_data",
 	},
 	EXPENSE: {
 		USER_EXPENSES: "artha.api.expense.get_user_expenses",
@@ -78,13 +82,13 @@ class ApiService {
 	 */
 	async execute(callPromise, options = {}) {
 		const requestId = ++this.requestCount
-		
+
 		try {
 			this.activeRequests.add(requestId)
-			
+
 			// Set default timeout if not specified
 			const timeout = options.timeout || 30000 // 30 seconds default
-			
+
 			// Create timeout promise
 			const timeoutPromise = new Promise((_, reject) => {
 				setTimeout(() => {
@@ -96,12 +100,14 @@ class ApiService {
 			const response = await Promise.race([callPromise, timeoutPromise])
 
 			// Handle frappe-ui response format
-			if (response && typeof response === 'object') {
+			if (response && typeof response === "object") {
 				// Check for frappe error format
 				if (response.exc_type || response.exception) {
-					throw new Error(response.exception || response.exc_type || 'API Error')
+					throw new Error(
+						response.exception || response.exc_type || "API Error",
+					)
 				}
-				
+
 				// Return the message if it exists, otherwise return the whole response
 				return response.message || response
 			}
@@ -109,34 +115,48 @@ class ApiService {
 			return response
 		} catch (error) {
 			// Enhanced error handling
-			if (error.name === 'AbortError') {
-				throw new Error('Request was cancelled')
+			if (error.name === "AbortError") {
+				throw new Error("Request was cancelled")
 			}
-			
-			if (error.message?.includes('timeout')) {
-				throw new Error('Request timed out. Please check your connection and try again.')
+
+			if (error.message?.includes("timeout")) {
+				throw new Error(
+					"Request timed out. Please check your connection and try again.",
+				)
 			}
-			
-			if (error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
-				throw new Error('Network error. Please check your internet connection.')
+
+			if (
+				error.message?.includes("Network Error") ||
+				error.message?.includes("Failed to fetch")
+			) {
+				throw new Error("Network error. Please check your internet connection.")
 			}
-			
+
 			// Handle frappe authentication errors
-			if (error.message?.includes('Not permitted') || error.message?.includes('Forbidden')) {
-				throw new Error('You do not have permission to perform this action.')
+			if (
+				error.message?.includes("Not permitted") ||
+				error.message?.includes("Forbidden")
+			) {
+				throw new Error("You do not have permission to perform this action.")
 			}
-			
-			if (error.message?.includes('Session Expired') || error.message?.includes('Unauthorized')) {
-				throw new Error('Your session has expired. Please log in again.')
+
+			if (
+				error.message?.includes("Session Expired") ||
+				error.message?.includes("Unauthorized")
+			) {
+				throw new Error("Your session has expired. Please log in again.")
 			}
 
 			// Handle validation errors
-			if (error.message?.includes('ValidationError') || error.message?.includes('Invalid')) {
-				throw new Error(error.message || 'Invalid data provided.')
+			if (
+				error.message?.includes("ValidationError") ||
+				error.message?.includes("Invalid")
+			) {
+				throw new Error(error.message || "Invalid data provided.")
 			}
 
 			// Default error handling
-			throw new Error(error.message || 'An unexpected error occurred.')
+			throw new Error(error.message || "An unexpected error occurred.")
 		} finally {
 			this.activeRequests.delete(requestId)
 		}

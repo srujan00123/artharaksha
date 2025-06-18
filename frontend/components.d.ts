@@ -9,14 +9,17 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AdminNotificationCenter: typeof import('./src/components/admin/AdminNotificationCenter.vue')['default']
-    AppLayout: typeof import('./src/components/AppLayout.vue')['default']
+    AppLayout: typeof import("./src/components/AppLayout.vue")["default"]
     ApplicationModal: typeof import('./src/components/support/ApplicationModal.vue')['default']
+    CategoryDetailsModal: typeof import('./src/components/expense/CategoryDetailsModal.vue')['default']
+    CategorySection: typeof import('./src/components/expense/CategorySection.vue')['default']
     CHEAlert: typeof import('./src/components/alerts/CHEAlert.vue')['default']
     ClaimModal: typeof import('./src/components/support/ClaimModal.vue')['default']
     ConditionModal: typeof import('./src/components/support/ConditionModal.vue')['default']
     ExpenseFilter: typeof import('./src/components/expense/ExpenseFilter.vue')['default']
     ExpenseForm: typeof import('./src/components/expense/ExpenseForm.vue')['default']
     FileUpload: typeof import('./src/components/common/FileUpload.vue')['default']
+    HouseholdProfileCreator: typeof import('./src/components/profile/HouseholdProfileCreator.vue')['default']
     IncomeFilter: typeof import('./src/components/income/IncomeFilter.vue')['default']
     IncomeForm: typeof import('./src/components/income/IncomeForm.vue')['default']
     IncomeLedger: typeof import('./src/components/income/IncomeLedger.vue')['default']
@@ -30,6 +33,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SchemeDetailsModal: typeof import('./src/components/support/SchemeDetailsModal.vue')['default']
     SearchBox: typeof import('./src/components/common/SearchBox.vue')['default']
+    SummaryCard: typeof import('./src/components/expense/SummaryCard.vue')['default']
     SupportFilter: typeof import('./src/components/support/SupportFilter.vue')['default']
     ThemeToggle: typeof import('./src/components/common/ThemeToggle.vue')['default']
   }

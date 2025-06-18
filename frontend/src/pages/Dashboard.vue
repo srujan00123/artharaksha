@@ -140,7 +140,7 @@
                         <div class="min-w-0 flex-1">
                             <p class="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">Total Expenses</p>
                             <p class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                                ₹{{ formatCurrency(totalExpenseAmount) }}
+                                ₹{{ formatCurrency(totalExpenseAmountValue) }}
                             </p>
                             <div class="flex items-center space-x-2 mt-1">
                                 <p class="text-xs text-blue-600 dark:text-blue-400">{{ medicalExpenseCount }} medical</p>
@@ -234,67 +234,87 @@
                 </div>
             </div>
 
-        <!-- Quick Actions -->
+        <!-- 🚀 FIXED: Quick Actions with proper loading states and household profile checks -->
             <Card class="p-4 sm:p-5 lg:p-6 mb-6 bg-white dark:bg-slate-800">
                 <div class="flex items-center justify-between mb-4 lg:mb-6">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Quick Actions</h3>
                     <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 hidden sm:block">Get things done faster</span>
                 </div>
-                <div class="quick-actions-row flex flex-wrap gap-3 lg:gap-4">
-                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
-                        <QuickActionButton
-                            @click="navigateToExpenseForm"
-                            icon="Plus"
-                            label="Add Expense"
-                            color="blue"
-                            :loading="false"
-                        />
+                
+                <!-- Profile Alert if no household profile -->
+                <div v-if="!hasProfile && !householdLoading" class="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div class="flex items-start">
+                        <AlertTriangle class="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 mr-2 flex-shrink-0" />
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-amber-800 dark:text-amber-200">Profile Required</p>
+                            <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">Create a household profile to access all features.</p>
+                            <Button variant="outline" size="sm" class="mt-2" @click="router.push('/profile/create')">
+                                <User class="w-4 h-4 mr-2" />
+                                Create Profile
+                            </Button>
+                        </div>
                     </div>
-                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
-                        <QuickActionButton
-                            @click="navigateToIncomeForm"
-                            icon="TrendingUp"
-                            label="Add Income"
-                            color="green"
-                            :loading="false"
-                        />
-                    </div>
-                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
-                        <QuickActionButton
-                            @click="navigateToNewApplication"
-                            icon="FileText"
-                            label="New Application"
-                            color="orange"
-                            :loading="false"
-                        />
-                    </div>
-                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
-                        <QuickActionButton
-                            @click="navigateToNewClaim"
-                            icon="CreditCard"
-                            label="Submit Claim"
-                            color="purple"
-                            :loading="false"
-                        />
-                    </div>
-                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
-                        <QuickActionButton
-                            @click="navigateToPrograms"
-                            icon="Shield"
-                            label="Browse Schemes"
-                            color="indigo"
-                            :loading="false"
-                        />
-                    </div>
-                    <div class="quick-action-box bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex-1 min-w-[140px] max-w-[180px] flex items-center justify-center">
-                        <QuickActionButton
-                            @click="navigateToConditions"
-                            icon="Heart"
-                            label="Health Profile"
-                            color="pink"
-                            :loading="false"
-                        />
-                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
+                    <!-- Add Expense -->
+                    <QuickActionButton
+                        @click="navigateToExpenseForm"
+                        icon="Plus"
+                        label="Add Expense"
+                        color="blue"
+                        :loading="quickActionLoading.expense"
+                        :disabled="!hasProfile && !householdLoading"
+                    />
+                    
+                    <!-- Add Income -->
+                    <QuickActionButton
+                        @click="navigateToIncomeForm"
+                        icon="TrendingUp"
+                        label="Add Income"
+                        color="green"
+                        :loading="quickActionLoading.income"
+                        :disabled="!hasProfile && !householdLoading"
+                    />
+                    
+                    <!-- New Application -->
+                    <QuickActionButton
+                        @click="navigateToNewApplication"
+                        icon="FileText"
+                        label="New Application"
+                        color="orange"
+                        :loading="quickActionLoading.application"
+                        :disabled="!hasProfile && !householdLoading"
+                    />
+                    
+                    <!-- Submit Claim -->
+                    <QuickActionButton
+                        @click="navigateToNewClaim"
+                        icon="CreditCard"
+                        label="Submit Claim"
+                        color="purple"
+                        :loading="quickActionLoading.claim"
+                        :disabled="!hasProfile && !householdLoading"
+                    />
+                    
+                    <!-- Browse Schemes -->
+                    <QuickActionButton
+                        @click="navigateToPrograms"
+                        icon="Shield"
+                        label="Browse Schemes"
+                        color="indigo"
+                        :loading="quickActionLoading.program"
+                    />
+                    
+                    <!-- Health Profile -->
+                    <QuickActionButton
+                        @click="navigateToConditions"
+                        icon="Heart"
+                        label="Health Profile"
+                        color="pink"
+                        :loading="quickActionLoading.health"
+                        :disabled="!hasProfile && !householdLoading"
+                    />
                 </div>
             </Card>
         </div>
@@ -454,7 +474,7 @@
                                     <div class="space-y-2">
                                         <div class="flex justify-between text-xs">
                                             <span class="text-green-600 dark:text-green-400">Income: ₹{{ formatCurrency(totalMonthlyIncome) }}</span>
-                                            <span class="text-red-600 dark:text-red-400">Expenses: ₹{{ formatCurrency(totalExpenseAmount) }}</span>
+                                            <span class="text-red-600 dark:text-red-400">Expenses: ₹{{ formatCurrency(totalExpenseAmountValue) }}</span>
                             </div>
                             </div>
                         </div>
@@ -528,10 +548,9 @@
 import QuickActionButton from "@/components/QuickActionButton.vue"
 import { useAdvancedTheme } from "@/composables/useAdvancedTheme"
 import { useExpense } from "@/composables/useExpense"
+import { useHousehold } from "@/composables/useHousehold"
 import { useIncome } from "@/composables/useIncome"
 import { useSupport } from "@/composables/useSupport"
-import { useExpenseStore } from "@/stores/expense"
-import { useSupportStore } from "@/stores/support"
 import { useUserStore } from "@/stores/user"
 import { getSchemeDisplayName, getStatusLabel } from "@/types/support"
 import {
@@ -559,7 +578,7 @@ import {
 	TrendingUp,
 	User,
 } from "lucide-vue-next"
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 
 // Router for navigation
@@ -567,30 +586,72 @@ const router = useRouter()
 
 // Use stores and composables
 const userStore = useUserStore()
-const expenseStore = useExpenseStore()
-const supportStore = useSupportStore()
 
-// Use composables
+// 🚀 FIXED: Use all composables properly
 const income = useIncome()
-const { initialize, getAnalytics, setPeriod } = income
-const expenseComposable = useExpense()
-const supportComposable = useSupport()
+const expense = useExpense()
+const support = useSupport()
+const household = useHousehold()
 
-// Loading and error states
+// 🚀 FIXED: Destructure composable methods and state properly
+const {
+	initialize: initializeIncome,
+	getAnalytics,
+	setPeriod,
+	incomes,
+	totalIncome,
+	recurringIncome,
+	oneTimeIncome,
+	totalSources,
+	filteredSources,
+	loading: incomeLoading,
+	error: incomeError,
+	updateFilters: updateIncomeFilters,
+} = income
+
+const {
+	initialize: initializeExpense,
+	expenses,
+	totalAmount: totalExpenseAmount,
+	medicalExpenses,
+	otherExpenses,
+	loading: expenseLoading,
+	error: expenseError,
+	updateFilters: updateExpenseFilters,
+} = expense
+
+const {
+	initialize: initializeSupport,
+	applications,
+	claims,
+	eligibleSchemes,
+	loading: supportLoading,
+	errors: supportErrors,
+	loadHouseholdProfile: loadSupportHouseholdProfile,
+} = support
+
+const {
+	profile: householdProfile,
+	hasProfile,
+	loading: householdLoading,
+	error: householdError,
+	loadProfile: loadHouseholdProfileData,
+} = household
+
+// 🚀 FIXED: Enhanced loading and error states
 const isLoading = ref(true)
 const hasError = ref(false)
 const errorMessage = ref("")
 const lastUpdated = ref("")
 
-// 1. Add a ref for dashboardFilters
+// 🚀 FIXED: Dashboard filters with proper initialization
 const dashboardFilters = ref({
 	dateFrom: "",
 	dateTo: "",
-	// Add other filter fields as needed
+	period: "this_month",
 })
 
-// Static data
-const eligibleSchemesCount = ref(12)
+// 🚀 FIXED: Enhanced computed properties with proper null checks
 const currentDate = computed(() =>
 	new Date().toLocaleDateString("en-US", {
 		weekday: "long",
@@ -603,144 +664,122 @@ const currentDate = computed(() =>
 // User info
 const userDisplayName = computed(() => userStore.userDisplayName || "User")
 
-// Income data from composable
-const totalMonthlyIncome = computed(() => getAnalytics.value?.totalIncome ?? 0)
-const totalRecurringIncome = computed(
-	() => getAnalytics.value?.recurringIncome ?? 0,
-)
-const totalOneTimeIncome = computed(
-	() => getAnalytics.value?.oneTimeIncome ?? 0,
-)
-const recurringIncomeCount = computed(() => {
-	const incomes = income.incomes
-	const incomeArray =
-		typeof incomes === "object" && incomes?.value !== undefined
-			? incomes.value
-			: incomes || []
-	let recurringCount = 0
-	incomeArray.forEach((income) => {
-		if (income.sources) {
-			recurringCount += income.sources.filter(
-				(source) => source.isRecurring,
-			).length
-		}
-	})
-	return recurringCount
+// 🚀 FIXED: Income data with proper null safety
+const totalMonthlyIncome = computed(() => {
+	const analytics = getAnalytics.value
+	return analytics?.totalIncome || 0
 })
+
+const totalRecurringIncome = computed(() => {
+	const analytics = getAnalytics.value
+	return analytics?.recurringIncome || 0
+})
+
+const totalOneTimeIncome = computed(() => {
+	const analytics = getAnalytics.value
+	return analytics?.oneTimeIncome || 0
+})
+
+const recurringIncomeCount = computed(() => {
+	if (!filteredSources?.value) return 0
+	return filteredSources.value.filter((source) => source.isRecurring).length
+})
+
 const recentIncomeEntries = computed(() => {
-	const incomes = income.incomes
-	const incomeArray =
-		typeof incomes === "object" && incomes?.value !== undefined
-			? incomes.value
-			: incomes || []
-	const allSources = []
-	incomeArray.forEach((income) => {
-		if (income.sources) {
-			income.sources.forEach((source) => {
-				allSources.push({
-					name: source.type,
-					type: source.type,
-					amount: source.amount,
-					frequency: source.isRecurring ? "monthly" : "one-time",
-					date: income.creation || new Date().toISOString(),
+	if (!incomes?.value || !Array.isArray(incomes.value)) return []
+
+	const allEntries = []
+	incomes.value.forEach((income) => {
+		if (income.ledger_entries && Array.isArray(income.ledger_entries)) {
+			income.ledger_entries.forEach((entry) => {
+				allEntries.push({
+					name: entry.name || entry.source_type,
+					type: entry.source_type || "Income",
+					amount: entry.amount || 0,
+					frequency: entry.income_type === "recurring" ? "Monthly" : "One-time",
+					date: entry.date_time || entry.creation || new Date().toISOString(),
 				})
 			})
 		}
 	})
-	return allSources
+
+	return allEntries
 		.sort((a, b) => new Date(b.date) - new Date(a.date))
 		.slice(0, 3)
 })
 
-// Expense data from composable
-const totalExpenseAmount = computed(() => {
-	const value = expenseComposable.totalExpenseAmount
-	return typeof value === "object" && value?.value !== undefined
-		? value.value
-		: value || 0
+// 🚀 FIXED: Expense data with proper null safety
+const totalExpenseAmountValue = computed(() => {
+	return totalExpenseAmount?.value || 0
 })
+
 const totalExpenseCount = computed(() => {
-	const expenses = expenseComposable.expenses
-	const expenseArray =
-		typeof expenses === "object" && expenses?.value !== undefined
-			? expenses.value
-			: expenses || []
-	return expenseArray.length
+	if (!expenses?.value || !Array.isArray(expenses.value)) return 0
+	return expenses.value.length
 })
+
 const recentExpenses = computed(() => {
-	const expenses = expenseComposable.expenses
-	const expenseArray =
-		typeof expenses === "object" && expenses?.value !== undefined
-			? expenses.value
-			: expenses || []
-	return expenseArray
+	if (!expenses?.value || !Array.isArray(expenses.value)) return []
+
+	return expenses.value
 		.sort((a, b) => new Date(b.date) - new Date(a.date))
 		.slice(0, 3)
 		.map((expense) => ({
 			name: expense.name,
-			category: expense.category,
-			amount: expense.amount,
-			provider: expense.provider,
+			category: expense.category || "Medical Expense",
+			amount: expense.amount || 0,
+			provider: expense.provider || "Healthcare",
 			date: expense.date,
 		}))
 })
 
-// Medical and other expense counts - use groupedExpenses from composable
+// 🚀 FIXED: Medical and other expense counts
 const medicalExpenseCount = computed(() => {
-	const grouped = expenseComposable.groupedExpenses
-	if (typeof grouped === "object" && grouped?.value !== undefined) {
-		return grouped.value?.medical?.count || 0
-	}
-	return grouped?.medical?.count || 0
+	if (!medicalExpenses?.value || !Array.isArray(medicalExpenses.value)) return 0
+	return medicalExpenses.value.length
 })
 
 const otherExpenseCount = computed(() => {
-	const grouped = expenseComposable.groupedExpenses
-	if (typeof grouped === "object" && grouped?.value !== undefined) {
-		return grouped.value?.other?.count || 0
-	}
-	return grouped?.other?.count || 0
+	if (!otherExpenses?.value || !Array.isArray(otherExpenses.value)) return 0
+	return otherExpenses.value.length
 })
 
-// Support data from composable
-const applications = computed(() => {
-	const apps = supportComposable.applications
-	return typeof apps === "object" && apps?.value !== undefined
-		? apps.value
-		: apps || []
-})
-const claims = computed(() => {
-	const claimsData = supportComposable.claims
-	return typeof claimsData === "object" && claimsData?.value !== undefined
-		? claimsData.value
-		: claimsData || []
+// 🚀 FIXED: Support data with proper null safety
+const applicationsValue = computed(() => {
+	return applications?.value || []
 })
 
-// Applications metrics
-const totalApplications = computed(() => applications.value.length)
+const claimsValue = computed(() => {
+	return claims?.value || []
+})
+
+// 🚀 FIXED: Applications metrics
+const totalApplications = computed(() => applicationsValue.value.length)
 const pendingApplications = computed(
 	() =>
-		applications.value.filter(
+		applicationsValue.value.filter(
 			(app) => app.status === "pending" || app.status === "under_review",
 		).length,
 )
 const approvedApplications = computed(
-	() => applications.value.filter((app) => app.status === "approved").length,
+	() =>
+		applicationsValue.value.filter((app) => app.status === "approved").length,
 )
 const rejectedApplications = computed(
-	() => applications.value.filter((app) => app.status === "rejected").length,
+	() =>
+		applicationsValue.value.filter((app) => app.status === "rejected").length,
 )
 
-// Claims metrics
-const totalClaims = computed(() => claims.value.length)
+// 🚀 FIXED: Claims metrics
+const totalClaims = computed(() => claimsValue.value.length)
 const approvedClaims = computed(
 	() =>
-		claims.value.filter(
+		claimsValue.value.filter(
 			(claim) => claim.status === "approved" || claim.status === "paid",
 		).length,
 )
 const totalBenefitsReceived = computed(() =>
-	claims.value.reduce(
+	claimsValue.value.reduce(
 		(total, claim) => total + (claim.approved_amount || 0),
 		0,
 	),
@@ -750,15 +789,15 @@ const claimsSuccessRate = computed(() => {
 	return Math.round((approvedClaims.value / totalClaims.value) * 100)
 })
 
-// Recent activity data
+// 🚀 FIXED: Recent activity data
 const recentApplications = computed(() => {
-	return applications.value
+	return applicationsValue.value
 		.sort((a, b) => new Date(b.date_applied) - new Date(a.date_applied))
 		.slice(0, 2)
 })
 
 const recentClaims = computed(() => {
-	return claims.value
+	return claimsValue.value
 		.sort((a, b) => new Date(b.claim_date) - new Date(a.claim_date))
 		.slice(0, 2)
 })
@@ -772,28 +811,35 @@ const hasRecentActivity = computed(() => {
 	)
 })
 
-// Financial calculations
+// 🚀 FIXED: Financial calculations with null safety
 const expensePercentage = computed(() => {
 	if (totalMonthlyIncome.value === 0) return 0
 	return Math.min(
-		Math.round((totalExpenseAmount.value / totalMonthlyIncome.value) * 100),
+		Math.round(
+			(totalExpenseAmountValue.value / totalMonthlyIncome.value) * 100,
+		),
 		100,
 	)
 })
 
 const cheRatio = computed(() => {
 	const annualIncome = totalMonthlyIncome.value * 12
-	const annualExpenses = totalExpenseAmount.value * 12
+	const annualExpenses = totalExpenseAmountValue.value * 12
 	return calculateCHE(annualIncome, annualExpenses)
 })
 
 const monthlyBalance = computed(() => {
-	return totalMonthlyIncome.value - totalExpenseAmount.value
+	return totalMonthlyIncome.value - totalExpenseAmountValue.value
 })
 
 const savingsRate = computed(() => {
 	if (totalMonthlyIncome.value === 0) return 0
 	return Math.round((monthlyBalance.value / totalMonthlyIncome.value) * 100)
+})
+
+// 🚀 FIXED: Eligible schemes count from support composable
+const eligibleSchemesCount = computed(() => {
+	return eligibleSchemes?.value?.length || 0
 })
 
 // Status badge helper
@@ -809,89 +855,216 @@ function getStatusBadgeClass(status) {
 	return colors[status] || "bg-gray-100 text-gray-800"
 }
 
-// Navigation handlers
-function navigateToIncome() {
-	router.push("/income-management")
+// 🚀 FIXED: Enhanced navigation handlers with proper error handling
+const navigateToIncome = () => {
+	try {
+		router.push("/income-management")
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToExpenses() {
-	router.push("/expenses/overview")
+const navigateToExpenses = () => {
+	try {
+		router.push("/expenses/overview")
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToExpenseAnalyzer() {
-	router.push("/expenses/analyzer")
+const navigateToExpenseAnalyzer = () => {
+	try {
+		router.push("/expenses/analyzer")
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToApplications() {
-	router.push("/applications-claims/applications")
+const navigateToApplications = () => {
+	try {
+		router.push("/applications-claims/applications")
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToClaims() {
-	router.push("/applications-claims/claims")
+const navigateToClaims = () => {
+	try {
+		router.push("/applications-claims/claims")
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToPrograms() {
-	router.push("/care-support/programs")
+const navigateToPrograms = () => {
+	try {
+		router.push("/care-support/programs")
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToConditions() {
-	router.push("/care-support/conditions")
+const navigateToConditions = () => {
+	try {
+		router.push("/care-support/conditions")
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToIncomeReports() {
-	router.push("/income-management/reports")
+const navigateToIncomeReports = () => {
+	try {
+		router.push("/income-management/reports")
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-// Quick action navigation
-function navigateToExpenseForm() {
-	router.push("/expenses/overview?action=add")
+// 🚀 FIXED: Enhanced quick action navigation with loading states
+const quickActionLoading = ref({
+	expense: false,
+	income: false,
+	application: false,
+	claim: false,
+	program: false,
+	health: false,
+})
+
+const navigateToExpenseForm = async () => {
+	try {
+		quickActionLoading.value.expense = true
+
+		// Check if household profile exists
+		if (!hasProfile.value) {
+			// Redirect to profile creation first
+			router.push("/profile/create?redirect=/expenses/overview&action=add")
+			return
+		}
+
+		router.push("/expenses/overview?action=add")
+	} catch (error) {
+		console.error("Navigation error:", error)
+		errorMessage.value = "Failed to navigate to expense form"
+	} finally {
+		quickActionLoading.value.expense = false
+	}
 }
 
-function navigateToIncomeForm() {
-	router.push("/income-management?action=add")
+const navigateToIncomeForm = async () => {
+	try {
+		quickActionLoading.value.income = true
+
+		// Check if household profile exists
+		if (!hasProfile.value) {
+			// Redirect to profile creation first
+			router.push("/profile/create?redirect=/income-management&action=add")
+			return
+		}
+
+		router.push("/income-management?action=add")
+	} catch (error) {
+		console.error("Navigation error:", error)
+		errorMessage.value = "Failed to navigate to income form"
+	} finally {
+		quickActionLoading.value.income = false
+	}
 }
 
-function navigateToNewApplication() {
-	router.push("/applications-claims/applications?action=new")
+const navigateToNewApplication = async () => {
+	try {
+		quickActionLoading.value.application = true
+
+		// Check if household profile exists
+		if (!hasProfile.value) {
+			// Redirect to profile creation first
+			router.push(
+				"/profile/create?redirect=/applications-claims/applications&action=new",
+			)
+			return
+		}
+
+		router.push("/applications-claims/applications?action=new")
+	} catch (error) {
+		console.error("Navigation error:", error)
+		errorMessage.value = "Failed to navigate to application form"
+	} finally {
+		quickActionLoading.value.application = false
+	}
 }
 
-function navigateToNewClaim() {
-	router.push("/applications-claims/claims?action=new")
+const navigateToNewClaim = async () => {
+	try {
+		quickActionLoading.value.claim = true
+
+		// Check if household profile exists
+		if (!hasProfile.value) {
+			// Redirect to profile creation first
+			router.push(
+				"/profile/create?redirect=/applications-claims/claims&action=new",
+			)
+			return
+		}
+
+		router.push("/applications-claims/claims?action=new")
+	} catch (error) {
+		console.error("Navigation error:", error)
+		errorMessage.value = "Failed to navigate to claim form"
+	} finally {
+		quickActionLoading.value.claim = false
+	}
 }
 
 // Detail navigation
-function navigateToExpenseDetail(expenseId) {
-	router.push(`/expenses/detail/${expenseId}`)
+const navigateToExpenseDetail = (expenseId) => {
+	try {
+		router.push(`/expenses/detail/${expenseId}`)
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToIncomeDetail(incomeId) {
-	router.push(`/income-management/detail/${incomeId}`)
+const navigateToIncomeDetail = (incomeId) => {
+	try {
+		router.push(`/income-management/detail/${incomeId}`)
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToApplicationDetail(applicationId) {
-	router.push(`/applications-claims/applications/${applicationId}`)
+const navigateToApplicationDetail = (applicationId) => {
+	try {
+		router.push(`/applications-claims/applications/${applicationId}`)
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-function navigateToClaimDetail(claimId) {
-	router.push(`/applications-claims/claims/${claimId}`)
+const navigateToClaimDetail = (claimId) => {
+	try {
+		router.push(`/applications-claims/claims/${claimId}`)
+	} catch (error) {
+		console.error("Navigation error:", error)
+	}
 }
 
-// 2. Update handleDateFilterChange to use dashboardFilters
+// 🚀 FIXED: Enhanced filter handling
 const handleDateFilterChange = async () => {
 	try {
 		const filters = {
 			dateFrom: dashboardFilters.value.dateFrom,
 			dateTo: dashboardFilters.value.dateTo,
+			period: dashboardFilters.value.period,
 		}
-		await Promise.all([
-			income.updateFilters(filters),
-			expenseComposable.updateFilters(filters),
-			supportComposable.updateFilters &&
-				supportComposable.updateFilters(filters),
+
+		await Promise.allSettled([
+			updateIncomeFilters(filters),
+			updateExpenseFilters(filters),
 		])
+
 		lastUpdated.value = new Date().toLocaleTimeString()
 	} catch (error) {
 		console.error("Error applying date filters:", error)
+		errorMessage.value = "Failed to apply filters"
 	}
 }
 
@@ -900,59 +1073,71 @@ const initializeDateFilters = () => {
 	const now = new Date()
 	const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
 	const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-	
+
 	return {
-		dateFrom: firstDay.toISOString().split('T')[0],
-		dateTo: lastDay.toISOString().split('T')[0]
+		dateFrom: firstDay.toISOString().split("T")[0],
+		dateTo: lastDay.toISOString().split("T")[0],
+		period: "this_month",
 	}
 }
 
-// 3. Update resetDateFilters and applyCurrentMonthFilter to update dashboardFilters
 const resetDateFilters = async () => {
 	const initial = initializeDateFilters()
-	dashboardFilters.value.dateFrom = initial.dateFrom
-	dashboardFilters.value.dateTo = initial.dateTo
+	dashboardFilters.value = { ...initial }
 	await handleDateFilterChange()
 }
 
 const applyCurrentMonthFilter = async () => {
 	const initial = initializeDateFilters()
-	dashboardFilters.value.dateFrom = initial.dateFrom
-	dashboardFilters.value.dateTo = initial.dateTo
+	dashboardFilters.value = { ...initial }
 	await handleDateFilterChange()
 }
 
-// 4. If you use a filter component, pass the props and event:
-// <YourFilterComponent :filters="dashboardFilters" @update:filters="handleDashboardFiltersUpdate" />
+// 🚀 FIXED: Enhanced data loading with proper error handling
+const loadDashboardData = async () => {
+	try {
+		// Load data in parallel with proper error handling
+		const results = await Promise.allSettled([
+			initializeIncome({
+				withAnalytics: true,
+				period: dashboardFilters.value.period,
+			}),
+			initializeExpense({
+				withAnalytics: true,
+				forceRefresh: false,
+			}),
+			initializeSupport({
+				withAnalytics: true,
+			}),
+			loadHouseholdProfileData(),
+		])
 
-// 5. Add a handler for filter updates
-function handleDashboardFiltersUpdate(newFilters) {
-	dashboardFilters.value = { ...newFilters }
-	// Optionally reload dashboard data here
-	handleDateFilterChange()
+		// Check for any failures
+		const failures = results.filter((result) => result.status === "rejected")
+		if (failures.length > 0) {
+			console.warn("Some dashboard data failed to load:", failures)
+		}
+
+		// Load additional support data if profile exists
+		if (hasProfile.value) {
+			await Promise.allSettled([
+				support.loadEligibleSchemes(true),
+				support.loadSupportRecommendations(true),
+			])
+		}
+	} catch (error) {
+		console.error("Error loading dashboard data:", error)
+		throw error
+	}
 }
 
-// Function to load all dashboard data in parallel
-async function loadDashboardData() {
-	await Promise.all([
-		income.initialize({ withAnalytics: true, period: selectedPeriod.value }),
-		expenseComposable.initialize
-			? expenseComposable.initialize({ forceRefresh: true })
-			: expenseComposable.fetchExpenses
-				? expenseComposable.fetchExpenses(true)
-				: Promise.resolve(),
-		supportComposable.initialize
-			? supportComposable.initialize({ forceRefresh: true })
-			: Promise.resolve(),
-	])
-}
-
-// Refresh dashboard data
+// 🚀 FIXED: Enhanced refresh with better error handling
 const refreshDashboard = async () => {
 	try {
 		isLoading.value = true
 		hasError.value = false
 		errorMessage.value = ""
+
 		await loadDashboardData()
 		lastUpdated.value = new Date().toLocaleTimeString()
 	} catch (error) {
@@ -964,43 +1149,6 @@ const refreshDashboard = async () => {
 	}
 }
 
-// Advanced theme management
-const { currentTheme, isDark, setTheme, themes } = useAdvancedTheme()
-
-// Theme utility methods
-const getFinancialStatusClass = (type, intensity = "600") => {
-	const baseClasses = {
-		income: `text-green-${intensity} dark:text-green-400`,
-		expense: `text-red-${intensity} dark:text-red-400`,
-		medical: `text-blue-${intensity} dark:text-blue-400`,
-		warning: `text-yellow-${intensity} dark:text-yellow-400`,
-		alert: `text-orange-${intensity} dark:text-orange-400`,
-		neutral: `text-gray-${intensity} dark:text-gray-400`,
-	}
-	return baseClasses[type] || baseClasses.neutral
-}
-
-const getThemeSurfaceClass = (variant = "primary") => {
-	const variants = {
-		primary: "bg-white dark:bg-gray-800",
-		secondary: "bg-gray-50 dark:bg-gray-900",
-		tertiary: "bg-gray-100 dark:bg-gray-800",
-	}
-	return variants[variant] || variants.primary
-}
-
-const getThemeTextClass = (intensity = "600") => {
-	const intensityMap = {
-		900: "text-gray-900 dark:text-gray-100",
-		800: "text-gray-800 dark:text-gray-200",
-		700: "text-gray-700 dark:text-gray-300",
-		600: "text-gray-600 dark:text-gray-400",
-		500: "text-gray-500 dark:text-gray-400",
-		400: "text-gray-400 dark:text-gray-500",
-	}
-	return intensityMap[intensity] || intensityMap["600"]
-}
-
 // Period filter state
 const periodOptions = [
 	{ value: "this_month", label: "This Month" },
@@ -1010,57 +1158,60 @@ const periodOptions = [
 	{ value: "this_year", label: "This Year" },
 ]
 const selectedPeriod = ref("this_month")
-const analyticsLoading = ref(false)
-const analyticsError = ref(null)
 
-// Use canonical analytics from store
-const analytics = computed(() => getAnalytics.value)
-
-// Update period filter handler
+// 🚀 FIXED: Enhanced period change handler
 const handlePeriodChange = async () => {
 	try {
-		analyticsLoading.value = true
-		analyticsError.value = null
-		await setPeriod(selectedPeriod.value)
-	} catch (err) {
-		analyticsError.value =
-			err instanceof Error ? err.message : "Failed to update period"
-	} finally {
-		analyticsLoading.value = false
+		dashboardFilters.value.period = selectedPeriod.value
+		await Promise.allSettled([
+			setPeriod(selectedPeriod.value),
+			handleDateFilterChange(),
+		])
+	} catch (error) {
+		console.error("Error updating period:", error)
+		errorMessage.value = "Failed to update period"
 	}
 }
 
-// Initialize dashboard filters
-onMounted(() => {
-	const initial = initializeDateFilters()
-	dashboardFilters.value.dateFrom = initial.dateFrom
-	dashboardFilters.value.dateTo = initial.dateTo
+// 🚀 FIXED: Watch for household profile changes
+watch(hasProfile, async (newValue) => {
+	if (newValue && !isLoading.value) {
+		// Reload support data when profile becomes available
+		try {
+			await Promise.allSettled([
+				support.loadEligibleSchemes(true),
+				support.loadSupportRecommendations(true),
+			])
+		} catch (error) {
+			console.warn("Failed to load support data after profile creation:", error)
+		}
+	}
 })
 
-// Lifecycle - initialize dashboard with all data
+// 🚀 FIXED: Initialize dashboard filters on mount
+onMounted(() => {
+	const initial = initializeDateFilters()
+	dashboardFilters.value = { ...initial }
+})
+
+// 🚀 FIXED: Enhanced lifecycle with better error handling
 onMounted(async () => {
 	try {
 		isLoading.value = true
 		hasError.value = false
 		errorMessage.value = ""
-		analyticsLoading.value = true
-		analyticsError.value = null
-		
-		// Initialize all composables with analytics
-		await Promise.all([
-			initialize({ withAnalytics: true, period: selectedPeriod.value }),
-			loadDashboardData()
-		])
-		
+
+		// Initialize all composables with proper error handling
+		await loadDashboardData()
+
 		lastUpdated.value = new Date().toLocaleTimeString()
-	} catch (err) {
+	} catch (error) {
 		hasError.value = true
-		errorMessage.value = err instanceof Error ? err.message : "Failed to load dashboard"
-		analyticsError.value = err instanceof Error ? err.message : "Failed to load analytics"
-		console.error("Dashboard initialization error:", err)
+		errorMessage.value =
+			error instanceof Error ? error.message : "Failed to load dashboard"
+		console.error("Dashboard initialization error:", error)
 	} finally {
 		isLoading.value = false
-		analyticsLoading.value = false
 	}
 })
 </script>

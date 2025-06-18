@@ -51,14 +51,10 @@ import { ExpenseForm } from "../../components"
 // Composables
 import { useExpense } from "../../composables/useExpense"
 
-// Initialize expense composable with new system
-const {
-	expenses,
-	loading,
-	error,
-	initialize,
-	refreshData,
-} = useExpense()
+// Initialize expense composable with proper options
+const { expenses, loading, error, initialize, refreshData } = useExpense({
+	autoInitialize: false,
+})
 
 // Local state for form management
 const showExpenseForm = ref(false)
@@ -66,36 +62,36 @@ const editingExpense = ref(null)
 
 // Provide state and actions to child components
 provide("expenseState", {
-  expenses,
-  loading,
-  error,
-  showExpenseForm,
-  editingExpense,
+	expenses,
+	loading,
+	error,
+	showExpenseForm,
+	editingExpense,
 })
 
 provide("expenseActions", {
-  refreshData,
-  openExpenseForm: () => {
-    editingExpense.value = null
-    showExpenseForm.value = true
-  },
-  closeExpenseForm: () => {
-    showExpenseForm.value = false
-    editingExpense.value = null
-  },
-  editExpense: (expense: any) => {
-    editingExpense.value = expense
-    showExpenseForm.value = true
-  },
+	refreshData,
+	openExpenseForm: () => {
+		editingExpense.value = null
+		showExpenseForm.value = true
+	},
+	closeExpenseForm: () => {
+		showExpenseForm.value = false
+		editingExpense.value = null
+	},
+	editExpense: (expense: any) => {
+		editingExpense.value = expense
+		showExpenseForm.value = true
+	},
 })
 
 // Event Handlers
 const handleRefresh = async () => {
 	try {
 		// Force refresh bypassing cache
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: false 
+		await refreshData({
+			withAnalytics: true,
+			useCache: false,
 		})
 	} catch (error) {
 		console.error("Failed to refresh expenses:", error)
@@ -115,9 +111,9 @@ const handleCloseExpenseForm = () => {
 const handleExpenseFormSuccess = async () => {
 	try {
 		// Refresh data after successful form submission
-		await refreshData({ 
-			withAnalytics: true, 
-			useCache: false 
+		await refreshData({
+			withAnalytics: true,
+			useCache: false,
 		})
 		// Close form
 		handleCloseExpenseForm()
@@ -128,11 +124,15 @@ const handleExpenseFormSuccess = async () => {
 
 // Lifecycle
 onMounted(async () => {
-	// Initialize with analytics and default period
-	await initialize({ 
-		withAnalytics: true, 
-		period: "this_month" 
-	})
+	try {
+		// Initialize with analytics and default period
+		await initialize({
+			withAnalytics: true,
+			period: "this_month",
+		})
+	} catch (error) {
+		console.error("Failed to initialize expense layout:", error)
+	}
 })
 </script>
 

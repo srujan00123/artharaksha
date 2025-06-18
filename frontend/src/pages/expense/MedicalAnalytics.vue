@@ -648,18 +648,21 @@ const loadData = async () => {
 
 		// Set medical filter by default
 		await updateFilters(expenseFilters.value)
-		
+
 		// Fetch expenses first
 		await fetchExpenses({ useCache: true, forceRefresh: false })
-		
+
 		// Try to initialize income (but don't fail if it doesn't work)
 		try {
-			await initializeIncome({ withAnalytics: true, forceRefresh: false, period: "this_month" })
+			await initializeIncome({
+				withAnalytics: true,
+				forceRefresh: false,
+				period: "this_month",
+			})
 		} catch (incomeErr) {
 			console.warn("Income initialization failed:", incomeErr)
 			// Don't throw - just continue without income data
 		}
-		
 	} catch (err: any) {
 		console.error("Error loading data:", err)
 		errorMessage.value = err.message || "Failed to load medical analytics data"
@@ -680,8 +683,8 @@ const handleRefresh = async () => {
 
 const handleFiltersUpdate = async (newFilters: ExpenseFilters) => {
 	try {
-	expenseFilters.value = { ...newFilters }
-	await updateFilters(newFilters)
+		expenseFilters.value = { ...newFilters }
+		await updateFilters(newFilters)
 		await fetchExpenses({ forceRefresh: false, useCache: true })
 	} catch (err: any) {
 		console.error("Error updating filters:", err)

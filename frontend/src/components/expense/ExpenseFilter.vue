@@ -198,7 +198,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
-	'update:filters': [filters: ExpenseFilters]
+	"update:filters": [filters: ExpenseFilters]
 }>()
 
 // Use the expense composable
@@ -274,7 +274,12 @@ const quickDateFilters = [
 const activeFilterCount = computed(() => {
 	let count = 0
 	if (localFilters.value.searchTerm) count++
-	if (localFilters.value.dateFrom || localFilters.value.dateTo || localFilters.value.period !== "all") count++
+	if (
+		localFilters.value.dateFrom ||
+		localFilters.value.dateTo ||
+		localFilters.value.period !== "all"
+	)
+		count++
 	if (localFilters.value.amountMin && localFilters.value.amountMin > 0) count++
 	if (localFilters.value.amountMax && localFilters.value.amountMax > 0) count++
 	if (localFilters.value.category) count++
@@ -284,7 +289,7 @@ const activeFilterCount = computed(() => {
 })
 
 const activeFilters = computed(() => {
-	const filters: Array<{key: string, label: string, value: string}> = []
+	const filters: Array<{ key: string; label: string; value: string }> = []
 
 	if (localFilters.value.searchTerm) {
 		filters.push({
@@ -314,11 +319,20 @@ const activeFilters = computed(() => {
 		const dateLabel = formatDateRange()
 		filters.push({ key: "date", label: `Date: ${dateLabel}`, value: dateLabel })
 	} else if (localFilters.value.period && localFilters.value.period !== "all") {
-		const periodLabel = quickDateFilters.find(p => p.value === localFilters.value.period)?.label || localFilters.value.period
-		filters.push({ key: "period", label: `Period: ${periodLabel}`, value: localFilters.value.period || "" })
+		const periodLabel =
+			quickDateFilters.find((p) => p.value === localFilters.value.period)
+				?.label || localFilters.value.period
+		filters.push({
+			key: "period",
+			label: `Period: ${periodLabel}`,
+			value: localFilters.value.period || "",
+		})
 	}
 
-	if (localFilters.value.amountMin && localFilters.value.amountMin > 0 || localFilters.value.amountMax && localFilters.value.amountMax > 0) {
+	if (
+		(localFilters.value.amountMin && localFilters.value.amountMin > 0) ||
+		(localFilters.value.amountMax && localFilters.value.amountMax > 0)
+	) {
 		const amountLabel = formatAmountRange()
 		filters.push({
 			key: "amount",
@@ -330,7 +344,7 @@ const activeFilters = computed(() => {
 	if (localFilters.value.isDirect !== undefined) {
 		filters.push({
 			key: "isDirect",
-			label: `Medical: ${localFilters.value.isDirect ? 'Direct' : 'Indirect'}`,
+			label: `Medical: ${localFilters.value.isDirect ? "Direct" : "Indirect"}`,
 			value: localFilters.value.isDirect.toString(),
 		})
 	}
@@ -411,17 +425,17 @@ function formatAmountRange(): string {
 function onFilterChange() {
 	// Update the store and emit to parent
 	updateFilters(localFilters.value)
-	emit('update:filters', localFilters.value)
+	emit("update:filters", localFilters.value)
 }
 
 function onAmountMinChange() {
-	const value = parseFloat(amountMinString.value)
+	const value = Number.parseFloat(amountMinString.value)
 	localFilters.value.amountMin = isNaN(value) || value <= 0 ? undefined : value
 	onFilterChange()
 }
 
 function onAmountMaxChange() {
-	const value = parseFloat(amountMaxString.value)
+	const value = Number.parseFloat(amountMaxString.value)
 	localFilters.value.amountMax = isNaN(value) || value <= 0 ? undefined : value
 	onFilterChange()
 }
@@ -432,9 +446,19 @@ function applyQuickDateFilter(period: string) {
 		localFilters.value.dateFrom = ""
 		localFilters.value.dateTo = ""
 		// Type-safe period assignment
-		const validPeriods = ["today", "this_week", "this_month", "last_month", "last_3_months", "last_6_months", "this_year", "all", "custom"] as const
+		const validPeriods = [
+			"today",
+			"this_week",
+			"this_month",
+			"last_month",
+			"last_3_months",
+			"last_6_months",
+			"this_year",
+			"all",
+			"custom",
+		] as const
 		if (validPeriods.includes(period as any)) {
-			localFilters.value.period = period as typeof validPeriods[number]
+			localFilters.value.period = period as (typeof validPeriods)[number]
 		}
 		onFilterChange()
 	}
@@ -460,29 +484,41 @@ function clearAllFilters() {
 	}
 	amountMinString.value = ""
 	amountMaxString.value = ""
-	
+
 	// Clear store filters and emit to parent
 	clearFilters()
-	emit('update:filters', localFilters.value)
+	emit("update:filters", localFilters.value)
 }
 
 // Sync local filters with store filters
-watch(storeFilters, (newFilters) => {
-	if (newFilters) {
-		localFilters.value = { ...newFilters }
-		// Update string representations
-		amountMinString.value = newFilters.amountMin ? newFilters.amountMin.toString() : ""
-		amountMaxString.value = newFilters.amountMax ? newFilters.amountMax.toString() : ""
-	}
-}, { deep: true, immediate: true })
+watch(
+	storeFilters,
+	(newFilters) => {
+		if (newFilters) {
+			localFilters.value = { ...newFilters }
+			// Update string representations
+			amountMinString.value = newFilters.amountMin
+				? newFilters.amountMin.toString()
+				: ""
+			amountMaxString.value = newFilters.amountMax
+				? newFilters.amountMax.toString()
+				: ""
+		}
+	},
+	{ deep: true, immediate: true },
+)
 
 // Initialize on mount
 onMounted(() => {
 	// Sync with store filters on mount
 	if (storeFilters.value) {
 		localFilters.value = { ...storeFilters.value }
-		amountMinString.value = storeFilters.value.amountMin ? storeFilters.value.amountMin.toString() : ""
-		amountMaxString.value = storeFilters.value.amountMax ? storeFilters.value.amountMax.toString() : ""
+		amountMinString.value = storeFilters.value.amountMin
+			? storeFilters.value.amountMin.toString()
+			: ""
+		amountMaxString.value = storeFilters.value.amountMax
+			? storeFilters.value.amountMax.toString()
+			: ""
 	}
 })
 </script>

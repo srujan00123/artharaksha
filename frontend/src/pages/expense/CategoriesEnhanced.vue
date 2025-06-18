@@ -4,8 +4,12 @@
     <div class="header-section mb-6">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Expense Categories</h1>
-          <p class="text-gray-600 dark:text-gray-400 mt-1">Analyze your spending patterns with detailed category breakdown</p>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Expense Categories
+          </h1>
+          <p class="text-gray-600 dark:text-gray-400 mt-1">
+            Comprehensive analysis of your spending patterns across all categories
+          </p>
         </div>
         <div class="flex items-center space-x-3">
           <button 
@@ -45,7 +49,9 @@
             <AlertCircle class="h-5 w-5 text-red-400" />
           </div>
           <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error Loading Categories</h3>
+            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">
+              Error Loading Categories
+            </h3>
             <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ error }}</p>
           </div>
         </div>
@@ -62,86 +68,40 @@
 
     <!-- Main Content -->
     <div v-else class="categories-content space-y-6">
-      <!-- Summary Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <!-- Total Expenses -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                <Calculator class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Expenses</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ totalAmount.toLocaleString() }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Medical Expenses -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                <Heart class="w-4 h-4 text-red-600 dark:text-red-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Medical Expenses</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ medicalAmount.toLocaleString() }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Direct Medical -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-                <Stethoscope class="w-4 h-4 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Direct Medical</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ directMedicalAmount.toLocaleString() }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Indirect Medical -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-                <Car class="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Indirect Medical</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ indirectMedicalAmount.toLocaleString() }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Other Expenses -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                <ShoppingBag class="w-4 h-4 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Other Expenses</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{ otherAmount.toLocaleString() }}</p>
-            </div>
-          </div>
-        </div>
+      <!-- Overview Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <SummaryCard
+          title="Total Expenses"
+          :amount="totalAmount"
+          icon="calculator"
+          color="blue"
+        />
+        <SummaryCard
+          title="Medical Expenses"
+          :amount="medicalAmount"
+          :subtitle="`${medicalPercentage.toFixed(1)}% of total`"
+          icon="heart"
+          color="red"
+        />
+        <SummaryCard
+          title="Other Expenses"
+          :amount="otherAmount"
+          :subtitle="`${otherPercentage.toFixed(1)}% of total`"
+          icon="shopping-bag"
+          color="green"
+        />
+        <SummaryCard
+          title="Categories"
+          :amount="totalCategories"
+          :subtitle="`${totalTransactions} transactions`"
+          icon="hash"
+          color="purple"
+          :is-count="true"
+        />
       </div>
 
       <!-- Medical Categorization Component -->
-      <div class="mb-6">
+      <div v-if="hasMedicalExpenses" class="mb-6">
         <MedicalCategorization 
           :medical-expenses="medicalExpenses"
           @category-selected="handleMedicalCategorySelected"
@@ -149,164 +109,87 @@
         />
       </div>
 
-      <!-- Category Breakdown -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Direct Medical Categories -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
-          <h3 class="text-lg font-semibold text-orange-900 mb-4 flex items-center">
-            <Stethoscope class="w-5 h-5 mr-2" />
-            Direct Medical Expenses ({{ directMedicalExpenses.length }})
-          </h3>
-          <div class="space-y-3">
-            <div 
-              v-for="category in directMedicalCategoryBreakdown" 
-              :key="category.category"
-              class="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors cursor-pointer"
-              @click="selectCategory(category)"
+      <!-- All Categories Overview -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              All Categories
+            </h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Complete breakdown of all expense categories
+            </p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button
+              @click="toggleSortOrder"
+              class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
+              <ArrowUpDown class="w-4 h-4 mr-2" />
+              {{ sortOrder === 'desc' ? 'Highest First' : 'Lowest First' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Categories Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="category in sortedAllCategories"
+            :key="`${category.type}-${category.category}`"
+            class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-all cursor-pointer"
+            @click="selectCategory(category)"
+          >
+            <div class="flex items-center justify-between">
               <div class="flex items-center">
-                <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center mr-3">
-                  <Stethoscope class="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                <div 
+                  :class="getCategoryIconBg(category.type)"
+                  class="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
+                >
+                  <component 
+                    :is="getCategoryIcon(category.type)" 
+                    :class="getCategoryIconColor(category.type)"
+                    class="w-5 h-5" 
+                  />
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ category.category }}</p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ category.count }} transactions</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {{ category.category }}
+                  </p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ getCategoryTypeLabel(category.type) }}
+                  </p>
                 </div>
               </div>
               <div class="text-right">
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ category.totalAmount.toLocaleString() }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ category.percentage.toFixed(1) }}%</p>
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  ₹{{ category.totalAmount.toLocaleString() }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ category.count }} transactions
+                </p>
               </div>
-            </div>
-            <div v-if="directMedicalCategoryBreakdown.length === 0" class="text-center py-4 text-gray-500 dark:text-gray-400">
-              <p class="text-sm">No direct medical expenses found</p>
             </div>
           </div>
         </div>
 
-        <!-- Indirect Medical Categories -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
-          <h3 class="text-lg font-semibold text-purple-900 mb-4 flex items-center">
-            <Car class="w-5 h-5 mr-2" />
-            Indirect Medical Expenses ({{ indirectMedicalExpenses.length }})
+        <!-- Empty State -->
+        <div v-if="allCategories.length === 0" class="text-center py-12">
+          <ShoppingBag class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            No Categories Found
           </h3>
-          <div class="space-y-3">
-            <div 
-              v-for="category in indirectMedicalCategoryBreakdown" 
-              :key="category.category"
-              class="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors cursor-pointer"
-              @click="selectCategory(category)"
-            >
-              <div class="flex items-center">
-                <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3">
-                  <Car class="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ category.category }}</p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ category.count }} transactions</p>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ category.totalAmount.toLocaleString() }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ category.percentage.toFixed(1) }}%</p>
-              </div>
-            </div>
-            <div v-if="indirectMedicalCategoryBreakdown.length === 0" class="text-center py-4 text-gray-500 dark:text-gray-400">
-              <p class="text-sm">No indirect medical expenses found</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Other Categories -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
-          <h3 class="text-lg font-semibold text-green-900 mb-4 flex items-center">
-            <ShoppingBag class="w-5 h-5 mr-2" />
-            Other Expenses ({{ otherExpenses.length }})
-          </h3>
-          <div class="space-y-3">
-            <div 
-              v-for="category in otherCategoryBreakdown" 
-              :key="category.category"
-              class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors cursor-pointer"
-              @click="selectCategory(category)"
-            >
-              <div class="flex items-center">
-                <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3">
-                  <ShoppingBag class="w-4 h-4 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ category.category }}</p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ category.count }} transactions</p>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ category.totalAmount.toLocaleString() }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ category.percentage.toFixed(1) }}%</p>
-              </div>
-            </div>
-            <div v-if="otherCategoryBreakdown.length === 0" class="text-center py-4 text-gray-500 dark:text-gray-400">
-              <p class="text-sm">No other expenses found</p>
-            </div>
-          </div>
+          <p class="text-gray-500 dark:text-gray-400">
+            Categories will appear here once you add expenses
+          </p>
         </div>
       </div>
 
       <!-- Selected Category Details -->
-      <div v-if="selectedCategory" class="category-details">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
-          <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
-              <div :class="getCategoryIconBg(selectedCategory.type)" class="w-10 h-10 rounded-lg flex items-center justify-center">
-                <component :is="getCategoryIcon(selectedCategory.type)" :class="getCategoryIconColor(selectedCategory.type)" class="w-5 h-5" />
-              </div>
-              <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ selectedCategory.category }} Details</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ getCategoryTypeLabel(selectedCategory.type) }} • 
-                  {{ selectedCategory.count }} transactions • 
-                  ₹{{ selectedCategory.averageAmount.toLocaleString() }} average
-                </p>
-              </div>
-            </div>
-            <button 
-              @click="selectedCategory = null"
-              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-
-          <!-- Category Expenses List -->
-          <div class="space-y-3">
-            <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Recent Transactions</h3>
-            <div 
-              v-for="expense in selectedCategory.expenses.slice(0, 10)" 
-              :key="expense.name"
-              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
-            >
-              <div>
-                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ expense.description || expense.category }}</p>
-                <div class="flex items-center space-x-2 mt-1">
-                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatDate(expense.date_time) }}</p>
-                  <span v-if="expense.is_direct !== null" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                        :class="expense.is_direct ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200'">
-                    {{ expense.is_direct ? 'Direct' : 'Indirect' }}
-                  </span>
-                </div>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ expense.amount.toLocaleString() }}</p>
-                <span v-if="expense.proof_of_payment" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200">
-                  Receipt
-                </span>
-              </div>
-            </div>
-            <div v-if="selectedCategory.expenses.length > 10" class="text-center pt-3">
-              <p class="text-sm text-gray-500 dark:text-gray-400">Showing 10 of {{ selectedCategory.expenses.length }} transactions</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <CategoryDetailsModal
+        v-if="selectedCategory"
+        :category="selectedCategory"
+        @close="selectedCategory = null"
+      />
     </div>
   </div>
 </template>
@@ -314,17 +197,17 @@
 <script setup lang="ts">
 import {
 	AlertCircle,
-	Calculator,
+	ArrowUpDown,
 	Car,
-	Heart,
 	RefreshCw,
 	ShoppingBag,
 	Stethoscope,
-	X,
 } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
+import CategoryDetailsModal from "../../components/expense/CategoryDetailsModal.vue"
 import ExpenseFilter from "../../components/expense/ExpenseFilter.vue"
 import MedicalCategorization from "../../components/expense/MedicalCategorization.vue"
+import SummaryCard from "../../components/expense/SummaryCard.vue"
 import { useExpense } from "../../composables/useExpense"
 
 import type { ExpenseFilters, FlattenedExpenseEntry } from "../../types/expense"
@@ -345,14 +228,15 @@ const {
 	directMedicalAmount,
 	indirectMedicalAmount,
 	expenseCount,
-	fetchExpenses,
-	refreshExpenses,
+	refreshData,
 	updateFilters,
 	clearCache,
-} = useExpense({ autoInitialize: true })
+	initialize,
+} = useExpense({ autoInitialize: false })
 
 // Local state
 const selectedCategory = ref<CategoryBreakdown | null>(null)
+const sortOrder = ref<"asc" | "desc">("desc")
 const expenseFilters = ref<ExpenseFilters>({
 	searchTerm: "",
 	dateFrom: "",
@@ -366,7 +250,7 @@ const expenseFilters = ref<ExpenseFilters>({
 	period: "this_month",
 })
 
-// Category breakdown interface
+// Types
 interface CategoryBreakdown {
 	category: string
 	type: "direct_medical" | "indirect_medical" | "other"
@@ -377,113 +261,101 @@ interface CategoryBreakdown {
 	expenses: FlattenedExpenseEntry[]
 }
 
-// Computed properties for category analysis
-const directMedicalCategoryBreakdown = computed((): CategoryBreakdown[] => {
-	const categoryMap = new Map<string, FlattenedExpenseEntry[]>()
-
-	directMedicalExpenses.value.forEach((expense) => {
-		const category = expense.category || "Uncategorized"
-		if (!categoryMap.has(category)) {
-			categoryMap.set(category, [])
-		}
-		categoryMap.get(category)!.push(expense)
-	})
-
-	const totalDirectMedical = directMedicalAmount.value
-
-	return Array.from(categoryMap.entries())
-		.map(([category, expenses]) => {
-			const totalAmount = expenses.reduce(
-				(sum, expense) => sum + (expense.amount || 0),
-				0,
-			)
-			return {
-				category,
-				type: "direct_medical" as const,
-				count: expenses.length,
-				totalAmount,
-				averageAmount: totalAmount / expenses.length,
-				percentage: totalDirectMedical > 0 ? (totalAmount / totalDirectMedical) * 100 : 0,
-				expenses: expenses.sort(
-					(a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime(),
-				),
-			}
-		})
-		.sort((a, b) => b.totalAmount - a.totalAmount)
-})
-
-const indirectMedicalCategoryBreakdown = computed((): CategoryBreakdown[] => {
-	const categoryMap = new Map<string, FlattenedExpenseEntry[]>()
-
-	indirectMedicalExpenses.value.forEach((expense) => {
-		const category = expense.category || "Uncategorized"
-		if (!categoryMap.has(category)) {
-			categoryMap.set(category, [])
-		}
-		categoryMap.get(category)!.push(expense)
-	})
-
-	const totalIndirectMedical = indirectMedicalAmount.value
-
-	return Array.from(categoryMap.entries())
-		.map(([category, expenses]) => {
-			const totalAmount = expenses.reduce(
-				(sum, expense) => sum + (expense.amount || 0),
-				0,
-			)
-			return {
-				category,
-				type: "indirect_medical" as const,
-				count: expenses.length,
-				totalAmount,
-				averageAmount: totalAmount / expenses.length,
-				percentage: totalIndirectMedical > 0 ? (totalAmount / totalIndirectMedical) * 100 : 0,
-				expenses: expenses.sort(
-					(a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime(),
-				),
-			}
-		})
-		.sort((a, b) => b.totalAmount - a.totalAmount)
-})
-
-const otherCategoryBreakdown = computed((): CategoryBreakdown[] => {
-	const categoryMap = new Map<string, FlattenedExpenseEntry[]>()
-
-	otherExpenses.value.forEach((expense) => {
-		const category = expense.category || "Uncategorized"
-		if (!categoryMap.has(category)) {
-			categoryMap.set(category, [])
-		}
-		categoryMap.get(category)!.push(expense)
-	})
-
-	const totalOther = otherAmount.value
-
-	return Array.from(categoryMap.entries())
-		.map(([category, expenses]) => {
-			const totalAmount = expenses.reduce(
-				(sum, expense) => sum + (expense.amount || 0),
-				0,
-			)
-			return {
-				category,
-				type: "other" as const,
-				count: expenses.length,
-				totalAmount,
-				averageAmount: totalAmount / expenses.length,
-				percentage: totalOther > 0 ? (totalAmount / totalOther) * 100 : 0,
-				expenses: expenses.sort(
-					(a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime(),
-				),
-			}
-		})
-		.sort((a, b) => b.totalAmount - a.totalAmount)
-})
-
+// Computed properties
+const hasMedicalExpenses = computed(() => medicalExpenses.value.length > 0)
+const medicalPercentage = computed(() =>
+	totalAmount.value > 0 ? (medicalAmount.value / totalAmount.value) * 100 : 0,
+)
+const otherPercentage = computed(() =>
+	totalAmount.value > 0 ? (otherAmount.value / totalAmount.value) * 100 : 0,
+)
+const totalCategories = computed(() => allCategories.value.length)
+const totalTransactions = computed(() => expenses.value.length)
 const filteredExpenseCount = computed(() => expenses.value.length)
 const totalExpenseCount = computed(() => allExpenses.value.length)
 
-// Helper functions for category display
+// Create comprehensive category breakdown
+const createAllCategories = (): CategoryBreakdown[] => {
+	const allCats: CategoryBreakdown[] = []
+
+	// Add direct medical categories
+	const directCategories = createCategoryBreakdown(
+		directMedicalExpenses.value,
+		"direct_medical",
+		directMedicalAmount.value,
+	)
+	allCats.push(...directCategories)
+
+	// Add indirect medical categories
+	const indirectCategories = createCategoryBreakdown(
+		indirectMedicalExpenses.value,
+		"indirect_medical",
+		indirectMedicalAmount.value,
+	)
+	allCats.push(...indirectCategories)
+
+	// Add other categories
+	const otherCategories = createCategoryBreakdown(
+		otherExpenses.value,
+		"other",
+		otherAmount.value,
+	)
+	allCats.push(...otherCategories)
+
+	return allCats
+}
+
+const createCategoryBreakdown = (
+	expenses: FlattenedExpenseEntry[],
+	type: CategoryBreakdown["type"],
+	totalAmount: number,
+): CategoryBreakdown[] => {
+	const categoryMap = new Map<string, FlattenedExpenseEntry[]>()
+
+	expenses.forEach((expense) => {
+		const category = expense.category || "Uncategorized"
+		if (!categoryMap.has(category)) {
+			categoryMap.set(category, [])
+		}
+		categoryMap.get(category)!.push(expense)
+	})
+
+	return Array.from(categoryMap.entries())
+		.map(([category, categoryExpenses]) => {
+			const categoryTotal = categoryExpenses.reduce(
+				(sum, expense) => sum + (expense.amount || 0),
+				0,
+			)
+			return {
+				category,
+				type,
+				count: categoryExpenses.length,
+				totalAmount: categoryTotal,
+				averageAmount: Math.round(categoryTotal / categoryExpenses.length),
+				percentage: totalAmount > 0 ? (categoryTotal / totalAmount) * 100 : 0,
+				expenses: categoryExpenses.sort(
+					(a, b) =>
+						new Date(b.date_time).getTime() - new Date(a.date_time).getTime(),
+				),
+			}
+		})
+		.sort((a, b) => b.totalAmount - a.totalAmount)
+}
+
+const allCategories = computed(() => createAllCategories())
+
+const sortedAllCategories = computed(() => {
+	const sorted = [...allCategories.value]
+	return sorted.sort((a, b) => {
+		if (sortOrder.value === "desc") {
+			return b.totalAmount - a.totalAmount
+		} else {
+			return a.totalAmount - b.totalAmount
+		}
+	})
+})
+
+// Helper functions
 const getCategoryIcon = (type: string) => {
 	switch (type) {
 		case "direct_medical":
@@ -500,26 +372,26 @@ const getCategoryIcon = (type: string) => {
 const getCategoryIconBg = (type: string) => {
 	switch (type) {
 		case "direct_medical":
-			return "bg-orange-100 dark:bg-orange-900/30"
+			return "bg-blue-100 dark:bg-blue-900/30"
 		case "indirect_medical":
 			return "bg-purple-100 dark:bg-purple-900/30"
 		case "other":
 			return "bg-green-100 dark:bg-green-900/30"
 		default:
-			return "bg-blue-100 dark:bg-blue-900/30"
+			return "bg-gray-100 dark:bg-gray-900/30"
 	}
 }
 
 const getCategoryIconColor = (type: string) => {
 	switch (type) {
 		case "direct_medical":
-			return "text-orange-600 dark:text-orange-400"
+			return "text-blue-600 dark:text-blue-400"
 		case "indirect_medical":
 			return "text-purple-600 dark:text-purple-400"
 		case "other":
 			return "text-green-600 dark:text-green-400"
 		default:
-			return "text-blue-600 dark:text-blue-400"
+			return "text-gray-600 dark:text-gray-400"
 	}
 }
 
@@ -540,7 +412,10 @@ const getCategoryTypeLabel = (type: string) => {
 const handleRefresh = async () => {
 	try {
 		clearCache()
-		await refreshExpenses()
+		await refreshData({
+			withAnalytics: true,
+			useCache: false,
+		})
 	} catch (err) {
 		console.error("Error refreshing data:", err)
 	}
@@ -549,13 +424,22 @@ const handleRefresh = async () => {
 const handleFiltersUpdate = async (newFilters: ExpenseFilters) => {
 	expenseFilters.value = { ...newFilters }
 	await updateFilters(newFilters)
-	// Force a refresh to apply filters
-	await fetchExpenses({ forceRefresh: false, useCache: true })
+	await refreshData({
+		withAnalytics: true,
+		useCache: true,
+	})
+}
+
+const toggleSortOrder = () => {
+	sortOrder.value = sortOrder.value === "desc" ? "asc" : "desc"
 }
 
 const selectCategory = (category: CategoryBreakdown) => {
 	selectedCategory.value =
-		selectedCategory.value?.category === category.category ? null : category
+		selectedCategory.value?.category === category.category &&
+		selectedCategory.value?.type === category.type
+			? null
+			: category
 }
 
 const handleMedicalCategorySelected = (category: any) => {
@@ -579,22 +463,13 @@ const handleMedicalExport = (data: any) => {
 	URL.revokeObjectURL(url)
 }
 
-const formatDate = (dateString: string): string => {
-	try {
-		return new Date(dateString).toLocaleDateString("en-IN", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		})
-	} catch {
-		return dateString
-	}
-}
-
 // Lifecycle
 onMounted(async () => {
 	try {
-		await fetchExpenses({ useCache: true })
+		await initialize({
+			withAnalytics: true,
+			period: "this_month",
+		})
 	} catch (err) {
 		console.error("Error loading initial data:", err)
 	}

@@ -4,567 +4,735 @@
  * Provides clean, cached, type-safe operations for income management
  */
 
-import { call } from "frappe-ui";
+import { call } from "frappe-ui"
 import type {
-  AddIncomeSourcePayload,
-  CreateDirectLedgerEntryPayload,
-  CreateIncomeResponse,
-  CreateLedgerEntryPayload,
-  CreateLedgerEntryResponse,
-  DeleteIncomeSourcePayload,
-  DeleteLedgerEntryPayload,
-  DeleteLedgerEntryResponse,
-  FlattenedLedgerEntry,
-  GetIncomeInsightsResponse,
-  GetIncomeTypesResponse,
-  GetMonthlyIncomeSummaryResponse,
-  GetUserIncomeResponse,
-  IncomeAnalytics,
-  IncomeFilters,
-  IncomeRecord,
-  IncomeServiceOptions,
-  IncomeSourceRecord,
-  IncomeTypeRecord,
-  IncomeDashboardMetrics,
-  LedgerFilters,
-  UpdateIncomeSourcePayload,
-  UpdateLedgerEntryPayload,
-  UpdateLedgerEntryResponse,
-  UpdateRecurringLedgerEntriesResponse,
-  ValidateIncomeDataPayload,
-  ValidationResponse,
-} from "../types/income";
-import { safeArray } from "../types/income";
-import { CACHE_KEYS, cacheService } from "./cache-service.js";
-import { apiService, API_ENDPOINTS } from "./api-service.js";
+	AddIncomeSourcePayload,
+	CreateDirectLedgerEntryPayload,
+	CreateIncomeResponse,
+	CreateLedgerEntryPayload,
+	CreateLedgerEntryResponse,
+	DeleteIncomeSourcePayload,
+	DeleteLedgerEntryPayload,
+	DeleteLedgerEntryResponse,
+	FlattenedLedgerEntry,
+	GetIncomeInsightsResponse,
+	GetIncomeTypesResponse,
+	GetMonthlyIncomeSummaryResponse,
+	GetUserIncomeResponse,
+	IncomeAnalytics,
+	IncomeDashboardMetrics,
+	IncomeFilters,
+	IncomeRecord,
+	IncomeServiceOptions,
+	IncomeSourceRecord,
+	IncomeTypeRecord,
+	LedgerFilters,
+	UpdateIncomeSourcePayload,
+	UpdateLedgerEntryPayload,
+	UpdateLedgerEntryResponse,
+	UpdateRecurringLedgerEntriesResponse,
+	ValidateIncomeDataPayload,
+	ValidationResponse,
+} from "../types/income"
+import { safeArray } from "../types/income"
+import { API_ENDPOINTS, apiService } from "./api-service.js"
+import { CACHE_KEYS, cacheService } from "./cache-service.js"
 
 /**
  * Income Service Class
  * Centralized, robust service layer with consistent error handling and caching
  */
 class IncomeService {
-  private readonly cacheExpiry = 5 * 60 * 1000; // 5 minutes
-  private readonly longCacheExpiry = 30 * 60 * 1000; // 30 minutes for static data
+	private readonly cacheExpiry = 5 * 60 * 1000 // 5 minutes
+	private readonly longCacheExpiry = 30 * 60 * 1000 // 30 minutes for static data
 
-  /**
-   * Normalize income record to ensure consistent structure
-   */
-  private normalizeIncomeRecord(record: any): IncomeRecord {
-    if (!record) {
-      throw new Error("Invalid income record: record is null or undefined");
-    }
+	/**
+	 * Normalize income record to ensure consistent structure
+	 */
+	private normalizeIncomeRecord(record: any): IncomeRecord {
+		if (!record) {
+			throw new Error("Invalid income record: record is null or undefined")
+		}
 
-    return {
-      name: record.name || "",
-      household_profile: record.household_profile || "",
-      monthly_income: Number(record.monthly_income ?? 0),
-      creation: record.creation || "",
-      modified: record.modified || "",
-      owner: record.owner || "",
-      income_source: safeArray(record.income_source).map((src: any) => ({
-        name: src.name || "",
-        type: src.type || "",
-        income: Number(src.income || 0),
-        recur: true as const, // Always true for income sources
-        recur_frequency: src.recur_frequency || "monthly",
-        date_time: src.date_time || "",
-        stop_date: src.stop_date || undefined,
-        ledger_entries: safeArray(src.ledger_entries).map((entry: any) => ({
-          date_time: entry.date_time || "",
-          amount: Number(entry.amount || 0),
-          income_type: entry.income_type || "one-time",
-        })),
-      })),
-    };
-  }
+		return {
+			name: record.name || "",
+			household_profile: record.household_profile || "",
+			monthly_income: Number(record.monthly_income ?? 0),
+			creation: record.creation || "",
+			modified: record.modified || "",
+			owner: record.owner || "",
+			income_source: safeArray(record.income_source).map((src: any) => ({
+				name: src.name || "",
+				type: src.type || "",
+				income: Number(src.income || 0),
+				recur: true as const, // Always true for income sources
+				recur_frequency: src.recur_frequency || "monthly",
+				date_time: src.date_time || "",
+				stop_date: src.stop_date || undefined,
+				ledger_entries: safeArray(src.ledger_entries).map((entry: any) => ({
+					date_time: entry.date_time || "",
+					amount: Number(entry.amount || 0),
+					income_type: entry.income_type || "one-time",
+				})),
+			})),
+		}
+	}
 
-  /**
-   * Normalize flattened ledger entry
-   */
-  private normalizeLedgerEntry(entry: any): FlattenedLedgerEntry {
-    return {
-      name: entry.name || "",
-      income_source: entry.income_source || undefined,
-      income_type: entry.income_type || "one-time",
-      date_time: entry.date_time || "",
-      amount: Number(entry.amount || 0),
-      source_type: entry.source_type || "",
-      description: entry.description || undefined,
-      source_recur: entry.source_recur || undefined,
-      source_income: entry.source_income
-        ? Number(entry.source_income)
-        : undefined,
-      source_date_time: entry.source_date_time || undefined,
-      source_recur_frequency: entry.source_recur_frequency || undefined,
-      source_stop_date: entry.source_stop_date || undefined,
-    };
-  }
+	/**
+	 * Normalize flattened ledger entry
+	 */
+	private normalizeLedgerEntry(entry: any): FlattenedLedgerEntry {
+		return {
+			name: entry.name || "",
+			income_source: entry.income_source || undefined,
+			income_type: entry.income_type || "one-time",
+			date_time: entry.date_time || "",
+			amount: Number(entry.amount || 0),
+			source_type: entry.source_type || "",
+			description: entry.description || undefined,
+			source_recur: entry.source_recur || undefined,
+			source_income: entry.source_income
+				? Number(entry.source_income)
+				: undefined,
+			source_date_time: entry.source_date_time || undefined,
+			source_recur_frequency: entry.source_recur_frequency || undefined,
+			source_stop_date: entry.source_stop_date || undefined,
+		}
+	}
 
-  /**
-   * Get user income with analytics (primary method)
-   * Returns complete income data with optional analytics
-   */
-  async getUserIncomeWithAnalytics(
-    options: IncomeServiceOptions = {},
-  ): Promise<{
-    incomes: IncomeRecord[];
-    analytics: IncomeAnalytics;
-    recurringSources: IncomeSourceRecord[];
-    ledgerEntries: FlattenedLedgerEntry[];
-  }> {
-    const { filters, forceRefresh = false, useCache = true } = options;
+	/**
+	 * Get user income with analytics (primary method)
+	 * Returns complete income data with optional analytics
+	 */
+	async getUserIncomeWithAnalytics(
+		options: IncomeServiceOptions = {},
+	): Promise<{
+		incomes: IncomeRecord[]
+		analytics: IncomeAnalytics
+		recurringSources: IncomeSourceRecord[]
+		ledgerEntries: FlattenedLedgerEntry[]
+	}> {
+		const { filters, forceRefresh = false, useCache = true } = options
 
-    // Generate cache keys
-    const cacheKey = useCache
-      ? cacheService.generateFilterKey(
-          CACHE_KEYS.USER_INCOME_ANALYTICS,
-          filters || {},
-        )
-      : null;
+		// Generate cache keys
+		const cacheKey = useCache
+			? cacheService.generateFilterKey(
+					CACHE_KEYS.USER_INCOME_ANALYTICS,
+					filters || {},
+				)
+			: null
 
-    // Check cache first
-    if (cacheKey && !forceRefresh) {
-      const cached = cacheService.getWithFilters(
-        CACHE_KEYS.USER_INCOME_ANALYTICS,
-        filters || {},
-      );
-      if (cached) {
-        return cached;
-      }
-    }
+		// Check cache first
+		if (cacheKey && !forceRefresh) {
+			const cached = cacheService.getWithFilters(
+				CACHE_KEYS.USER_INCOME_ANALYTICS,
+				filters || {},
+			)
+			if (cached) {
+				return cached
+			}
+		}
 
-    try {
-      const response: GetUserIncomeResponse = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.USER_INCOME, {
-          filters: filters ? JSON.stringify(filters) : null,
-          include_analytics: true,
-        }),
-      );
+		try {
+			const response: GetUserIncomeResponse = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.USER_INCOME, {
+					filters: filters ? JSON.stringify(filters) : null,
+					include_analytics: true,
+				}),
+			)
 
-      // Process response data
-      const recurringSources = safeArray(response.recurring_sources).map(
-        (source) => ({
-          ...source,
-          recur: true as const,
-          ledger_entries: safeArray(source.ledger_entries || []),
-        }),
-      );
+			// Process response data
+			const recurringSources = safeArray(response.recurring_sources).map(
+				(source) => ({
+					...source,
+					recur: true as const,
+					ledger_entries: safeArray(source.ledger_entries || []),
+				}),
+			)
 
-      const ledgerEntries = safeArray(response.ledger_entries).map(
-        this.normalizeLedgerEntry,
-      );
+			const ledgerEntries = safeArray(response.ledger_entries).map(
+				this.normalizeLedgerEntry,
+			)
 
-      const analytics = response.analytics || {
-        total_income: 0,
-        recurring_income: 0,
-        one_time_income: 0,
-        income_by_type: {},
-        monthly_trends: [],
-        summary: {
-          total_sources: 0,
-          average_source_amount: 0,
-          top_income_type: "",
-        },
-        recurring_percentage: 0,
-        growth_rate: 0,
-        actual_monthly_income: 0,
-        monthly_recurring_income: 0,
-        expected_monthly_income: 0,
-        period_recurring_income: 0,
-        period_one_time_income: 0,
-        period_total_income: 0,
-      };
+			const analytics = response.analytics || {
+				total_income: 0,
+				recurring_income: 0,
+				one_time_income: 0,
+				income_by_type: {},
+				monthly_trends: [],
+				summary: {
+					total_sources: 0,
+					average_source_amount: 0,
+					top_income_type: "",
+				},
+				recurring_percentage: 0,
+				growth_rate: 0,
+				actual_monthly_income: 0,
+				monthly_recurring_income: 0,
+				expected_monthly_income: 0,
+				period_recurring_income: 0,
+				period_one_time_income: 0,
+				period_total_income: 0,
+			}
 
-      // Create synthetic income records from sources for compatibility
-      const incomes: IncomeRecord[] =
-        recurringSources.length > 0
-          ? [
-              {
-                name: "synthetic-income-record",
-                household_profile: "current",
-                monthly_income: analytics.monthly_recurring_income || 0,
-                creation: new Date().toISOString(),
-                modified: new Date().toISOString(),
-                owner: "current-user",
-                income_source: recurringSources,
-              },
-            ]
-          : [];
+			// Create synthetic income records from sources for compatibility
+			const incomes: IncomeRecord[] =
+				recurringSources.length > 0
+					? [
+							{
+								name: "synthetic-income-record",
+								household_profile: "current",
+								monthly_income: analytics.monthly_recurring_income || 0,
+								creation: new Date().toISOString(),
+								modified: new Date().toISOString(),
+								owner: "current-user",
+								income_source: recurringSources,
+							},
+						]
+					: []
 
-      const result = {
-        incomes,
-        analytics,
-        recurringSources,
-        ledgerEntries,
-      };
+			const result = {
+				incomes,
+				analytics,
+				recurringSources,
+				ledgerEntries,
+			}
 
-      // Cache the result
-      if (cacheKey && useCache) {
-        cacheService.setWithFilters(
-          CACHE_KEYS.USER_INCOME_ANALYTICS,
-          result,
-          filters || {},
-          { maxAge: this.cacheExpiry },
-        );
-      }
+			// Cache the result
+			if (cacheKey && useCache) {
+				cacheService.setWithFilters(
+					CACHE_KEYS.USER_INCOME_ANALYTICS,
+					result,
+					filters || {},
+					{ maxAge: this.cacheExpiry },
+				)
+			}
 
-      return result;
-    } catch (error: any) {
-      console.error("Failed to fetch income with analytics:", error);
-      throw new Error(
-        `Failed to load income data: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+			return result
+		} catch (error: any) {
+			console.error("Failed to fetch income with analytics:", error)
+			throw new Error(
+				`Failed to load income data: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Get user income (basic method without analytics)
-   */
-  async getUserIncome(
-    options: IncomeServiceOptions = {},
-  ): Promise<IncomeRecord[]> {
-    const result = await this.getUserIncomeWithAnalytics({
-      ...options,
-      include_analytics: false,
-    });
-    return result.incomes;
-  }
+	/**
+	 * Get user income (basic method without analytics)
+	 */
+	async getUserIncome(
+		options: IncomeServiceOptions = {},
+	): Promise<IncomeRecord[]> {
+		const result = await this.getUserIncomeWithAnalytics({
+			...options,
+			include_analytics: false,
+		})
+		return result.incomes
+	}
 
-  /**
-   * Get income ledger entries
-   */
-  async getIncomeLedger(
-    filters?: LedgerFilters,
-    options: IncomeServiceOptions = {},
-  ): Promise<FlattenedLedgerEntry[]> {
-    const result = await this.getUserIncomeWithAnalytics({
-      ...options,
-      filters: filters as IncomeFilters,
-    });
-    return result.ledgerEntries;
-  }
+	/**
+	 * Get income ledger entries
+	 */
+	async getIncomeLedger(
+		filters?: LedgerFilters,
+		options: IncomeServiceOptions = {},
+	): Promise<FlattenedLedgerEntry[]> {
+		const result = await this.getUserIncomeWithAnalytics({
+			...options,
+			filters: filters as IncomeFilters,
+		})
+		return result.ledgerEntries
+	}
 
-  /**
-   * Get income types
-   */
-  async getIncomeTypes(
-    options: IncomeServiceOptions = {},
-  ): Promise<IncomeTypeRecord[]> {
-    const { useCache = true, forceRefresh = false } = options;
-    const cacheKey = CACHE_KEYS.INCOME_TYPES;
+	/**
+	 * Get income types
+	 */
+	async getIncomeTypes(
+		options: IncomeServiceOptions = {},
+	): Promise<IncomeTypeRecord[]> {
+		const { useCache = true, forceRefresh = false } = options
+		const cacheKey = CACHE_KEYS.INCOME_TYPES
 
-    if (useCache && !forceRefresh) {
-      const cached = cacheService.get(cacheKey);
-      if (cached) {
-        return cached;
-      }
-    }
+		if (useCache && !forceRefresh) {
+			const cached = cacheService.get(cacheKey)
+			if (cached) {
+				return cached
+			}
+		}
 
-    try {
-      const response: GetIncomeTypesResponse = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.TYPES),
-      );
+		try {
+			const response: GetIncomeTypesResponse = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.TYPES),
+			)
 
-      const incomeTypes = safeArray(response.income_types || []);
+			const incomeTypes = safeArray(response.income_types || [])
 
-      if (useCache) {
-        cacheService.set(cacheKey, incomeTypes, {
-          maxAge: this.longCacheExpiry,
-        });
-      }
+			if (useCache) {
+				cacheService.set(cacheKey, incomeTypes, {
+					maxAge: this.longCacheExpiry,
+				})
+			}
 
-      return incomeTypes;
-    } catch (error: any) {
-      console.error("Failed to fetch income types:", error);
-      throw new Error(
-        `Failed to load income types: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+			return incomeTypes
+		} catch (error: any) {
+			console.error("Failed to fetch income types:", error)
+			throw new Error(
+				`Failed to load income types: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Get monthly income summary
-   */
-  async getMonthlyIncomeSummary(
-    options: IncomeServiceOptions = {},
-  ): Promise<GetMonthlyIncomeSummaryResponse> {
-    try {
-      return await apiService.execute(
-        call(API_ENDPOINTS.INCOME.MONTHLY_SUMMARY),
-      );
-    } catch (error: any) {
-      console.error("Failed to fetch monthly income summary:", error);
-      throw new Error(
-        `Failed to load monthly income summary: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+	/**
+	 * Get monthly income summary
+	 */
+	async getMonthlyIncomeSummary(
+		options: IncomeServiceOptions = {},
+	): Promise<GetMonthlyIncomeSummaryResponse> {
+		try {
+			return await apiService.execute(
+				call(API_ENDPOINTS.INCOME.MONTHLY_SUMMARY),
+			)
+		} catch (error: any) {
+			console.error("Failed to fetch monthly income summary:", error)
+			throw new Error(
+				`Failed to load monthly income summary: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Get income insights
-   */
-  async getIncomeInsights(
-    options: IncomeServiceOptions = {},
-  ): Promise<GetIncomeInsightsResponse> {
-    try {
-      return await apiService.execute(call(API_ENDPOINTS.INCOME.INSIGHTS));
-    } catch (error: any) {
-      console.error("Failed to fetch income insights:", error);
-      throw new Error(
-        `Failed to load income insights: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+	/**
+	 * Get income insights
+	 */
+	async getIncomeInsights(
+		options: IncomeServiceOptions = {},
+	): Promise<GetIncomeInsightsResponse> {
+		try {
+			return await apiService.execute(call(API_ENDPOINTS.INCOME.INSIGHTS))
+		} catch (error: any) {
+			console.error("Failed to fetch income insights:", error)
+			throw new Error(
+				`Failed to load income insights: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Get dashboard metrics
-   */
-  async getDashboardMetrics(
-    period: string = "this_month",
-    options: IncomeServiceOptions = {},
-  ): Promise<IncomeDashboardMetrics> {
-    const { useCache = true, forceRefresh = false } = options;
-    const cacheKey = `${CACHE_KEYS.INCOME_FILTERS}_dashboard_${period}`;
+	/**
+	 * Get dashboard metrics
+	 */
+	async getDashboardMetrics(
+		period = "this_month",
+		options: IncomeServiceOptions = {},
+	): Promise<IncomeDashboardMetrics> {
+		const { useCache = true, forceRefresh = false } = options
+		const cacheKey = `${CACHE_KEYS.INCOME_FILTERS}_dashboard_${period}`
 
-    if (useCache && !forceRefresh) {
-      const cached = cacheService.get(cacheKey);
-      if (cached) {
-        return cached;
-      }
-    }
+		if (useCache && !forceRefresh) {
+			const cached = cacheService.get(cacheKey)
+			if (cached) {
+				return cached
+			}
+		}
 
-    try {
-      const result = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.DASHBOARD_METRICS, { period }),
-      );
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.DASHBOARD_METRICS, { period }),
+			)
 
-      if (useCache) {
-        cacheService.set(cacheKey, result, { maxAge: 2 * 60 * 1000 }); // 2 minutes for dashboard
-      }
+			if (useCache) {
+				cacheService.set(cacheKey, result, { maxAge: 2 * 60 * 1000 }) // 2 minutes for dashboard
+			}
 
-      return result;
-    } catch (error: any) {
-      console.error("Failed to fetch dashboard metrics:", error);
-      throw new Error(
-        `Failed to load dashboard metrics: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+			return result
+		} catch (error: any) {
+			console.error("Failed to fetch dashboard metrics:", error)
+			throw new Error(
+				`Failed to load dashboard metrics: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Create or update income source
-   */
-  async createOrUpdateIncome(
-    payload:
-      | AddIncomeSourcePayload
-      | UpdateIncomeSourcePayload
-      | DeleteIncomeSourcePayload,
-  ): Promise<CreateIncomeResponse> {
-    try {
-      const result = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.CREATE_OR_UPDATE, payload),
-      );
+	/**
+	 * 🚀 NEW: Get comprehensive income analytics with filters
+	 */
+	async getIncomeAnalytics(
+		filters?: IncomeFilters,
+		options: IncomeServiceOptions = {},
+	): Promise<IncomeAnalytics> {
+		const { useCache = true, forceRefresh = false } = options
 
-      // Invalidate caches
-      this.invalidateIncomeCaches();
+		// Generate cache key
+		const cacheKey = useCache
+			? cacheService.generateFilterKey(
+					CACHE_KEYS.INCOME_ANALYTICS,
+					filters || {},
+				)
+			: null
 
-      return result;
-    } catch (error: any) {
-      console.error("Failed to create/update income:", error);
-      throw new Error(
-        `Failed to save income: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+		// Check cache first
+		if (cacheKey && !forceRefresh) {
+			const cached = cacheService.getWithFilters(
+				CACHE_KEYS.INCOME_ANALYTICS,
+				filters || {},
+			)
+			if (cached) {
+				return cached
+			}
+		}
 
-  /**
-   * Create direct ledger entry (one-time income)
-   */
-  async createDirectLedgerEntry(
-    payload: CreateDirectLedgerEntryPayload,
-  ): Promise<CreateLedgerEntryResponse> {
-    try {
-      const result = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.CREATE_DIRECT_LEDGER, payload),
-      );
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.ANALYTICS, {
+					filters: filters ? JSON.stringify(filters) : null,
+				}),
+			)
 
-      // Invalidate caches
-      this.invalidateIncomeCaches();
+			// Cache the result
+			if (cacheKey && useCache) {
+				cacheService.setWithFilters(
+					CACHE_KEYS.INCOME_ANALYTICS,
+					result,
+					filters || {},
+					{ maxAge: this.cacheExpiry },
+				)
+			}
 
-      return result;
-    } catch (error: any) {
-      console.error("Failed to create direct ledger entry:", error);
-      throw new Error(
-        `Failed to create ledger entry: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+			return result
+		} catch (error: any) {
+			console.error("Failed to fetch income analytics:", error)
+			throw new Error(
+				`Failed to load income analytics: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Update ledger entry
-   */
-  async updateLedgerEntry(
-    payload: UpdateLedgerEntryPayload,
-  ): Promise<UpdateLedgerEntryResponse> {
-    try {
-      const result = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.UPDATE_LEDGER_ENTRY, payload),
-      );
+	/**
+	 * 🚀 NEW: Get available filter options
+	 */
+	async getIncomeFilterOptions(
+		options: IncomeServiceOptions = {},
+	): Promise<any> {
+		const { useCache = true, forceRefresh = false } = options
+		const cacheKey = CACHE_KEYS.INCOME_FILTER_OPTIONS
 
-      // Invalidate caches
-      this.invalidateIncomeCaches();
+		if (useCache && !forceRefresh) {
+			const cached = cacheService.get(cacheKey)
+			if (cached) {
+				return cached
+			}
+		}
 
-      return result;
-    } catch (error: any) {
-      console.error("Failed to update ledger entry:", error);
-      throw new Error(
-        `Failed to update ledger entry: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.FILTER_OPTIONS),
+			)
 
-  /**
-   * Delete ledger entry
-   */
-  async deleteLedgerEntry(
-    payload: DeleteLedgerEntryPayload,
-  ): Promise<DeleteLedgerEntryResponse> {
-    try {
-      const result = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.DELETE_LEDGER_ENTRY, payload),
-      );
+			if (useCache) {
+				cacheService.set(cacheKey, result, {
+					maxAge: this.longCacheExpiry,
+				})
+			}
 
-      // Invalidate caches
-      this.invalidateIncomeCaches();
+			return result
+		} catch (error: any) {
+			console.error("Failed to fetch income filter options:", error)
+			throw new Error(
+				`Failed to load filter options: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-      return result;
-    } catch (error: any) {
-      console.error("Failed to delete ledger entry:", error);
+	/**
+	 * 🚀 NEW: Get period information with filters
+	 */
+	async getPeriodInfo(
+		filters?: IncomeFilters,
+		options: IncomeServiceOptions = {},
+	): Promise<any> {
+		const { useCache = true, forceRefresh = false } = options
 
-      // If the entry was not found, it might already be deleted
-      // Invalidate caches to refresh the data and show current state
-      if (
-        error.message?.includes("not found") ||
-        error.message?.includes("DoesNotExistError")
-      ) {
-        this.invalidateIncomeCaches();
-        // Return a success response since the entry is effectively deleted
-        return {
-          status: "success",
-          message: "Ledger entry was already deleted",
-          deleted_type: "one-time", // Default to one-time since we don't know the actual type
-        };
-      }
+		// Generate cache key
+		const cacheKey = useCache
+			? cacheService.generateFilterKey(
+					CACHE_KEYS.INCOME_PERIOD_INFO,
+					filters || {},
+				)
+			: null
 
-      throw new Error(
-        `Failed to delete ledger entry: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+		// Check cache first
+		if (cacheKey && !forceRefresh) {
+			const cached = cacheService.getWithFilters(
+				CACHE_KEYS.INCOME_PERIOD_INFO,
+				filters || {},
+			)
+			if (cached) {
+				return cached
+			}
+		}
 
-  /**
-   * Create ledger entry for existing source
-   */
-  async createLedgerEntry(
-    payload: CreateLedgerEntryPayload,
-  ): Promise<CreateLedgerEntryResponse> {
-    try {
-      const result = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.CREATE_LEDGER_ENTRY, payload),
-      );
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.PERIOD_INFO, {
+					filters: filters ? JSON.stringify(filters) : null,
+				}),
+			)
 
-      // Invalidate caches
-      this.invalidateIncomeCaches();
+			// Cache the result
+			if (cacheKey && useCache) {
+				cacheService.setWithFilters(
+					CACHE_KEYS.INCOME_PERIOD_INFO,
+					result,
+					filters || {},
+					{ maxAge: this.cacheExpiry },
+				)
+			}
 
-      return result;
-    } catch (error: any) {
-      console.error("Failed to create ledger entry:", error);
-      throw new Error(
-        `Failed to create ledger entry: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+			return result
+		} catch (error: any) {
+			console.error("Failed to fetch period info:", error)
+			throw new Error(
+				`Failed to load period info: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Update recurring ledger entries
-   */
-  async updateRecurringLedgerEntries(): Promise<UpdateRecurringLedgerEntriesResponse> {
-    try {
-      const result = await apiService.execute(
-        call(API_ENDPOINTS.INCOME.UPDATE_RECURRING_LEDGER),
-      );
+	/**
+	 * 🚀 NEW: Cleanup income data (admin function)
+	 */
+	async cleanupIncomeData(): Promise<any> {
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.CLEANUP_DATA),
+			)
 
-      // Invalidate caches
-      this.invalidateIncomeCaches();
+			// Invalidate all caches after cleanup
+			this.invalidateIncomeCaches()
 
-      return result;
-    } catch (error: any) {
-      console.error("Failed to update recurring ledger entries:", error);
-      throw new Error(
-        `Failed to update recurring entries: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+			return result
+		} catch (error: any) {
+			console.error("Failed to cleanup income data:", error)
+			throw new Error(
+				`Failed to cleanup income data: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Validate income data
-   */
-  async validateIncomeData(
-    payload: ValidateIncomeDataPayload,
-  ): Promise<ValidationResponse> {
-    try {
-      return await apiService.execute(
-        call(API_ENDPOINTS.INCOME.VALIDATE, payload),
-      );
-    } catch (error: any) {
-      console.error("Failed to validate income data:", error);
-      throw new Error(
-        `Failed to validate income data: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+	/**
+	 * Create or update income source
+	 */
+	async createOrUpdateIncome(
+		payload:
+			| AddIncomeSourcePayload
+			| UpdateIncomeSourcePayload
+			| DeleteIncomeSourcePayload,
+	): Promise<CreateIncomeResponse> {
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.CREATE_OR_UPDATE, payload),
+			)
 
-  /**
-   * Delete income record
-   */
-  async deleteIncome(incomeId: string): Promise<void> {
-    try {
-      await apiService.execute(
-        call("frappe.client.delete", {
-          doctype: "Income",
-          name: incomeId,
-        }),
-      );
+			// Invalidate caches
+			this.invalidateIncomeCaches()
 
-      // Invalidate caches
-      this.invalidateIncomeCaches();
-    } catch (error: any) {
-      console.error("Failed to delete income:", error);
-      throw new Error(
-        `Failed to delete income: ${error.message || "Unknown error"}`,
-      );
-    }
-  }
+			return result
+		} catch (error: any) {
+			console.error("Failed to create/update income:", error)
+			throw new Error(
+				`Failed to save income: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
 
-  /**
-   * Invalidate all income-related caches
-   */
-  private invalidateIncomeCaches(): void {
-    cacheService.clearKey(CACHE_KEYS.USER_INCOME);
-    cacheService.clearKey(CACHE_KEYS.USER_INCOME_ANALYTICS);
-    cacheService.clearKey(CACHE_KEYS.INCOME_LEDGER);
-    cacheService.clearKey(CACHE_KEYS.INCOME_FILTERS);
-    cacheService.clearPattern("income-dashboard");
-  }
+	/**
+	 * Create direct ledger entry (one-time income)
+	 */
+	async createDirectLedgerEntry(
+		payload: CreateDirectLedgerEntryPayload,
+	): Promise<CreateLedgerEntryResponse> {
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.CREATE_DIRECT_LEDGER, payload),
+			)
 
-  /**
-   * Clear all caches
-   */
-  clearCache(): void {
-    this.invalidateIncomeCaches();
-    cacheService.clearKey(CACHE_KEYS.INCOME_TYPES);
-  }
+			// Invalidate caches
+			this.invalidateIncomeCaches()
+
+			return result
+		} catch (error: any) {
+			console.error("Failed to create direct ledger entry:", error)
+			throw new Error(
+				`Failed to create ledger entry: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
+
+	/**
+	 * Update ledger entry
+	 */
+	async updateLedgerEntry(
+		payload: UpdateLedgerEntryPayload,
+	): Promise<UpdateLedgerEntryResponse> {
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.UPDATE_LEDGER_ENTRY, payload),
+			)
+
+			// Invalidate caches
+			this.invalidateIncomeCaches()
+
+			return result
+		} catch (error: any) {
+			console.error("Failed to update ledger entry:", error)
+			throw new Error(
+				`Failed to update ledger entry: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
+
+	/**
+	 * Delete ledger entry
+	 */
+	async deleteLedgerEntry(
+		payload: DeleteLedgerEntryPayload,
+	): Promise<DeleteLedgerEntryResponse> {
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.DELETE_LEDGER_ENTRY, payload),
+			)
+
+			// Invalidate caches
+			this.invalidateIncomeCaches()
+
+			return result
+		} catch (error: any) {
+			console.error("Failed to delete ledger entry:", error)
+
+			// If the entry was not found, it might already be deleted
+			// Invalidate caches to refresh the data and show current state
+			if (
+				error.message?.includes("not found") ||
+				error.message?.includes("DoesNotExistError")
+			) {
+				this.invalidateIncomeCaches()
+				// Return a success response since the entry is effectively deleted
+				return {
+					status: "success",
+					message: "Ledger entry was already deleted",
+					deleted_type: "one-time", // Default to one-time since we don't know the actual type
+				}
+			}
+
+			throw new Error(
+				`Failed to delete ledger entry: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
+
+	/**
+	 * Create ledger entry for existing source
+	 */
+	async createLedgerEntry(
+		payload: CreateLedgerEntryPayload,
+	): Promise<CreateLedgerEntryResponse> {
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.CREATE_LEDGER_ENTRY, payload),
+			)
+
+			// Invalidate caches
+			this.invalidateIncomeCaches()
+
+			return result
+		} catch (error: any) {
+			console.error("Failed to create ledger entry:", error)
+			throw new Error(
+				`Failed to create ledger entry: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
+
+	/**
+	 * Update recurring ledger entries
+	 */
+	async updateRecurringLedgerEntries(): Promise<UpdateRecurringLedgerEntriesResponse> {
+		try {
+			const result = await apiService.execute(
+				call(API_ENDPOINTS.INCOME.UPDATE_RECURRING_LEDGER),
+			)
+
+			// Invalidate caches
+			this.invalidateIncomeCaches()
+
+			return result
+		} catch (error: any) {
+			console.error("Failed to update recurring ledger entries:", error)
+			throw new Error(
+				`Failed to update recurring entries: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
+
+	/**
+	 * Validate income data
+	 */
+	async validateIncomeData(
+		payload: ValidateIncomeDataPayload,
+	): Promise<ValidationResponse> {
+		try {
+			return await apiService.execute(
+				call(API_ENDPOINTS.INCOME.VALIDATE, payload),
+			)
+		} catch (error: any) {
+			console.error("Failed to validate income data:", error)
+			throw new Error(
+				`Failed to validate income data: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
+
+	/**
+	 * Delete income record
+	 */
+	async deleteIncome(incomeId: string): Promise<void> {
+		try {
+			await apiService.execute(
+				call("frappe.client.delete", {
+					doctype: "Income",
+					name: incomeId,
+				}),
+			)
+
+			// Invalidate caches
+			this.invalidateIncomeCaches()
+		} catch (error: any) {
+			console.error("Failed to delete income:", error)
+			throw new Error(
+				`Failed to delete income: ${error.message || "Unknown error"}`,
+			)
+		}
+	}
+
+	/**
+	 * Invalidate all income-related caches
+	 */
+	private invalidateIncomeCaches(): void {
+		cacheService.clearKey(CACHE_KEYS.USER_INCOME)
+		cacheService.clearKey(CACHE_KEYS.USER_INCOME_ANALYTICS)
+		cacheService.clearKey(CACHE_KEYS.INCOME_LEDGER)
+		cacheService.clearKey(CACHE_KEYS.INCOME_FILTERS)
+		cacheService.clearKey(CACHE_KEYS.INCOME_ANALYTICS)
+		cacheService.clearKey(CACHE_KEYS.INCOME_PERIOD_INFO)
+		cacheService.clearPattern("income-dashboard")
+	}
+
+	/**
+	 * Clear all caches
+	 */
+	clearCache(): void {
+		this.invalidateIncomeCaches()
+		cacheService.clearKey(CACHE_KEYS.INCOME_TYPES)
+		cacheService.clearKey(CACHE_KEYS.INCOME_FILTER_OPTIONS)
+	}
 }
 
 // Export singleton instance
-export const incomeService = new IncomeService();
+export const incomeService = new IncomeService()
