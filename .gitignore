@@ -54,5 +54,5 @@ jspm_packages/
 # Aider AI Chat
 .aider*
 
-# Public assets
-public/
+# # Public assets
+# public/

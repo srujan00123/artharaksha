@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon and App Icons -->
+  <link rel="icon" type="image/png" href="/assets/artha/frontend/favicon.png" />
+  <link rel="apple-touch-icon" href="/assets/artha/frontend/favicon.png" />
+
+  <!-- Primary Meta Tags -->
+  <title>Artha Raksha - Healthcare Financial Protection Platform</title>
+  <meta name="title" content="Artha Raksha - Healthcare Financial Protection Platform" />
+  <meta name="description"
+    content="Comprehensive healthcare financial protection platform for managing medical expenses, income tracking, and accessing welfare schemes and support programs." />
+  <meta name="keywords"
+    content="healthcare, financial protection, medical expenses, welfare schemes, insurance, CHE analysis, income tracking" />
+  <meta name="author" content="Artha Raksha Team" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Artha Raksha - Healthcare Financial Protection Platform" />
+  <meta property="og:description"
+    content="Comprehensive healthcare financial protection platform for managing medical expenses, income tracking, and accessing welfare schemes and support programs." />
+  <meta property="og:site_name" content="Artha Raksha" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:title" content="Artha Raksha - Healthcare Financial Protection Platform" />
+  <meta property="twitter:description"
+    content="Comprehensive healthcare financial protection platform for managing medical expenses, income tracking, and accessing welfare schemes and support programs." />
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="msapplication-TileColor" content="#2563eb" />
+
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <script type="module" crossorigin src="/assets/artha/frontend/assets/index-8HBefuH2.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/artha/frontend/assets/index-C4STBGXK.css">
+</head>
+
+<body>
+  <div id="app"></div>
+  <div id="modals"></div>
+  <div id="popovers"></div>
+
+  <script>
+    window.csrf_token = '{{ frappe.session.csrf_token }}'
+  </script>
+
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+
+</html>
