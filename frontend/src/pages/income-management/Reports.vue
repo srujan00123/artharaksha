@@ -359,7 +359,7 @@ const {
 
 // Local state - Default to this_month for consistency
 const selectedPeriod = ref<
-  "this_month" | "last_month" | "last_3_months" | "last_6_months" | "this_year"
+	"this_month" | "last_month" | "last_3_months" | "last_6_months" | "this_year"
 >("this_month")
 
 // Computed properties for analytics data using new architecture

@@ -678,11 +678,11 @@ class CacheService {
 					} catch (parseError) {
 						entries[key] = { error: 'Invalid JSON' };
 					}
-				}
 			}
-			
-			return {
-				entries,
+		}
+
+		return {
+			entries,
 				meta,
 				stats: this.stats,
 				totalKeys: keys.length,

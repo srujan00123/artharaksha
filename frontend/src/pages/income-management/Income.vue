@@ -4,25 +4,7 @@
  */
 
 <template>
-  <div class="income-management p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-6">
-    <!-- Header Section -->
-    <div class="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
-      <div class="flex items-start justify-between">
-        <div class="flex-1">
-          <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
-            Income Management
-          </h1>
-          <p class="text-green-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
-            Manage your household income sources and track monthly earnings
-          </p>
-        </div>
-        <div class="hidden sm:block">
-          <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <TrendingUp class="w-8 h-8 text-white" />
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="income-management space-y-4 lg:space-y-6">
 
     <!-- Action Bar -->
     <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
@@ -240,7 +222,6 @@ import {
   Plus,
   RefreshCw,
   Repeat,
-  TrendingUp,
 } from "lucide-vue-next"
 import { onMounted, ref, watch } from "vue"
 
@@ -545,7 +526,5 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.income-management {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
-}
+/* Styles are now handled by IncomeLayout.vue */
 </style>

@@ -348,7 +348,7 @@ function handleReceiptUpload(event: Event) {
 		// For now, just store the file name
 		// In a real implementation, you'd upload the file and get a URL
 		formData.value.proof_of_payment = file.name
-	}
+}
 }
 
 function handleClickOutside() {
@@ -455,7 +455,7 @@ watch(
 				proof_of_payment: newExpense.proof_of_payment || "",
 				is_direct: newExpense.type === "medical" 
 					? (newExpense.is_direct !== undefined ? newExpense.is_direct : true)
-					: false,
+						: false,
 			}
 		}
 	},

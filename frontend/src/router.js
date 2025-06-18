@@ -40,34 +40,43 @@ const routes = [
 				"Healthcare financial protection dashboard with expense tracking and welfare scheme management",
 		},
 	},
-	// Income section
+	// Income Routes
 	{
 		path: "/income",
-		redirect: "/income/management",
-	},
-	{
-		path: "/income/management",
 		name: "IncomeManagement",
-		component: () => import("@/pages/income-management/Income.vue"),
-		meta: {
-			requiresAuth: true,
-			layout: "app",
-			title: "Income Management",
-			description:
-				"Manage and track your income sources for comprehensive financial planning",
-		},
-	},
-	{
-		path: "/income/reports",
-		name: "IncomeReports",
-		component: () => import("@/pages/income-management/Reports.vue"),
-		meta: {
-			requiresAuth: true,
-			layout: "app",
-			title: "Income Reports",
-			description:
-				"Detailed income analysis and reporting for financial insights",
-		},
+		component: () => import("@/pages/income-management/IncomeLayout.vue"),
+		meta: { requiresAuth: true, layout: "app" },
+		children: [
+			{
+				path: "",
+				name: "IncomeDefault",
+				redirect: "/income/management",
+			},
+			{
+				path: "management",
+				name: "IncomeOverview",
+				component: () => import("@/pages/income-management/Income.vue"),
+				meta: {
+					requiresAuth: true,
+					layout: "app",
+					title: "Income Management",
+					description:
+						"Manage and track your income sources for comprehensive financial planning",
+				},
+			},
+			{
+				path: "reports",
+				name: "IncomeReports",
+				component: () => import("@/pages/income-management/Reports.vue"),
+				meta: {
+					requiresAuth: true,
+					layout: "app",
+					title: "Income Reports",
+					description:
+						"Detailed income analysis and reporting for financial insights",
+				},
+			},
+		],
 	},
 
 	// Expense Routes

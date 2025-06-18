@@ -162,14 +162,14 @@
               <p class="text-sm text-yellow-700 mt-1">
                 To perform accurate Catastrophic Health Expenditure analysis according to WHO standards, please add your income information.
               </p>
-              <div class="mt-3">
-                <router-link 
-                  to="/income/management"
-                  class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-yellow-800 bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 transition-colors"
-                >
-                  Add Income Data
-                </router-link>
-              </div>
+                             <div class="mt-3">
+                 <router-link 
+                   to="/income/management"
+                   class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-yellow-800 bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 transition-colors"
+                 >
+                   Add Income Data
+                 </router-link>
+               </div>
             </div>
           </div>
         </div>
@@ -197,8 +197,8 @@
                     :style="{ width: Math.min((cheRatio / 10) * 100, 100) + '%' }"
                   >
                     <div class="absolute inset-0 bg-gradient-to-r from-transparent to-white opacity-30 animate-pulse"></div>
-                  </div>
-                </div>
+              </div>
+              </div>
                 <div class="absolute inset-0 flex items-center justify-center">
                   <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ cheRatio.toFixed(2) }}% / 10%</span>
                 </div>
@@ -224,12 +224,12 @@
                     :style="{ width: Math.min((cheRatio / 25) * 100, 100) + '%' }"
                   >
                     <div class="absolute inset-0 bg-gradient-to-r from-transparent to-white opacity-30 animate-pulse"></div>
-                  </div>
-                </div>
+              </div>
+              </div>
                 <div class="absolute inset-0 flex items-center justify-center">
                   <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ cheRatio.toFixed(2) }}% / 25%</span>
-                </div>
-              </div>
+            </div>
+          </div>
               <p class="text-xs text-gray-600 dark:text-gray-400 mt-2">
                 Spending above 25% indicates severe financial hardship and potential impoverishment due to health costs.
               </p>
@@ -297,9 +297,9 @@
                 </div>
                 <div v-if="medicalCategoryBreakdown.length === 0" class="text-center py-4 text-gray-500 dark:text-gray-400">
                   <p class="text-sm">No medical expenses found</p>
-                </div>
               </div>
             </div>
+          </div>
 
             <!-- Financial Impact Analysis -->
             <div v-if="hasIncomeData">
@@ -312,31 +312,31 @@
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Monthly Income</span>
                     <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ totalIncomeAmount.toLocaleString() }}</span>
-                  </div>
-                </div>
+        </div>
+      </div>
                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Medical Expenses</span>
                     <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ medicalExpenseAmount.toLocaleString() }}</span>
-                  </div>
                 </div>
+              </div>
                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Remaining Income</span>
                     <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">₹{{ (totalIncomeAmount - medicalExpenseAmount).toLocaleString() }}</span>
-                  </div>
-                </div>
+            </div>
+          </div>
                 <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 transition-colors">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-900 dark:text-gray-100">CHE Ratio</span>
                     <span :class="getRiskLevelTextColor(riskLevel)" class="text-sm font-semibold">{{ cheRatio.toFixed(2) }}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
+                  </div>
+                </div>
+          </div>
+            </div>
+          </div>
 
       <!-- Recommendations -->
       <div v-if="hasIncomeData" class="recommendations">
@@ -350,7 +350,7 @@
                   <div>
                     <h4 :class="recommendation.titleClass" class="font-semibold">{{ recommendation.title }}</h4>
                     <p :class="recommendation.textClass" class="text-sm mt-1">{{ recommendation.description }}</p>
-                  </div>
+                </div>
                 </div>
               </div>
             </div>
@@ -680,8 +680,8 @@ const handleRefresh = async () => {
 
 const handleFiltersUpdate = async (newFilters: ExpenseFilters) => {
 	try {
-		expenseFilters.value = { ...newFilters }
-		await updateFilters(newFilters)
+	expenseFilters.value = { ...newFilters }
+	await updateFilters(newFilters)
 		await fetchExpenses({ forceRefresh: false, useCache: true })
 	} catch (err: any) {
 		console.error("Error updating filters:", err)
