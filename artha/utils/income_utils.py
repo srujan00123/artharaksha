@@ -934,7 +934,7 @@ def get_recurring_income_sources(household_profile: str) -> list:
             (Income.household_profile == household_profile) &
             (IncomeSource.recur == 1)
         )
-        .orderby(IncomeSource.creation, order="desc")
+        .orderby(IncomeSource.creation, order=qb.desc)
     ).run(as_dict=True)
 
     # Convert recur to boolean for consistency
@@ -968,7 +968,7 @@ def get_all_ledger_entries(household_profile: str) -> list:
             IncomeSource.stop_date.as_("source_stop_date")
         )
         .where(Income.household_profile == household_profile)
-        .orderby(IncomeLedger.date_time, order="desc")
+        .orderby(IncomeLedger.date_time, order=qb.desc)
     ).run(as_dict=True)
 
     # Process results to flatten entry data with source info

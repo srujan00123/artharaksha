@@ -356,7 +356,7 @@ def get_income_task_status() -> Dict[str, Any]:
                 ])) &
                 (ErrorLog.creation >= seven_days_ago)
             )
-            .orderby(ErrorLog.creation, order="desc")
+            .orderby(ErrorLog.creation, order=qb.desc)
             .limit(10)
         ).run(as_dict=True)
 

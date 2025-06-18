@@ -123,7 +123,7 @@ def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: 
                         (IncomeLedger.parent == income_name) &
                         (IncomeLedger.income_source == source.name)
                     )
-                    .orderby(IncomeLedger.date_time, order="desc")
+                    .orderby(IncomeLedger.date_time, order=qb.desc)
                 ).run(as_dict=True)
 
                 if existing_entries:
@@ -421,7 +421,7 @@ def get_income_types() -> Dict[str, List[Dict[str, str]]]:
         income_types = (
             qb.from_(IncomeType)
             .select(IncomeType.name, IncomeType.type)
-            .orderby(IncomeType.type)
+            .orderby(IncomeType.type, order=qb.asc)
         ).run(as_dict=True)
 
         return {
@@ -472,7 +472,7 @@ def get_income_ledger(filters: Optional[Union[str, Dict]] = None) -> List[Dict[s
                 IncomeSource.stop_date.as_("source_stop_date")
             )
             .where(Income.household_profile == household_profile)
-            .orderby(IncomeLedger.date_time, order="desc")
+            .orderby(IncomeLedger.date_time, order=qb.desc)
         ).run(as_dict=True)
 
         # Apply filters
