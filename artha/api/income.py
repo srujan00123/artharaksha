@@ -4,14 +4,6 @@ Provides specialized endpoints for income management and analysis
 All income operations are handled here to ensure consistency and proper event handling
 """
 
-import frappe
-from frappe import _
-from frappe.utils import flt, getdate, now_datetime
-from datetime import datetime, timedelta
-import json
-from typing import Dict, List, Any, Optional, Union
-
-# Import utility functions from centralized utils module
 from artha.utils.income_utils import (
     convert_datetime_format,
     get_next_occurrence,
@@ -32,6 +24,23 @@ from artha.utils.income_utils import (
     get_all_ledger_entries,
     apply_income_filters
 )
+import frappe
+from frappe import _
+from frappe.utils import flt, getdate, now_datetime
+from frappe.query_builder import DocType
+from frappe import qb
+from datetime import datetime, timedelta
+import json
+from typing import Dict, List, Any, Optional, Union
+
+# DocType references for Query Builder
+Income = DocType("Income")
+IncomeSource = DocType("Income Source Type")
+IncomeLedger = DocType("Income Ledger")
+HouseholdProfile = DocType("Household Profile")
+IncomeType = DocType("Income Type")
+
+# Import utility functions from centralized utils module
 
 
 # ===============================
@@ -106,16 +115,16 @@ def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: 
 
         for source in income_doc.income_source:
             if source.recur:
-                # Get existing entries for this source
-                existing_entries = frappe.get_all(
-                    "Income Ledger",
-                    filters={
-                        "parent": income_name,
-                        "income_source": source.name
-                    },
-                    fields=["date_time"],
-                    order_by="date_time desc"
-                )
+                # Get existing entries for this source using Query Builder
+                existing_entries = (
+                    qb.from_(IncomeLedger)
+                    .select(IncomeLedger.date_time)
+                    .where(
+                        (IncomeLedger.parent == income_name) &
+                        (IncomeLedger.income_source == source.name)
+                    )
+                    .orderby(IncomeLedger.date_time, order="desc")
+                ).run(as_dict=True)
 
                 if existing_entries:
                     # Find the latest entry date
@@ -134,12 +143,18 @@ def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: 
 
                     entry_count = 0
                     while next_date <= end_date and entry_count < limit_entries:
-                        # Check if entry already exists for this date
-                        existing = frappe.db.exists("Income Ledger", {
-                            "parent": income_name,
-                            "income_source": source.name,
-                            "date_time": next_date
-                        })
+                        # Check if entry already exists for this date using Query Builder
+                        existing_check = (
+                            qb.from_(IncomeLedger)
+                            .select(IncomeLedger.name)
+                            .where(
+                                (IncomeLedger.parent == income_name) &
+                                (IncomeLedger.income_source == source.name) &
+                                (IncomeLedger.date_time == next_date)
+                            )
+                            .limit(1)
+                        ).run(as_dict=True)
+                        existing = bool(existing_check)
 
                         if not existing:
                             # Create ledger entry directly in database
@@ -316,36 +331,30 @@ def get_period_info(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any
 @frappe.whitelist()
 def get_income_filter_options(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
     """
-    Get all available filter options for income data
+    Get all available filter options for income data using Query Builder
     """
     try:
         # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        household_profile = get_user_household_profile()
 
-        # Get available income types from user's data
+        # Get available income types from user's data using Query Builder
         income_types = []
         if household_profile:
             # Get unique income types from ledger entries
-            income_records = frappe.get_all(
-                "Income",
-                filters={"household_profile": household_profile},
-                fields=["name"]
-            )
+            types_result = (
+                qb.from_(Income)
+                .join(IncomeLedger).on(Income.name == IncomeLedger.parent)
+                .select(IncomeLedger.source_type)
+                .where(
+                    (Income.household_profile == household_profile) &
+                    (IncomeLedger.source_type.isnotnull()) &
+                    (IncomeLedger.source_type != "")
+                )
+                .distinct()
+            ).run(as_dict=True)
 
-            if income_records:
-                for record in income_records:
-                    types = frappe.get_all(
-                        "Income Ledger",
-                        filters={"parent": record.name},
-                        fields=["source_type"],
-                        group_by="source_type"
-                    )
-                    income_types.extend(
-                        [t.source_type for t in types if t.source_type])
+            income_types = [
+                t.source_type for t in types_result if t.source_type]
 
         # Remove duplicates and sort
         income_types = sorted(list(set(income_types)))
@@ -404,16 +413,16 @@ def get_income_filter_options(filters: Optional[Union[str, Dict]] = None) -> Dic
 @frappe.whitelist()
 def get_income_types() -> Dict[str, List[Dict[str, str]]]:
     """
-    Get all available income types
+    Get all available income types using Query Builder
     Returns: {'income_types': [
         {'name': 'Agriculture', 'type': 'Agriculture'}, ...]}
     """
     try:
-        income_types = frappe.get_all(
-            "Income Type",
-            fields=["name", "type"],
-            order_by="type"
-        )
+        income_types = (
+            qb.from_(IncomeType)
+            .select(IncomeType.name, IncomeType.type)
+            .orderby(IncomeType.type)
+        ).run(as_dict=True)
 
         return {
             "income_types": income_types
@@ -427,16 +436,12 @@ def get_income_types() -> Dict[str, List[Dict[str, str]]]:
 @frappe.whitelist()
 def get_income_ledger(filters: Optional[Union[str, Dict]] = None) -> List[Dict[str, Any]]:
     """
-    Get flattened income ledger entries for the current user's household profile
+    Get flattened income ledger entries for the current user's household profile using Query Builder
     Returns all ledger entries with source information attached
     """
     try:
         # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             return []
@@ -448,57 +453,27 @@ def get_income_ledger(filters: Optional[Union[str, Dict]] = None) -> List[Dict[s
         if not filters:
             filters = {}
 
-        # Get income records for this household
-        income_records = frappe.get_all(
-            "Income",
-            filters={"household_profile": household_profile},
-            fields=["name"]
-        )
-
-        if not income_records:
-            return []
-
-        ledger_entries = []
-
-        for income_record in income_records:
-            # Get all ledger entries for this income record
-            entries = frappe.get_all(
-                "Income Ledger",
-                filters={"parent": income_record.name},
-                fields=[
-                    "name", "income_source", "income_type",
-                    "date_time", "amount"
-                ],
-                order_by="date_time desc"
+        # Get all ledger entries with source information using Query Builder
+        ledger_entries = (
+            qb.from_(Income)
+            .join(IncomeLedger).on(Income.name == IncomeLedger.parent)
+            .left_join(IncomeSource).on(IncomeLedger.income_source == IncomeSource.name)
+            .select(
+                IncomeLedger.name,
+                IncomeLedger.income_source,
+                IncomeLedger.income_type,
+                IncomeLedger.date_time,
+                IncomeLedger.amount,
+                IncomeSource.type.as_("source_type"),
+                IncomeSource.recur.as_("source_recur"),
+                IncomeSource.income.as_("source_income"),
+                IncomeSource.date_time.as_("source_date_time"),
+                IncomeSource.recur_frequency.as_("source_recur_frequency"),
+                IncomeSource.stop_date.as_("source_stop_date")
             )
-
-            # For each ledger entry, get the source information
-            for entry in entries:
-                # Get source details
-                source_info = frappe.get_all(
-                    "Income Source Type",
-                    filters={"name": entry.income_source},
-                    fields=[
-                        "type", "income", "recur", "date_time",
-                        "recur_frequency", "stop_date"
-                    ]
-                )
-
-                if source_info:
-                    source = source_info[0]
-                    ledger_entries.append({
-                        "name": entry.name,
-                        "income_source": entry.income_source,
-                        "income_type": entry.income_type,
-                        "date_time": entry.date_time,
-                        "amount": entry.amount,
-                        "source_type": source.type,
-                        "source_recur": source.recur,
-                        "source_income": source.income,
-                        "source_date_time": source.date_time,
-                        "source_recur_frequency": source.recur_frequency,
-                        "source_stop_date": source.stop_date
-                    })
+            .where(Income.household_profile == household_profile)
+            .orderby(IncomeLedger.date_time, order="desc")
+        ).run(as_dict=True)
 
         # Apply filters
         if filters.get('income_type'):
@@ -607,11 +582,7 @@ def get_monthly_income_summary(filters: Optional[Union[str, Dict]] = None) -> Di
             filters = {"period": "this_month"}
 
         # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             return {
@@ -681,11 +652,7 @@ def get_income_dashboard_metrics(filters: Optional[Union[str, Dict]] = None) -> 
             filters["period"] = "this_month"
 
         # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             return {
@@ -767,12 +734,14 @@ def create_or_update_income(income_source: Union[str, List[Dict]], income_name: 
                 frappe.throw(
                     _("Only recurring income sources can be managed here. Use create_direct_ledger_entry for one-time income."))
 
-        # Find or create the single Income record for this household
-        income_name_db = frappe.db.get_value(
-            "Income",
-            {"household_profile": household_profile},
-            "name"
-        )
+        # Find or create the single Income record for this household using Query Builder
+        income_result = (
+            qb.from_(Income)
+            .select(Income.name)
+            .where(Income.household_profile == household_profile)
+            .limit(1)
+        ).run(as_dict=True)
+        income_name_db = income_result[0].name if income_result else None
         if income_name_db:
             income_doc = frappe.get_doc("Income", income_name_db)
         else:
@@ -840,15 +809,16 @@ def create_or_update_income(income_source: Union[str, List[Dict]], income_name: 
         # Create ledger entries for new sources via API
         for source in income_doc.income_source:
             if source.recur:
-                # Check if this source already has ledger entries
-                existing_entries = frappe.get_all(
-                    "Income Ledger",
-                    filters={
-                        "parent": income_doc.name,
-                        "income_source": source.name
-                    },
-                    limit=1
-                )
+                # Check if this source already has ledger entries using Query Builder
+                existing_entries = (
+                    qb.from_(IncomeLedger)
+                    .select(IncomeLedger.name)
+                    .where(
+                        (IncomeLedger.parent == income_doc.name) &
+                        (IncomeLedger.income_source == source.name)
+                    )
+                    .limit(1)
+                ).run(as_dict=True)
 
                 if not existing_entries:
                     # Create initial entries for new source
@@ -930,11 +900,7 @@ def get_income_analytics(filters: Optional[Union[str, Dict]] = None) -> Dict[str
             filters = {"period": "this_month"}
 
         # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             return {
@@ -1010,11 +976,7 @@ def get_income_insights() -> Dict[str, Any]:
     """
     try:
         # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             return {
@@ -1146,8 +1108,15 @@ def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], n
     - This allows editing individual occurrences without changing the recurring pattern
     """
     try:
-        # Check if the ledger entry exists
-        if not frappe.db.exists("Income Ledger", ledger_entry_name):
+        # Check if the ledger entry exists using Query Builder
+        ledger_exists = (
+            qb.from_(IncomeLedger)
+            .select(IncomeLedger.name)
+            .where(IncomeLedger.name == ledger_entry_name)
+            .limit(1)
+        ).run(as_dict=True)
+
+        if not ledger_exists:
             frappe.throw(_("Ledger entry not found"))
 
         # Get the ledger entry
@@ -1210,8 +1179,15 @@ def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
     - For one-time entries: Delete the entry (no source exists)
     """
     try:
-        # Check if the ledger entry exists
-        if not frappe.db.exists("Income Ledger", ledger_entry_name):
+        # Check if the ledger entry exists using Query Builder
+        ledger_exists = (
+            qb.from_(IncomeLedger)
+            .select(IncomeLedger.name)
+            .where(IncomeLedger.name == ledger_entry_name)
+            .limit(1)
+        ).run(as_dict=True)
+
+        if not ledger_exists:
             return {
                 "status": "success",
                 "message": "Ledger entry was already deleted",
@@ -1259,12 +1235,14 @@ def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date
         if not household_profile:
             frappe.throw(_("No household profile found for current user"))
 
-        # Find or create the single Income record for this household
-        income_name_db = frappe.db.get_value(
-            "Income",
-            {"household_profile": household_profile},
-            "name"
-        )
+        # Find or create the single Income record for this household using Query Builder
+        income_result = (
+            qb.from_(Income)
+            .select(Income.name)
+            .where(Income.household_profile == household_profile)
+            .limit(1)
+        ).run(as_dict=True)
+        income_name_db = income_result[0].name if income_result else None
 
         if income_name_db:
             income_doc = frappe.get_doc("Income", income_name_db)
@@ -1313,11 +1291,7 @@ def get_income_summary() -> Dict[str, Any]:
     """
     try:
         # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             return {
@@ -1325,12 +1299,14 @@ def get_income_summary() -> Dict[str, Any]:
                 "message": "No household profile found for current user"
             }
 
-        # Find the Income record for this household
-        income_name = frappe.db.get_value(
-            "Income",
-            {"household_profile": household_profile},
-            "name"
-        )
+        # Find the Income record for this household using Query Builder
+        income_result = (
+            qb.from_(Income)
+            .select(Income.name)
+            .where(Income.household_profile == household_profile)
+            .limit(1)
+        ).run(as_dict=True)
+        income_name = income_result[0].name if income_result else None
 
         if not income_name:
             return {
@@ -1369,11 +1345,7 @@ def cleanup_income_data() -> Dict[str, Any]:
     """
     try:
         # Get user's household profile
-        household_profile = frappe.db.get_value(
-            "Household Profile",
-            {"user": frappe.session.user},
-            "name"
-        )
+        household_profile = get_user_household_profile()
 
         if not household_profile:
             return {
@@ -1387,12 +1359,14 @@ def cleanup_income_data() -> Dict[str, Any]:
                 }
             }
 
-        # Find the Income record for this household
-        income_name = frappe.db.get_value(
-            "Income",
-            {"household_profile": household_profile},
-            "name"
-        )
+        # Find the Income record for this household using Query Builder
+        income_result = (
+            qb.from_(Income)
+            .select(Income.name)
+            .where(Income.household_profile == household_profile)
+            .limit(1)
+        ).run(as_dict=True)
+        income_name = income_result[0].name if income_result else None
 
         if not income_name:
             return {
@@ -1458,7 +1432,14 @@ def trigger_ledger_update(income_name: str = None) -> Dict[str, Any]:
     try:
         if income_name:
             # Update specific income record
-            if not frappe.db.exists("Income", income_name):
+            income_exists = (
+                qb.from_(Income)
+                .select(Income.name)
+                .where(Income.name == income_name)
+                .limit(1)
+            ).run(as_dict=True)
+
+            if not income_exists:
                 frappe.throw(_("Income record not found"))
 
             income_doc = frappe.get_doc("Income", income_name)
@@ -1468,17 +1449,23 @@ def trigger_ledger_update(income_name: str = None) -> Dict[str, Any]:
                 frappe.throw(
                     _("Insufficient permissions to update this income record"))
 
-            # Get current count of ledger entries
-            entries_before = frappe.db.count(
-                "Income Ledger", {"parent": income_name})
+            # Get current count of ledger entries using Query Builder
+            entries_before = (
+                qb.from_(IncomeLedger)
+                .select(qb.functions.Count(IncomeLedger.name))
+                .where(IncomeLedger.parent == income_name)
+            ).run()[0][0]
 
             # Update using API method
             update_result = update_recurring_ledger_entries_for_income(
                 income_name)
             entries_added = update_result.get("entries_added", 0)
 
-            entries_after = frappe.db.count(
-                "Income Ledger", {"parent": income_name})
+            entries_after = (
+                qb.from_(IncomeLedger)
+                .select(qb.functions.Count(IncomeLedger.name))
+                .where(IncomeLedger.parent == income_name)
+            ).run()[0][0]
 
             log_income_operation("trigger_ledger_update", {
                 "income_name": income_name,
@@ -1494,21 +1481,19 @@ def trigger_ledger_update(income_name: str = None) -> Dict[str, Any]:
             }
         else:
             # Get user's household profile
-            household_profile = frappe.db.get_value(
-                "Household Profile",
-                {"user": frappe.session.user},
-                "name"
-            )
+            household_profile = get_user_household_profile()
 
             if not household_profile:
                 frappe.throw(_("No household profile found for current user"))
 
-            # Find the Income record for this household
-            income_name_db = frappe.db.get_value(
-                "Income",
-                {"household_profile": household_profile},
-                "name"
-            )
+            # Find the Income record for this household using Query Builder
+            income_result = (
+                qb.from_(Income)
+                .select(Income.name)
+                .where(Income.household_profile == household_profile)
+                .limit(1)
+            ).run(as_dict=True)
+            income_name_db = income_result[0].name if income_result else None
 
             if not income_name_db:
                 return {
@@ -1519,16 +1504,22 @@ def trigger_ledger_update(income_name: str = None) -> Dict[str, Any]:
                 }
 
             # Update the user's income record using API method
-            entries_before = frappe.db.count(
-                "Income Ledger", {"parent": income_name_db})
+            entries_before = (
+                qb.from_(IncomeLedger)
+                .select(qb.functions.Count(IncomeLedger.name))
+                .where(IncomeLedger.parent == income_name_db)
+            ).run()[0][0]
 
             # Update using API method
             update_result = update_recurring_ledger_entries_for_income(
                 income_name_db)
             entries_added = update_result.get("entries_added", 0)
 
-            entries_after = frappe.db.count(
-                "Income Ledger", {"parent": income_name_db})
+            entries_after = (
+                qb.from_(IncomeLedger)
+                .select(qb.functions.Count(IncomeLedger.name))
+                .where(IncomeLedger.parent == income_name_db)
+            ).run()[0][0]
 
             log_income_operation("trigger_ledger_update_user", {
                 "household_profile": household_profile,

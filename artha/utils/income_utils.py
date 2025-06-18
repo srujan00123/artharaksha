@@ -6,9 +6,18 @@ Used by API endpoints, scheduled tasks, and other income-related operations
 
 import frappe
 from frappe.utils import flt, getdate
+from frappe.query_builder import DocType
+from frappe import qb
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from typing import Dict, List, Any, Optional, Union, Set
+
+# DocType references for Query Builder
+Income = DocType("Income")
+IncomeSource = DocType("Income Source Type")
+IncomeLedger = DocType("Income Ledger")
+HouseholdProfile = DocType("Household Profile")
+IncomeType = DocType("Income Type")
 
 
 # ===============================
@@ -208,12 +217,18 @@ def create_recurring_ledger_entries(parent_name: str, source_name: str, source_d
 
         entries_added = 0
         for entry_date in dates:
-            # Check if entry already exists
-            existing = frappe.db.exists("Income Ledger", {
-                "parent": parent_name,
-                "income_source": source_name,
-                "date_time": entry_date
-            })
+            # Check if entry already exists using Query Builder
+            existing_check = (
+                qb.from_(IncomeLedger)
+                .select(IncomeLedger.name)
+                .where(
+                    (IncomeLedger.parent == parent_name) &
+                    (IncomeLedger.income_source == source_name) &
+                    (IncomeLedger.date_time == entry_date)
+                )
+                .limit(1)
+            ).run(as_dict=True)
+            existing = bool(existing_check)
 
             if not existing:
                 entry_data = {
@@ -246,16 +261,23 @@ def cleanup_orphaned_entries(parent_name: str, valid_source_names: Set[str]) -> 
         Number of entries cleaned up
     """
     try:
-        # Find orphaned entries
-        orphaned_entries = frappe.get_all(
-            "Income Ledger",
-            filters={
-                "parent": parent_name,
-                "income_type": "recurring",
-                "income_source": ["not in", list(valid_source_names)] if valid_source_names else ["is", "set"]
-            },
-            fields=["name"]
+        # Find orphaned entries using Query Builder
+        query = (
+            qb.from_(IncomeLedger)
+            .select(IncomeLedger.name)
+            .where(
+                (IncomeLedger.parent == parent_name) &
+                (IncomeLedger.income_type == "recurring")
+            )
         )
+
+        if valid_source_names:
+            query = query.where(
+                IncomeLedger.income_source.notin(list(valid_source_names)))
+        else:
+            query = query.where(IncomeLedger.income_source.isnotnull())
+
+        orphaned_entries = query.run(as_dict=True)
 
         cleaned_count = 0
         for entry in orphaned_entries:
@@ -466,7 +488,7 @@ def validate_ledger_entry_data(entry_data: Dict[str, Any]) -> List[str]:
 
 def get_user_household_profile(user: str = None) -> Optional[str]:
     """
-    Get household profile for a user
+    Get household profile for a user using Query Builder
 
     Args:
         user: User email (defaults to current session user)
@@ -477,11 +499,14 @@ def get_user_household_profile(user: str = None) -> Optional[str]:
     if not user:
         user = frappe.session.user
 
-    return frappe.db.get_value(
-        "Household Profile",
-        {"user": user},
-        "name"
-    )
+    result = (
+        qb.from_(HouseholdProfile)
+        .select(HouseholdProfile.name)
+        .where(HouseholdProfile.user == user)
+        .limit(1)
+    ).run(as_dict=True)
+
+    return result[0].name if result else None
 
 
 def format_currency_amount(amount: float) -> str:
@@ -891,84 +916,93 @@ def log_expense_operation(operation: str, details: Dict[str, Any]) -> None:
 
 def get_recurring_income_sources(household_profile: str) -> list:
     """
-    Fetch all recurring income sources for a household profile.
+    Fetch all recurring income sources for a household profile using Query Builder.
     """
-    recurring_sources = []
-    income_records = frappe.get_all(
-        "Income",
-        filters={"household_profile": household_profile},
-        fields=["name"]
-    )
-    for record in income_records:
-        sources = frappe.get_all(
-            "Income Source Type",
-            filters={"parent": record.name, "recur": 1},
-            fields=[
-                "name", "type", "income", "recur",
-                "date_time", "recur_frequency", "stop_date"
-            ],
-            order_by="creation desc"
+    results = (
+        qb.from_(Income)
+        .join(IncomeSource).on(Income.name == IncomeSource.parent)
+        .select(
+            IncomeSource.name,
+            IncomeSource.type,
+            IncomeSource.income,
+            IncomeSource.recur,
+            IncomeSource.date_time,
+            IncomeSource.recur_frequency,
+            IncomeSource.stop_date
         )
-        for source in sources:
-            source.recur = bool(source.recur)
-            recurring_sources.append(source)
-    return recurring_sources
+        .where(
+            (Income.household_profile == household_profile) &
+            (IncomeSource.recur == 1)
+        )
+        .orderby(IncomeSource.creation, order="desc")
+    ).run(as_dict=True)
+
+    # Convert recur to boolean for consistency
+    for source in results:
+        source.recur = bool(source.recur)
+
+    return results
 
 
 def get_all_ledger_entries(household_profile: str) -> list:
     """
-    Fetch all ledger entries for a household profile, flattened with source info if available.
+    Fetch all ledger entries for a household profile with source info using Query Builder.
     """
-    all_ledger_entries = []
-    income_records = frappe.get_all(
-        "Income",
-        filters={"household_profile": household_profile},
-        fields=["name"]
-    )
-    for record in income_records:
-        entries = frappe.get_all(
-            "Income Ledger",
-            filters={"parent": record.name},
-            fields=[
-                "name", "income_source", "income_type",
-                "date_time", "amount", "source_type", "description"
-            ],
-            order_by="date_time desc"
+    results = (
+        qb.from_(Income)
+        .join(IncomeLedger).on(Income.name == IncomeLedger.parent)
+        .left_join(IncomeSource).on(IncomeLedger.income_source == IncomeSource.name)
+        .select(
+            IncomeLedger.name,
+            IncomeLedger.income_source,
+            IncomeLedger.income_type,
+            IncomeLedger.date_time,
+            IncomeLedger.amount,
+            IncomeLedger.source_type,
+            IncomeLedger.description,
+            IncomeSource.type.as_("source_type_from_source"),
+            IncomeSource.recur.as_("source_recur"),
+            IncomeSource.income.as_("source_income"),
+            IncomeSource.date_time.as_("source_date_time"),
+            IncomeSource.recur_frequency.as_("source_recur_frequency"),
+            IncomeSource.stop_date.as_("source_stop_date")
         )
-        for entry in entries:
-            flattened_entry = {
-                "name": entry.name,
-                "income_source": entry.income_source,
-                "income_type": entry.income_type,
-                "date_time": entry.date_time,
-                "amount": entry.amount,
-                "description": entry.description
-            }
-            if entry.income_source:
-                source_info = frappe.get_all(
-                    "Income Source Type",
-                    filters={"name": entry.income_source},
-                    fields=[
-                        "type", "income", "recur", "date_time",
-                        "recur_frequency", "stop_date"
-                    ]
-                )
-                if source_info:
-                    source = source_info[0]
-                    flattened_entry.update({
-                        "source_type": source.type,
-                        "source_recur": source.recur,
-                        "source_income": source.income,
-                        "source_date_time": source.date_time,
-                        "source_recur_frequency": source.recur_frequency,
-                        "source_stop_date": source.stop_date
-                    })
-                else:
-                    flattened_entry["source_type"] = "Unknown"
-            else:
-                flattened_entry["source_type"] = entry.source_type or "One-time"
-            all_ledger_entries.append(flattened_entry)
-    return all_ledger_entries
+        .where(Income.household_profile == household_profile)
+        .orderby(IncomeLedger.date_time, order="desc")
+    ).run(as_dict=True)
+
+    # Process results to flatten entry data with source info
+    flattened_entries = []
+    for entry in results:
+        flattened_entry = {
+            "name": entry.name,
+            "income_source": entry.income_source,
+            "income_type": entry.income_type,
+            "date_time": entry.date_time,
+            "amount": entry.amount,
+            "description": entry.description
+        }
+
+        if entry.income_source and entry.source_type_from_source:
+            # Use source information from join
+            flattened_entry.update({
+                "source_type": entry.source_type_from_source,
+                "source_recur": entry.source_recur,
+                "source_income": entry.source_income,
+                "source_date_time": entry.source_date_time,
+                "source_recur_frequency": entry.source_recur_frequency,
+                "source_stop_date": entry.source_stop_date
+            })
+        elif entry.income_source:
+            # Source deleted but ledger remains
+            flattened_entry["source_type"] = "Unknown"
+        else:
+            # Direct entry - use stored source_type
+            flattened_entry["source_type"] = entry.source_type or "One-time"
+
+        flattened_entries.append(flattened_entry)
+
+    return flattened_entries
 
 
 def apply_income_filters(ledger_entries: list, filters: dict) -> list:
