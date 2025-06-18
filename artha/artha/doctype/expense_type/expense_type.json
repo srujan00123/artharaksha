@@ -17,7 +17,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Expense Type",
-   "options": "Travel\nWage loss\nAccommodation\nRent\nMiscellaneous\nGrocery\nFood\nSchool Fees\nTuition Fees\nEntertainment\nClothes\nOther"
+   "options": "Food & Groceries\nTransportation\nEducation\nUtilities\nRent/Housing\nClothing\nEntertainment\nOther Expenses"
   },
   {
    "fieldname": "amount",
@@ -41,8 +41,8 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-06-14 16:21:47.355629",
- "modified_by": "Administrator",
+ "modified": "2025-06-18 07:20:18.512009",
+ "modified_by": "srujan.00123@gmail.com",
  "module": "Artha",
  "name": "Expense Type",
  "owner": "Administrator",

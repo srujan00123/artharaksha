@@ -11,7 +11,7 @@ export interface ExpenseType{
 	parenttype?: string
 	idx?: number
 	/**	Expense Type : Select	*/
-	expense_type?: "Travel" | "Wage loss" | "Accommodation" | "Rent" | "Miscellaneous" | "Grocery" | "Food" | "School Fees" | "Tuition Fees" | "Entertainment" | "Clothes" | "Other"
+	expense_type?: "Food & Groceries" | "Transportation" | "Education" | "Utilities" | "Rent/Housing" | "Clothing" | "Entertainment" | "Other Expenses"
 	/**	Amount : Currency	*/
 	amount?: number
 	/**	Date Time : Datetime	*/

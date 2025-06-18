@@ -220,10 +220,7 @@ import type {
 	ExpenseValidationErrors,
 	FlattenedExpenseEntry,
 } from "../../types/expense"
-import {
-	MEDICAL_EXPENSE_CATEGORIES,
-	OTHER_EXPENSE_CATEGORIES,
-} from "../../types/expense"
+// Remove hardcoded categories - we'll use API data instead
 import {
 	getClientDateTimeString,
 	getClientTime,
@@ -248,6 +245,8 @@ const emit = defineEmits<{
 const {
 	createExpense,
 	updateExpense,
+	fetchExpenseTypes,
+	expenseTypes,
 	loading,
 	error,
 	clearError,
@@ -273,11 +272,18 @@ const formData = ref<ExpenseFormData>({
 // Computed properties
 const isEditing = computed(() => !!props.expense)
 
-const availableCategories = computed(() =>
-	formData.value.type === "medical"
-		? MEDICAL_EXPENSE_CATEGORIES
-		: OTHER_EXPENSE_CATEGORIES,
-)
+const availableCategories = computed(() => {
+	if (!expenseTypes.value) return []
+	
+	const types = formData.value.type === "medical" 
+		? expenseTypes.value.medical_types 
+		: expenseTypes.value.other_types
+	
+	return types.map(type => ({
+		value: type.expense_type,
+		label: type.expense_type
+	}))
+})
 
 const maxDateTime = computed(() => {
 	return getClientDateTimeString()
@@ -348,7 +354,7 @@ function handleReceiptUpload(event: Event) {
 		// For now, just store the file name
 		// In a real implementation, you'd upload the file and get a URL
 		formData.value.proof_of_payment = file.name
-}
+	}
 }
 
 function handleClickOutside() {
@@ -461,6 +467,23 @@ watch(
 	},
 	{ immediate: true },
 )
+
+// Initialize expense types on mount
+onMounted(async () => {
+	initialLoading.value = true
+	try {
+		// Fetch expense types if not already loaded
+		if (!expenseTypes.value || 
+			(!expenseTypes.value.medical_types?.length && !expenseTypes.value.other_types?.length)) {
+			await fetchExpenseTypes()
+		}
+	} catch (error) {
+		console.error("Failed to load expense types:", error)
+		submitError.value = "Failed to load expense categories. Please refresh and try again."
+	} finally {
+		initialLoading.value = false
+	}
+})
 </script>
 
 <style scoped>

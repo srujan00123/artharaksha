@@ -2,13 +2,13 @@
   <div class="expense-layout">
     <!-- Header Section Banner -->
     <div class="header-section mb-6">
-      <div class="bg-gradient-to-r from-red-600 to-red-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
+      <div class="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
         <div class="flex items-start justify-between">
           <div class="flex-1">
             <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
               Expense Management
             </h1>
-            <p class="text-red-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
+            <p class="text-blue-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
               Track and manage your medical and healthcare expenses with detailed analytics
             </p>
           </div>

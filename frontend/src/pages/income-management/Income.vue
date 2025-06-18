@@ -6,10 +6,11 @@
 <template>
   <div class="income-management space-y-4 lg:space-y-6">
 
-    <!-- Action Bar -->
-    <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+    <!-- Top Controls -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4 sm:p-5 lg:p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <!-- Add Income Buttons -->
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <button 
             v-if="currentView === 'sources'"
             @click="openIncomeSourceForm" 
@@ -28,25 +29,29 @@
             <Plus class="w-4 h-4 mr-2" />
             Add Income
           </button>
-          <Button @click="handleRefresh" :disabled="loading" variant="outline" size="sm" class="w-full sm:w-auto">
+          <button 
+            @click="handleRefresh" 
+            :disabled="loading" 
+            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full sm:w-auto"
+          >
             <RefreshCw class="w-4 h-4 mr-2" />
             Refresh
-          </Button>
+          </button>
         </div>
         
         <!-- View Toggle -->
-        <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-full sm:w-auto">
+        <div class="flex rounded-lg border border-gray-200 dark:border-gray-600 p-1 bg-gray-50 dark:bg-gray-700">
           <button @click="currentView = 'sources'" :class="[
-              'px-3 py-1 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none',
-              currentView === 'sources' 
+            'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+            currentView === 'sources' 
                 ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' 
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
           ]">
             Sources
           </button>
           <button @click="switchToLedgerView" :class="[
-              'px-3 py-1 text-sm font-medium rounded-md transition-colors flex-1 sm:flex-none',
-              currentView === 'ledger' 
+            'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+            currentView === 'ledger' 
                 ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm' 
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
           ]">
@@ -54,76 +59,76 @@
           </button>
         </div>
       </div>
-    </Card>
+    </div>
     
     <!-- Summary Cards using analytics from new architecture -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-      <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
               <DollarSign class="w-4 h-4 text-green-600 dark:text-green-400" />
             </div>
           </div>
-          <div class="ml-3 min-w-0 flex-1">
-            <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Actual Monthly Income</p>
-            <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">₹{{
+          <div class="ml-3">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Actual Monthly Income</p>
+            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
               (analytics?.monthly_recurring_income || dashboardMetrics?.actual_monthly_income || 0).toLocaleString('en-IN') }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">{{ totalSources }} sources (₹{{ (analytics?.expected_monthly_income || dashboardMetrics?.expected_monthly_income || 0).toLocaleString('en-IN') }} expected)</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ totalSources }} sources</p>
           </div>
         </div>
-      </Card>
+      </div>
 
-      <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
               <Repeat class="w-4 h-4 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
-          <div class="ml-3 min-w-0 flex-1">
-            <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Period Recurring Income</p>
-            <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">₹{{
+          <div class="ml-3">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Period Recurring Income</p>
+            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
               (analytics?.period_recurring_income || recurringIncome || 0).toLocaleString('en-IN') }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ (analytics?.recurring_percentage || 0).toFixed(1) }}% of period total
+              {{ (analytics?.recurring_percentage || 0).toFixed(1) }}% of total
             </p>
           </div>
         </div>
-      </Card>
+      </div>
 
-      <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
               <Calendar class="w-4 h-4 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
-          <div class="ml-3 min-w-0 flex-1">
-            <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Period One-time Income</p>
-            <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">₹{{
+          <div class="ml-3">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Period One-time Income</p>
+            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
               (analytics?.period_one_time_income || oneTimeIncome || 0).toLocaleString('en-IN') }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">This period</p>
           </div>
         </div>
-      </Card>
+      </div>
 
-      <Card class="p-4 sm:p-5 lg:p-6 bg-white dark:bg-slate-800">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
               <TrendingUp class="w-4 h-4 text-orange-600 dark:text-orange-400" />
             </div>
           </div>
-          <div class="ml-3 min-w-0 flex-1">
-            <p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Growth Rate</p>
-            <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <div class="ml-3">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Growth Rate</p>
+            <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {{ (analytics?.growth_rate || 0) >= 0 ? '+' : '' }}{{ (analytics?.growth_rate || 0).toFixed(1) }}%
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">vs last period</p>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
 
     <!-- Filter Section - Only show in ledger view -->
@@ -153,9 +158,12 @@
         </div>
       </div>
       <div class="mt-4">
-        <Button variant="outline" size="sm" @click="handleRefresh">
+        <button 
+          @click="handleRefresh"
+          class="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 text-red-800 dark:text-red-200 px-3 py-1 rounded text-sm transition-colors"
+        >
           Try Again
-        </Button>
+        </button>
       </div>
     </div>
 
@@ -222,6 +230,7 @@ import {
   Plus,
   RefreshCw,
   Repeat,
+  TrendingUp,
 } from "lucide-vue-next"
 import { onMounted, ref, watch } from "vue"
 
