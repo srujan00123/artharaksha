@@ -289,7 +289,7 @@
                 <div class="flex items-center space-x-2 mt-1">
                   <p class="text-xs text-gray-500 dark:text-gray-400">{{ formatDate(expense.date_time) }}</p>
                   <span v-if="expense.is_direct !== null" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                        :class="expense.is_direct ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
+                        :class="expense.is_direct ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200'">
                     {{ expense.is_direct ? 'Direct' : 'Indirect' }}
                   </span>
                 </div>

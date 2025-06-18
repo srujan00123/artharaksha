@@ -32,9 +32,7 @@
             v-if="currentView === 'sources'"
             @click="openIncomeSourceForm" 
             :disabled="loading" 
-            variant="solid" 
-            size="sm" 
-            class="w-full sm:w-auto"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto"
           >
             <Plus class="w-4 h-4 mr-2" />
             Add Income Source
@@ -43,9 +41,7 @@
             v-if="currentView === 'ledger'"
             @click="openDirectIncomeForm" 
             :disabled="loading" 
-            variant="solid" 
-            size="sm" 
-            class="w-full sm:w-auto"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto"
           >
             <Plus class="w-4 h-4 mr-2" />
             Add Income
