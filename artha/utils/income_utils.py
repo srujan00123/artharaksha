@@ -11,6 +11,7 @@ from frappe import qb
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from typing import Dict, List, Any, Optional, Union, Set
+import math
 
 # DocType references for Query Builder
 Income = DocType("Income")
@@ -321,7 +322,7 @@ def calculate_monthly_income_from_sources(sources: List[Dict[str, Any]]) -> floa
 def calculate_period_income(ledger_entries: List[Dict[str, Any]],
                             start_date: Any = None, end_date: Any = None) -> Dict[str, float]:
     """
-    Calculate income totals for a specific period
+    Calculate income totals for a specific period with enhanced analytics including monthly trends
 
     Args:
         ledger_entries: List of ledger entry dictionaries
@@ -329,53 +330,118 @@ def calculate_period_income(ledger_entries: List[Dict[str, Any]],
         end_date: Period end date (optional)
 
     Returns:
-        Dictionary with income totals by type
+        Dictionary with income totals by type and comprehensive analytics
     """
     totals = {
         'total_income': 0,
         'recurring_income': 0,
         'one_time_income': 0,
-        'income_by_type': {}
+        'income_by_type': {},
+        'monthly_trends': [],
+        'recurring_percentage': 0,
+        'growth_rate': 0,
+        'actual_monthly_income': 0,
+        'monthly_recurring_income': 0,
+        'expected_monthly_income': 0,
+        'period_recurring_income': 0,
+        'period_one_time_income': 0,
+        'period_total_income': 0
     }
 
+    # Filter entries by date if provided
+    filtered_entries = []
     for entry in ledger_entries:
-        # Apply date filters if provided
         if start_date or end_date:
             entry_date = getdate(entry.get('date_time'))
             if start_date and entry_date < getdate(start_date):
                 continue
             if end_date and entry_date > getdate(end_date):
                 continue
+        filtered_entries.append(entry)
 
+    # Monthly data tracking for trends
+    monthly_data = {}
+
+    for entry in filtered_entries:
         amount = flt(entry.get('amount', 0))
         income_type = entry.get('income_type', '')
         source_type = entry.get('source_type', 'Unknown')
+        entry_date = getdate(entry.get('date_time'))
+        month_key = entry_date.strftime("%Y-%m")
+
+        # Initialize monthly data if needed
+        if month_key not in monthly_data:
+            monthly_data[month_key] = {
+                "total": 0,
+                "recurring": 0,
+                "one_time": 0
+            }
 
         # Add to totals
         totals['total_income'] += amount
+        monthly_data[month_key]["total"] += amount
 
         if income_type == 'recurring':
             totals['recurring_income'] += amount
+            monthly_data[month_key]["recurring"] += amount
         else:
             totals['one_time_income'] += amount
+            monthly_data[month_key]["one_time"] += amount
 
         # Group by source type
         if source_type not in totals['income_by_type']:
             totals['income_by_type'][source_type] = 0
         totals['income_by_type'][source_type] += amount
 
+    # Generate monthly trends
+    monthly_trends = []
+    for month_key in sorted(monthly_data.keys()):
+        month_date = datetime.strptime(month_key, "%Y-%m")
+        monthly_trends.append({
+            "month": month_date.strftime("%b %Y"),
+            "total": monthly_data[month_key]["total"],
+            "recurring": monthly_data[month_key]["recurring"],
+            "one_time": monthly_data[month_key]["one_time"]
+        })
+
+    totals['monthly_trends'] = monthly_trends
+
+    # Calculate additional metrics
+    if totals['total_income'] > 0:
+        totals['recurring_percentage'] = (
+            totals['recurring_income'] / totals['total_income']) * 100
+
+    # Calculate growth rate if we have multiple months
+    if len(monthly_trends) >= 2:
+        recent_total = monthly_trends[-1]["total"]
+        previous_total = monthly_trends[-2]["total"]
+        if previous_total > 0:
+            totals['growth_rate'] = (
+                (recent_total - previous_total) / previous_total) * 100
+
+    # Set period-specific values
+    totals['period_total_income'] = totals['total_income']
+    totals['period_recurring_income'] = totals['recurring_income']
+    totals['period_one_time_income'] = totals['one_time_income']
+
+    # Calculate actual monthly income (current month)
+    current_month = getdate().strftime("%Y-%m")
+    if current_month in monthly_data:
+        totals['actual_monthly_income'] = monthly_data[current_month]["total"]
+        totals['monthly_recurring_income'] = monthly_data[current_month]["recurring"]
+
     return totals
 
 
 def get_income_summary_stats(ledger_entries: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Generate comprehensive income statistics
+    Generate comprehensive income statistics with enhanced analytics
 
     Args:
         ledger_entries: List of ledger entry dictionaries
 
     Returns:
-        Dictionary with various income statistics
+        Dictionary with various income statistics including summary data
     """
     if not ledger_entries:
         return {
@@ -384,7 +450,15 @@ def get_income_summary_stats(ledger_entries: List[Dict[str, Any]]) -> Dict[str, 
             'average_amount': 0,
             'latest_date': None,
             'earliest_date': None,
-            'income_by_type': {}
+            'income_by_type': {},
+            'summary': {
+                'total_sources': 0,
+                'average_source_amount': 0,
+                'top_income_type': '',
+                'top_income_amount': 0,
+                'diversity_score': 0,
+                'stability_score': 0
+            }
         }
 
     entry_dates = []
@@ -406,13 +480,52 @@ def get_income_summary_stats(ledger_entries: List[Dict[str, Any]]) -> Dict[str, 
         income_by_type[source_type]['amount'] += amount
         income_by_type[source_type]['entries'] += 1
 
+    # Calculate enhanced summary statistics
+    total_sources = len(income_by_type)
+    average_source_amount = total_income / total_sources if total_sources > 0 else 0
+
+    # Find top income type
+    top_income_type = ''
+    top_income_amount = 0
+    if income_by_type:
+        top_type_data = max(income_by_type.items(),
+                            key=lambda x: x[1]['amount'])
+        top_income_type = top_type_data[0]
+        top_income_amount = top_type_data[1]['amount']
+
+    # Calculate diversity score (0-100, higher = more diversified)
+    diversity_score = 0
+    if total_sources > 1:
+        # Calculate entropy-based diversity
+        type_proportions = [data['amount'] /
+                            total_income for data in income_by_type.values()]
+        entropy = -sum(p * (p > 0 and math.log2(p) or 0)
+                       for p in type_proportions)
+        max_entropy = math.log2(total_sources) if total_sources > 0 else 1
+        diversity_score = (entropy / max_entropy) * \
+            100 if max_entropy > 0 else 0
+
+    # Calculate stability score based on recurring income percentage
+    recurring_income = sum(flt(entry.get('amount', 0)) for entry in ledger_entries
+                           if entry.get('income_type') == 'recurring')
+    stability_score = (recurring_income / total_income) * \
+        100 if total_income > 0 else 0
+
     return {
         'total_entries': len(ledger_entries),
         'total_income': total_income,
         'average_amount': total_income / len(ledger_entries) if ledger_entries else 0,
         'latest_date': max(entry_dates) if entry_dates else None,
         'earliest_date': min(entry_dates) if entry_dates else None,
-        'income_by_type': income_by_type
+        'income_by_type': {k: v['amount'] for k, v in income_by_type.items()},
+        'summary': {
+            'total_sources': total_sources,
+            'average_source_amount': average_source_amount,
+            'top_income_type': top_income_type,
+            'top_income_amount': top_income_amount,
+            'diversity_score': diversity_score,
+            'stability_score': stability_score
+        }
     }
 
 

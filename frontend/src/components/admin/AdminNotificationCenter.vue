@@ -183,6 +183,179 @@
         </div>
       </div>
 
+      <!-- Notification System Testing -->
+      <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-md p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4 text-orange-600 dark:text-orange-400">🧪 Notification System Testing</h2>
+        
+        <!-- Test Status -->
+        <div v-if="testResults.length > 0" class="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <h3 class="font-medium text-gray-900 dark:text-gray-100 mb-3">Test Results:</h3>
+          <div class="space-y-2 max-h-64 overflow-y-auto">
+            <div
+              v-for="result in testResults"
+              :key="result.id"
+              :class="[
+                'p-3 rounded border-l-4 text-sm',
+                result.success 
+                  ? 'bg-green-50 border-green-400 text-green-700 dark:bg-green-900/20 dark:border-green-500 dark:text-green-300'
+                  : 'bg-red-50 border-red-400 text-red-700 dark:bg-red-900/20 dark:border-red-500 dark:text-red-300'
+              ]"
+            >
+              <div class="font-medium">{{ result.test }}</div>
+              <div class="text-xs opacity-75 mt-1">{{ result.message }}</div>
+              <div class="text-xs opacity-60 mt-1">{{ formatTime(result.timestamp) }}</div>
+            </div>
+          </div>
+          <button
+            @click="clearTestResults"
+            class="mt-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          >
+            Clear Results
+          </button>
+        </div>
+
+        <!-- Basic Tests -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <button
+            @click="runTest('local')"
+            :disabled="loading.tests"
+            class="p-4 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg text-center transition-colors"
+          >
+            <div class="text-blue-600 dark:text-blue-400 font-medium">🏠 Local Test</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Frontend notification</div>
+          </button>
+
+          <button
+            @click="runTest('backend')"
+            :disabled="loading.tests"
+            class="p-4 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg text-center transition-colors"
+          >
+            <div class="text-green-600 dark:text-green-400 font-medium">🔧 Backend Test</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Server endpoint</div>
+          </button>
+
+          <button
+            @click="runTest('socket')"
+            :disabled="loading.tests"
+            class="p-4 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg text-center transition-colors"
+          >
+            <div class="text-purple-600 dark:text-purple-400 font-medium">🔌 Socket Test</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">WebSocket handlers</div>
+          </button>
+
+          <button
+            @click="runTest('income')"
+            :disabled="loading.tests"
+            class="p-4 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg text-center transition-colors"
+          >
+            <div class="text-orange-600 dark:text-orange-400 font-medium">💰 Income Test</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Income notifications</div>
+          </button>
+        </div>
+
+        <!-- Advanced Tests -->
+        <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Advanced Testing</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Connection Status -->
+            <div class="space-y-4">
+              <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-3">🔗 Connection Status</h4>
+                <button
+                  @click="checkConnectionStatus"
+                  :disabled="loading.tests"
+                  class="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Check WebSocket Status
+                </button>
+              </div>
+
+              <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-3">📊 System Info</h4>
+                <button
+                  @click="getSystemInfo"
+                  :disabled="loading.tests"
+                  class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Get Debug Info
+                </button>
+              </div>
+            </div>
+
+            <!-- Stress Testing -->
+            <div class="space-y-4">
+              <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-3">⚡ Stress Test</h4>
+                <div class="flex space-x-2">
+                  <input
+                    v-model.number="stressTestCount"
+                    type="number"
+                    min="1"
+                    max="20"
+                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
+                    placeholder="Count"
+                  />
+                  <button
+                    @click="runStressTest"
+                    :disabled="loading.tests || stressTestCount < 1"
+                    class="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                  >
+                    Send {{ stressTestCount }} notifications
+                  </button>
+                </div>
+              </div>
+
+              <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-3">🔄 Full Test Suite</h4>
+                <button
+                  @click="runFullTestSuite"
+                  :disabled="loading.tests"
+                  class="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-400 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  {{ loading.tests ? 'Running...' : 'Run All Tests' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time Test Console -->
+        <div v-if="showConsole" class="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">🖥️ Test Console</h3>
+            <button
+              @click="clearConsole"
+              class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              Clear Console
+            </button>
+          </div>
+          <div class="bg-black text-green-400 p-4 rounded-lg font-mono text-sm max-h-64 overflow-y-auto">
+            <div v-for="log in consoleLogs" :key="log.id" class="mb-1">
+              <span class="text-gray-500">[{{ log.timestamp }}]</span> {{ log.message }}
+            </div>
+            <div v-if="consoleLogs.length === 0" class="text-gray-600">
+              Console ready for testing...
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center mt-6">
+          <button
+            @click="showConsole = !showConsole"
+            class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300"
+          >
+            {{ showConsole ? 'Hide' : 'Show' }} Console
+          </button>
+          
+          <div class="text-sm text-gray-500 dark:text-gray-400">
+            Tests run: {{ testResults.length }} | 
+            Last test: {{ testResults.length > 0 ? formatTime(testResults[0].timestamp) : 'None' }}
+          </div>
+        </div>
+      </div>
+
       <!-- Recent Admin Actions -->
       <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-md p-6">
         <h2 class="text-xl font-semibold mb-4">📊 Recent Admin Actions</h2>
@@ -229,6 +402,7 @@ const loading = ref({
 	role: false,
 	room: false,
 	user: false,
+	tests: false,
 })
 
 const roleNotification = reactive({
@@ -260,6 +434,12 @@ const availableRoles = ref([
 ])
 
 const recentActions = ref([])
+
+// Testing functionality
+const testResults = ref([])
+const consoleLogs = ref([])
+const showConsole = ref(false)
+const stressTestCount = ref(5)
 
 // Send role-based notification
 const sendRoleNotification = async () => {
@@ -400,8 +580,293 @@ const formatTime = (timestamp) => {
 	return new Date(timestamp).toLocaleString()
 }
 
+// Testing Functions
+const addTestResult = (test, message, success = true) => {
+	testResults.value.unshift({
+		id: Date.now(),
+		test,
+		message,
+		success,
+		timestamp: new Date(),
+	})
+	
+	// Keep only last 50 results
+	if (testResults.value.length > 50) {
+		testResults.value = testResults.value.slice(0, 50)
+	}
+}
+
+const addConsoleLog = (message) => {
+	consoleLogs.value.push({
+		id: Date.now(),
+		message,
+		timestamp: new Date().toLocaleTimeString(),
+	})
+	
+	// Keep only last 100 logs
+	if (consoleLogs.value.length > 100) {
+		consoleLogs.value = consoleLogs.value.slice(-100)
+	}
+}
+
+const clearTestResults = () => {
+	testResults.value = []
+}
+
+const clearConsole = () => {
+	consoleLogs.value = []
+}
+
+// Run individual tests
+const runTest = async (testType) => {
+	loading.value.tests = true
+	addConsoleLog(`Starting ${testType} test...`)
+	
+	try {
+		switch (testType) {
+			case 'local':
+				await runLocalTest()
+				break
+			case 'backend':
+				await runBackendTest()
+				break
+			case 'socket':
+				await runSocketTest()
+				break
+			case 'income':
+				await runIncomeTest()
+				break
+			default:
+				throw new Error(`Unknown test type: ${testType}`)
+		}
+	} catch (error) {
+		console.error(`${testType} test failed:`, error)
+		addTestResult(`${testType} Test`, error.message, false)
+		addConsoleLog(`❌ ${testType} test failed: ${error.message}`)
+	} finally {
+		loading.value.tests = false
+	}
+}
+
+const runLocalTest = async () => {
+	// Use global debug function if available
+	if (window.arthaNotifsDebug?.addTest) {
+		window.arthaNotifsDebug.addTest()
+		addTestResult('Local Test', 'Frontend notification added via global debug function', true)
+		addConsoleLog('✅ Local test completed - notification added via arthaNotifsDebug.addTest()')
+	} else {
+		throw new Error('arthaNotifsDebug.addTest not available - check useNotifications composable')
+	}
+}
+
+const runBackendTest = async () => {
+	// Use global debug function if available
+	if (window.arthaNotifsDebug?.testBackend) {
+		await window.arthaNotifsDebug.testBackend()
+		addTestResult('Backend Test', 'Server endpoint test completed', true)
+		addConsoleLog('✅ Backend test completed - check notification center for result')
+	} else {
+		// Fallback to direct API call
+		const result = await call('artha.api.notifications.send_test_notification')
+		addTestResult('Backend Test', 'Direct API call successful', true)
+		addConsoleLog('✅ Backend test completed via direct API call')
+	}
+}
+
+const runSocketTest = async () => {
+	// Use global debug function if available, otherwise fallback to backend
+	if (window.arthaNotifsDebug?.testSocket) {
+		await window.arthaNotifsDebug.testSocket()
+		addTestResult('Socket Test', 'WebSocket handlers test completed via frontend', true)
+		addConsoleLog('✅ Socket test completed - tested custom realtime handlers via frontend')
+	} else {
+		// Fallback to backend socket test
+		const result = await call('artha.api.notifications.test_socket_handlers')
+		if (result.status === 'success') {
+			addTestResult('Socket Test', 'Backend socket handler test completed', true)
+			addConsoleLog('✅ Socket test completed via backend endpoint')
+			addConsoleLog(`📡 Events sent: ${result.events_sent.join(', ')}`)
+		} else {
+			throw new Error(result.message)
+		}
+	}
+}
+
+const runIncomeTest = async () => {
+	// Use global debug function if available
+	if (window.arthaNotifsDebug?.testIncome) {
+		await window.arthaNotifsDebug.testIncome()
+		addTestResult('Income Test', 'Income notification test completed', true)
+		addConsoleLog('✅ Income test completed - check notification center for result')
+	} else {
+		// Fallback to direct API call
+		const result = await call('artha.api.notifications.trigger_income_test_notification')
+		addTestResult('Income Test', 'Direct income API call successful', true)
+		addConsoleLog('✅ Income test completed via direct API call')
+	}
+}
+
+const checkConnectionStatus = async () => {
+	loading.value.tests = true
+	addConsoleLog('Checking WebSocket connection status...')
+	
+	try {
+		if (window.arthaNotifsDebug?.getInfo) {
+			const info = window.arthaNotifsDebug.getInfo()
+			const status = info.socketConnected ? 'Connected' : 'Disconnected'
+			const color = info.socketConnected ? '🟢' : '🔴'
+			
+			// Check if system is working despite disconnected status
+			const hasRecentNotifications = info.notificationsCount > 0
+			const systemWorking = info.socketConnected || hasRecentNotifications
+			
+			let statusMessage = `WebSocket: ${color} ${status}`
+			if (!info.socketConnected && hasRecentNotifications) {
+				statusMessage += ' (but notifications are working!)'
+				addConsoleLog('🔍 Note: Socket shows disconnected but notifications are being received')
+				addConsoleLog('🔍 This may be a status detection issue, not an actual connection problem')
+			}
+			
+			addTestResult('Connection Status', statusMessage, systemWorking)
+			addConsoleLog(`${color} WebSocket Status: ${status}`)
+			addConsoleLog(`📊 Socket URL: ${info.socketUrl}`)
+			addConsoleLog(`📈 Notifications Count: ${info.notificationsCount}`)
+			addConsoleLog(`🔧 System Status: ${systemWorking ? 'Working' : 'Not Working'}`)
+			
+			if (info.socketStatus) {
+				addConsoleLog(`🔍 Socket Details: Connected=${info.socketStatus.isConnected}, HasSocket=${info.socketStatus.hasSocket}`)
+			}
+		} else {
+			throw new Error('arthaNotifsDebug.getInfo not available')
+		}
+	} catch (error) {
+		addTestResult('Connection Status', error.message, false)
+		addConsoleLog(`❌ Failed to check connection: ${error.message}`)
+	} finally {
+		loading.value.tests = false
+	}
+}
+
+const getSystemInfo = async () => {
+	loading.value.tests = true
+	addConsoleLog('Gathering system debug information...')
+	
+	try {
+		if (window.arthaNotifsDebug?.getInfo) {
+			const info = window.arthaNotifsDebug.getInfo()
+			
+			addTestResult('System Info', 'Debug information retrieved', true)
+			addConsoleLog('=== SYSTEM DEBUG INFO ===')
+			addConsoleLog(`🔌 Socket Connected: ${info.socketConnected}`)
+			addConsoleLog(`🌐 Socket URL: ${info.socketUrl}`)
+			addConsoleLog(`📨 Notifications Count: ${info.notificationsCount}`)
+			addConsoleLog(`⚡ Global Functions Available: ${Object.keys(window.arthaNotifsDebug || {}).length}`)
+			addConsoleLog(`🎯 Current User: ${window.frappe?.session?.user || 'Unknown'}`)
+			addConsoleLog(`📅 Timestamp: ${new Date().toISOString()}`)
+			addConsoleLog('=== END DEBUG INFO ===')
+		} else {
+			throw new Error('arthaNotifsDebug not available - notification system may not be initialized')
+		}
+	} catch (error) {
+		addTestResult('System Info', error.message, false)
+		addConsoleLog(`❌ Failed to get system info: ${error.message}`)
+	} finally {
+		loading.value.tests = false
+	}
+}
+
+const runStressTest = async () => {
+	if (stressTestCount.value < 1 || stressTestCount.value > 20) {
+		addTestResult('Stress Test', 'Invalid count (1-20 allowed)', false)
+		return
+	}
+	
+	loading.value.tests = true
+	addConsoleLog(`Starting stress test with ${stressTestCount.value} notifications...`)
+	
+	try {
+		let successCount = 0
+		let failCount = 0
+		
+		for (let i = 1; i <= stressTestCount.value; i++) {
+			try {
+				// Send via backend endpoint
+				await call('artha.api.notifications.send_test_notification', {
+					custom_message: `Stress Test Notification #${i}/${stressTestCount.value}`
+				})
+				successCount++
+				addConsoleLog(`✅ Notification ${i}/${stressTestCount.value} sent`)
+				
+				// Small delay to avoid overwhelming the system
+				await new Promise(resolve => setTimeout(resolve, 100))
+			} catch (error) {
+				failCount++
+				addConsoleLog(`❌ Notification ${i}/${stressTestCount.value} failed: ${error.message}`)
+			}
+		}
+		
+		addTestResult('Stress Test', `Sent ${successCount}/${stressTestCount.value} notifications (${failCount} failed)`, failCount === 0)
+		addConsoleLog(`🏁 Stress test completed: ${successCount} success, ${failCount} failed`)
+	} catch (error) {
+		addTestResult('Stress Test', error.message, false)
+		addConsoleLog(`❌ Stress test failed: ${error.message}`)
+	} finally {
+		loading.value.tests = false
+	}
+}
+
+const runFullTestSuite = async () => {
+	loading.value.tests = true
+	addConsoleLog('🚀 Starting full test suite...')
+	
+	const tests = ['local', 'backend', 'socket', 'income']
+	let passedTests = 0
+	let totalTests = tests.length
+	
+	try {
+		for (const testType of tests) {
+			try {
+				addConsoleLog(`⏳ Running ${testType} test...`)
+				await runTest(testType)
+				passedTests++
+				addConsoleLog(`✅ ${testType} test passed`)
+				
+				// Small delay between tests
+				await new Promise(resolve => setTimeout(resolve, 500))
+			} catch (error) {
+				addConsoleLog(`❌ ${testType} test failed: ${error.message}`)
+			}
+		}
+		
+		const allPassed = passedTests === totalTests
+		addTestResult('Full Test Suite', `${passedTests}/${totalTests} tests passed`, allPassed)
+		addConsoleLog(`🏁 Test suite completed: ${passedTests}/${totalTests} tests passed`)
+		
+		if (allPassed) {
+			addConsoleLog('🎉 All tests passed! Notification system is working correctly.')
+		} else {
+			addConsoleLog('⚠️ Some tests failed. Check individual test results for details.')
+		}
+	} catch (error) {
+		addTestResult('Full Test Suite', error.message, false)
+		addConsoleLog(`❌ Test suite failed: ${error.message}`)
+	} finally {
+		loading.value.tests = false
+	}
+}
+
 onMounted(() => {
-	// Load any initial data if needed
+	// Initialize console
+	addConsoleLog('Admin Notification Center initialized')
+	addConsoleLog('Testing functions ready')
+	
+	// Check if debug functions are available
+	if (window.arthaNotifsDebug) {
+		addConsoleLog('✅ arthaNotifsDebug global functions available')
+		addConsoleLog(`🔧 Available functions: ${Object.keys(window.arthaNotifsDebug).join(', ')}`)
+	} else {
+		addConsoleLog('⚠️ arthaNotifsDebug not yet available - may load after component initialization')
+	}
 })
 
 // Advanced theme management

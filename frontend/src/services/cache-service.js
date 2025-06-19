@@ -41,6 +41,12 @@ export const CACHE_KEYS = {
 	WELFARE_SCHEMES: "welfare_schemes",
 	INSURANCE_SCHEMES: "insurance_schemes",
 	SUPPORT_PATHWAYS: "support_pathways",
+
+	// Notification related
+	USER_NOTIFICATIONS: "user_notifications",
+	NOTIFICATION_SETTINGS: "notification_settings",
+	RECENT_ACTIVITY: "recent_activity",
+	REALTIME_CONNECTION: "realtime_connection",
 }
 
 /**

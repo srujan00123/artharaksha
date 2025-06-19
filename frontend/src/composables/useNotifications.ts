@@ -6,6 +6,7 @@
 import { computed, reactive, ref } from "vue";
 import { session } from "../data/session";
 import { socketClient } from "../services/socket-service";
+import { cacheService, CACHE_KEYS } from "../services/cache-service";
 
 // Notification interface
 interface Notification {
@@ -41,6 +42,18 @@ export function useNotifications() {
     () => globalNotificationState.connectionError,
   );
 
+  // Helper function to get user-specific cache key
+  const getUserNotificationKey = () => {
+    const userId = session.user || "anonymous";
+    return `${CACHE_KEYS.USER_NOTIFICATIONS}_${userId}`;
+  };
+
+  // Helper function to get recent activity cache key
+  const getRecentActivityKey = () => {
+    const userId = session.user || "anonymous";
+    return `${CACHE_KEYS.RECENT_ACTIVITY}_${userId}`;
+  };
+
   // Initialize realtime connection (singleton)
   const initialize = async () => {
     if (globalNotificationState.initialized) {
@@ -49,8 +62,8 @@ export function useNotifications() {
     globalNotificationState.initialized = true;
 
     try {
-      // Always load notifications from storage first
-      loadNotificationsFromStorage();
+      // Always load notifications from cache first
+      loadNotificationsFromCache();
 
       // Initialize custom socket client
       const socket = await socketClient.init({
@@ -310,15 +323,57 @@ export function useNotifications() {
 
     // Connection status listeners
     socketClient.on("connect", () => {
+      console.log("🔌 Socket connected");
       globalNotificationState.isConnected = true;
       globalNotificationState.connectionError = null;
+
+      // Send a test notification when connected
+      setTimeout(() => {
+        addNotification({
+          title: "WebSocket Connected",
+          message: "Real-time notifications are now active",
+          type: "success",
+        });
+      }, 1000);
+    });
+
+    // Listen for custom Artha handlers ready event
+    socketClient.on("artha:handlers_ready", (data: any) => {
+      console.log("🎯 Artha handlers ready:", data);
+      addNotification({
+        title: "Artha Handlers Ready",
+        message: "Custom realtime handlers are active",
+        type: "info",
+      });
+    });
+
+    // Listen for test response events
+    socketClient.on("artha:test_response", (data: any) => {
+      console.log("🧪 Test response received:", data);
+      addNotification({
+        title: "Test Response",
+        message: `Server test successful: ${data.message}`,
+        type: "success",
+      });
+    });
+
+    // Listen for pong events
+    socketClient.on("artha:pong", (data: any) => {
+      console.log("🏓 Pong received:", data);
+      addNotification({
+        title: "Server Ping",
+        message: "Server is responding to ping requests",
+        type: "info",
+      });
     });
 
     socketClient.on("disconnect", () => {
+      console.log("🔌 Socket disconnected");
       globalNotificationState.isConnected = false;
     });
 
     socketClient.on("connect_error", (error: any) => {
+      console.log("🔌 Socket connection error:", error);
       globalNotificationState.connectionError =
         error.message || "Connection error";
       console.error("Socket connection error:", error);
@@ -355,6 +410,8 @@ export function useNotifications() {
   const addNotification = (
     notification: Omit<Notification, "id" | "timestamp" | "read">,
   ) => {
+    console.log("🔔 Adding notification:", notification);
+
     const newNotification: Notification = {
       id: generateId(),
       timestamp: new Date(),
@@ -362,7 +419,13 @@ export function useNotifications() {
       ...notification,
     };
 
+    console.log("🔔 Created notification object:", newNotification);
+
     globalNotificationState.notifications.unshift(newNotification);
+    console.log(
+      "🔔 Total notifications after add:",
+      globalNotificationState.notifications.length,
+    );
 
     // Keep only last 50 notifications
     if (globalNotificationState.notifications.length > 50) {
@@ -370,12 +433,31 @@ export function useNotifications() {
         globalNotificationState.notifications.slice(0, 50);
     }
 
-    // Store in localStorage for persistence
-    saveNotificationsToStorage();
+    // Store in cache for persistence
+    try {
+      saveNotificationsToCache();
+      console.log("✅ Notification saved to cache");
+    } catch (error) {
+      console.error("❌ Failed to save notification to cache:", error);
+    }
+
+    // Update recent activity cache
+    try {
+      updateRecentActivityCache();
+      console.log("✅ Recent activity cache updated");
+    } catch (error) {
+      console.error("❌ Failed to update recent activity cache:", error);
+    }
 
     // Show browser notification if permission granted
-    showBrowserNotification(newNotification);
+    try {
+      showBrowserNotification(newNotification);
+      console.log("✅ Browser notification shown");
+    } catch (error) {
+      console.error("❌ Failed to show browser notification:", error);
+    }
 
+    console.log("🔔 Notification processing complete");
     return newNotification;
   };
 
@@ -386,20 +468,21 @@ export function useNotifications() {
     );
     if (notification) {
       notification.read = true;
-      saveNotificationsToStorage();
+      saveNotificationsToCache();
     }
   };
 
   // Mark all notifications as read
   const markAllAsRead = () => {
     globalNotificationState.notifications.forEach((n) => (n.read = true));
-    saveNotificationsToStorage();
+    saveNotificationsToCache();
   };
 
   // Clear all notifications
   const clearAll = () => {
     globalNotificationState.notifications = [];
-    saveNotificationsToStorage();
+    saveNotificationsToCache();
+    cacheService.delete(getRecentActivityKey());
   };
 
   // Generate unique ID
@@ -407,33 +490,66 @@ export function useNotifications() {
     return `notification_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Save notifications to localStorage
-  const saveNotificationsToStorage = () => {
+  // Save notifications to cache service
+  const saveNotificationsToCache = () => {
     try {
-      const userId = session.user || "anonymous";
-      localStorage.setItem(
-        `artha_notifications_${userId}`,
-        JSON.stringify(globalNotificationState.notifications),
-      );
+      const cacheKey = getUserNotificationKey();
+      cacheService.set(cacheKey, globalNotificationState.notifications, {
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
     } catch (error) {
-      console.warn("Failed to save notifications to localStorage:", error);
+      console.warn("Failed to save notifications to cache:", error);
     }
   };
 
-  // Load notifications from localStorage
-  const loadNotificationsFromStorage = () => {
+  // Load notifications from cache service
+  const loadNotificationsFromCache = () => {
     try {
-      const userId = session.user || "anonymous";
-      const stored = localStorage.getItem(`artha_notifications_${userId}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        globalNotificationState.notifications = parsed.map((n: any) => ({
+      const cacheKey = getUserNotificationKey();
+      const cached = cacheService.get(cacheKey);
+      if (cached && Array.isArray(cached)) {
+        globalNotificationState.notifications = cached.map((n: any) => ({
           ...n,
           timestamp: new Date(n.timestamp),
         }));
       }
     } catch (error) {
-      console.warn("Failed to load notifications from localStorage:", error);
+      console.warn("Failed to load notifications from cache:", error);
+    }
+  };
+
+  // Update recent activity cache (for dashboard)
+  const updateRecentActivityCache = () => {
+    try {
+      const recentActivity = globalNotificationState.notifications
+        .slice(0, 10) // Get last 10 notifications
+        .map((notification) => ({
+          id: notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          timestamp: notification.timestamp,
+          read: notification.read,
+          data: notification.data,
+        }));
+
+      const cacheKey = getRecentActivityKey();
+      cacheService.set(cacheKey, recentActivity, {
+        maxAge: 60 * 60 * 1000, // 1 hour
+      });
+    } catch (error) {
+      console.warn("Failed to update recent activity cache:", error);
+    }
+  };
+
+  // Get recent activity from cache
+  const getRecentActivity = () => {
+    try {
+      const cacheKey = getRecentActivityKey();
+      return cacheService.get(cacheKey) || [];
+    } catch (error) {
+      console.warn("Failed to get recent activity from cache:", error);
+      return [];
     }
   };
 
@@ -473,8 +589,159 @@ export function useNotifications() {
     socketClient.off("connect_error");
   };
 
+  // Manual test function (for debugging)
+  const addTestNotification = () => {
+    console.log("🧪 Adding test notification manually...");
+    return addNotification({
+      title: "Test Notification",
+      message: "This is a test notification to verify the system is working",
+      type: "info",
+    });
+  };
+
+  // Debug function to show current state
+  const getDebugInfo = () => {
+    const socketStatus = socketClient.getConnectionStatus?.() || {
+      isConnected: false,
+      connectionError: "Socket unavailable",
+      hasSocket: false,
+    };
+
+    // Try to get socket URL in a safe way
+    let socketUrl = "Not available";
+    try {
+      if (socketClient.socket && socketClient.socket.connected) {
+        // Construct URL from current location if socket is connected
+        const siteName =
+          socketClient.getSiteName?.() || "development.localhost";
+        socketUrl = `${window.location.origin}/${siteName}`;
+      }
+    } catch (error) {
+      console.warn("Could not determine socket URL:", error);
+    }
+
+    return {
+      notifications: globalNotificationState.notifications,
+      isConnected: globalNotificationState.isConnected,
+      connectionError: globalNotificationState.connectionError,
+      initialized: globalNotificationState.initialized,
+      notificationCount: globalNotificationState.notifications.length,
+      notificationsCount: globalNotificationState.notifications.length, // Alias for AdminNotificationCenter
+      socketConnected: socketStatus.isConnected, // This is what AdminNotificationCenter expects
+      socketStatus: socketStatus,
+      socketUrl: socketUrl,
+    };
+  };
+
+  // Test backend notification function
+  const testBackendNotification = async (
+    title?: string,
+    message?: string,
+    type?: string,
+  ) => {
+    try {
+      console.log("🧪 Testing backend notification...");
+      const response = await fetch(
+        "/api/method/artha.api.notifications.send_test_notification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            title: title || "Backend Test",
+            message: message || "This is a test from the backend",
+            notification_type: type || "info",
+          }),
+        },
+      );
+
+      const result = await response.json();
+      console.log("🧪 Backend test response:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ Backend test failed:", error);
+      return { status: "error", message: error.message };
+    }
+  };
+
+  // Test income notification via backend
+  const testIncomeNotification = async () => {
+    try {
+      console.log("🧪 Testing income notification...");
+      const response = await fetch(
+        "/api/method/artha.api.notifications.trigger_income_test_notification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          credentials: "include",
+        },
+      );
+
+      const result = await response.json();
+      console.log("🧪 Income test response:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ Income test failed:", error);
+      return { status: "error", message: error.message };
+    }
+  };
+
   // Load notifications on initialization
-  loadNotificationsFromStorage();
+  loadNotificationsFromCache();
+
+  // Test socket handlers function
+  const testSocketHandlers = () => {
+    console.log("🧪 Testing socket handlers...");
+
+    // Test ping
+    socketClient.emit("artha:ping", {
+      message: "Test ping from client",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Test client test event
+    socketClient.emit("artha:client_test", {
+      message: "Test client event",
+      data: { test: true, timestamp: new Date().toISOString() },
+    });
+  };
+
+  // Make debug functions available globally for console testing
+  if (typeof window !== "undefined") {
+    (window as any).arthaNotifsDebug = {
+      addTest: addTestNotification,
+      getInfo: getDebugInfo,
+      clearAll: clearAll,
+      notifications: () => globalNotificationState.notifications,
+      testBackend: testBackendNotification,
+      testIncome: testIncomeNotification,
+      testSocket: testSocketHandlers,
+    };
+    console.log("🧪 Debug functions available: window.arthaNotifsDebug");
+    console.log("🧪 Usage examples:");
+    console.log(
+      "  - window.arthaNotifsDebug.addTest() // Add local test notification",
+    );
+    console.log(
+      "  - window.arthaNotifsDebug.testBackend() // Test backend notification",
+    );
+    console.log(
+      "  - window.arthaNotifsDebug.testIncome() // Test income notification",
+    );
+    console.log(
+      "  - window.arthaNotifsDebug.testSocket() // Test socket handlers",
+    );
+    console.log("  - window.arthaNotifsDebug.getInfo() // Get debug info");
+    console.log(
+      "  - window.arthaNotifsDebug.clearAll() // Clear all notifications",
+    );
+  }
 
   return {
     // State
@@ -489,5 +756,16 @@ export function useNotifications() {
     markAllAsRead,
     clearAll,
     cleanup,
+
+    // Cache utilities
+    getRecentActivity,
+    updateRecentActivityCache,
+
+    // Debug utilities
+    addTestNotification,
+    getDebugInfo,
+    testBackendNotification,
+    testIncomeNotification,
+    testSocketHandlers,
   };
 }

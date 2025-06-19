@@ -148,10 +148,20 @@ export const useIncomeStore = defineStore("income", () => {
         forceRefresh,
       });
 
+      console.log("🔍 Store: Received data from service:", data);
+      console.log("🔍 Store: Analytics data:", data.analytics);
+      console.log("🔍 Store: Monthly trends:", data.analytics?.monthly_trends);
+
       incomes.value = data.incomes;
       recurringSources.value = data.recurringSources;
       ledgerEntries.value = data.ledgerEntries;
       analytics.value = data.analytics;
+
+      console.log("🔍 Store: Set analytics.value to:", analytics.value);
+      console.log(
+        "🔍 Store: analytics.value.monthly_trends:",
+        analytics.value?.monthly_trends,
+      );
 
       lastFetch.value = Date.now();
     } catch (err: any) {

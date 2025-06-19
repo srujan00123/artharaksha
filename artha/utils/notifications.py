@@ -69,9 +69,10 @@ def realtime_notification(event_type: str, data_field: str = None, user_field: s
                         rooms=rooms or []
                     )
 
-                    # Log the notification
+                    # Log the notification with more details
                     frappe.logger().info(
                         f"Sent realtime notification: {event_type} for {func.__name__} to user: {target_user} (includes user's financial data)")
+                    frappe.logger().debug(f"Notification data: {event_data}")
 
                 return result
 
@@ -79,6 +80,8 @@ def realtime_notification(event_type: str, data_field: str = None, user_field: s
                 # Log error but don't break the original function
                 frappe.logger().error(
                     f"Error sending realtime notification for {func.__name__}: {str(e)}")
+                frappe.log_error(
+                    f"Realtime notification decorator error: {str(e)}", "Notification System")
                 # Return the original result, don't re-execute
                 return result
 
@@ -178,17 +181,21 @@ def task_notification(operation: str, **notification_kwargs):
 
 
 def _send_realtime_notification(event_type: str, data: Dict[str, Any],
-                                target_user: str = None, broadcast: bool = True,
+                                target_user: str = None, broadcast: bool = False,
                                 rooms: List[str] = None):
     """
     Internal function to send realtime notifications.
+    Updated default broadcast=False for security.
     """
     try:
-        # Debug logging
-        frappe.logger().info(f"Sending realtime notification: {event_type}")
+        # Enhanced debug logging
+        frappe.logger().info(f"🔔 Sending realtime notification: {event_type}")
         frappe.logger().info(
-            f"Target user: {target_user}, Broadcast: {broadcast}, Rooms: {rooms}")
-        frappe.logger().info(f"Data: {data}")
+            f"📬 Target user: {target_user}, Broadcast: {broadcast}, Rooms: {rooms}")
+        frappe.logger().debug(
+            f"📊 Data: {json.dumps(data, default=str, indent=2)}")
+
+        notifications_sent = 0
 
         # Send to specific user if specified
         if target_user:
@@ -197,16 +204,18 @@ def _send_realtime_notification(event_type: str, data: Dict[str, Any],
                 message=data,
                 user=target_user
             )
-            frappe.logger().info(f"Sent to user: {target_user}")
+            notifications_sent += 1
+            frappe.logger().info(f"✅ Sent to user: {target_user}")
 
-        # Broadcast to all if enabled
+        # Broadcast to all if enabled (security: now False by default)
         if broadcast:
             frappe.publish_realtime(
                 event=event_type,
                 message=data,
                 room="all"
             )
-            frappe.logger().info(f"Broadcasted to all")
+            notifications_sent += 1
+            frappe.logger().info(f"📢 Broadcasted to all users")
 
         # Send to additional rooms
         if rooms:
@@ -216,19 +225,25 @@ def _send_realtime_notification(event_type: str, data: Dict[str, Any],
                     message=data,
                     room=room
                 )
-                frappe.logger().info(f"Sent to room: {room}")
+                notifications_sent += 1
+                frappe.logger().info(f"🏠 Sent to room: {room}")
+
+        frappe.logger().info(
+            f"🎯 Total notifications sent: {notifications_sent}")
 
     except Exception as e:
         frappe.logger().error(
-            f"Failed to send realtime notification: {str(e)}")
+            f"❌ Failed to send realtime notification: {str(e)}")
         frappe.log_error(
             f"Notification error details: {str(e)}", "Notification System")
 
 
 def send_custom_notification(title: str, message: str, notification_type: str = 'info',
-                             target_user: str = None, rooms: List[str] = None):
+                             target_user: str = None, rooms: List[str] = None,
+                             additional_data: Dict[str, Any] = None):
     """
     Utility function to send custom notifications programmatically.
+    Enhanced for better testing and debugging.
 
     Args:
         title: Notification title
@@ -236,6 +251,7 @@ def send_custom_notification(title: str, message: str, notification_type: str = 
         notification_type: Type of notification ('info', 'success', 'warning', 'error')
         target_user: Specific user to notify (optional)
         rooms: Rooms to broadcast to (optional)
+        additional_data: Extra data to include in notification (optional)
     """
     try:
         notification_data = {
@@ -243,8 +259,13 @@ def send_custom_notification(title: str, message: str, notification_type: str = 
             'message': message,
             'type': notification_type,
             'timestamp': frappe.utils.now(),
-            'user': frappe.session.user
+            'user': frappe.session.user,
+            'source': 'send_custom_notification'
         }
+
+        # Add any additional data
+        if additional_data:
+            notification_data.update(additional_data)
 
         _send_realtime_notification(
             event_type="artha_notification",
@@ -255,8 +276,15 @@ def send_custom_notification(title: str, message: str, notification_type: str = 
             rooms=rooms or []
         )
 
+        # Log successful notification
+        target_info = f"user: {target_user}" if target_user else f"rooms: {rooms}" if rooms else "broadcast"
+        frappe.logger().info(
+            f"Custom notification sent - Title: '{title}', Target: {target_info}")
+
     except Exception as e:
         frappe.logger().error(f"Failed to send custom notification: {str(e)}")
+        frappe.log_error(
+            f"Custom notification error: {str(e)}", "Notification System")
 
 
 def bulk_notification(operation: str, entity_type: str, count: int, **notification_kwargs):

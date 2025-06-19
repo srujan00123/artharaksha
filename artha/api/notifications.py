@@ -6,6 +6,7 @@ Handles notifications and provides socket configuration for frontend
 import frappe
 from frappe import _
 import json
+from typing import Dict, Any
 
 
 @frappe.whitelist()
@@ -273,37 +274,182 @@ def broadcast_notification(subject, content, role=None):
 
 
 @frappe.whitelist()
-def send_test_notification():
+def send_test_notification(title: str = "Test Notification", message: str = "This is a test notification from the backend", notification_type: str = "info", custom_message: str = None) -> Dict[str, Any]:
     """
-    Send a test notification to the current user
-    Note: This endpoint is primarily for testing and admin purposes
+    Send a test notification for debugging purposes
+    Enhanced for admin testing interface
     """
     try:
-        user = frappe.session.user
+        from artha.utils.notifications import send_custom_notification
 
-        # Publish realtime notification
-        frappe.publish_realtime(
-            event='artha_notification',
-            message={
-                'title': 'Test Notification',
-                'message': f'Hello {user}! This is a test notification.',
-                'type': 'info',
-                'data': {
-                    'timestamp': frappe.utils.now(),
-                    'user': user
-                }
-            },
-            user=user
+        # Use custom message if provided (for stress testing)
+        final_message = custom_message or message
+        final_title = title if not custom_message else "Backend Test"
+
+        # Send custom notification via utility function
+        send_custom_notification(
+            title=final_title,
+            message=final_message,
+            notification_type=notification_type,
+            target_user=frappe.session.user
         )
 
+        # Also publish directly via Frappe's realtime system for redundancy
+        frappe.publish_realtime(
+            event="artha_notification",
+            message={
+                "title": final_title,
+                "message": final_message,
+                "type": notification_type,
+                "timestamp": frappe.utils.now(),
+                "user": frappe.session.user,
+                "test": True,
+                "source": "backend_endpoint"
+            },
+            user=frappe.session.user
+        )
+
+        frappe.logger().info(
+            f"Test notification sent to user: {frappe.session.user} - Title: {final_title}")
+
         return {
-            'success': True,
-            'message': 'Test notification sent successfully'
+            "status": "success",
+            "message": "Test notification sent successfully via backend endpoint",
+            "notification_data": {
+                "title": final_title,
+                "message": final_message,
+                "type": notification_type,
+                "user": frappe.session.user,
+                "endpoint": "send_test_notification"
+            }
         }
 
     except Exception as e:
-        frappe.log_error(f"Error sending test notification: {str(e)}")
-        frappe.throw(_("Failed to send test notification"))
+        frappe.logger().error(f"Failed to send test notification: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to send test notification: {str(e)}"
+        }
+
+
+@frappe.whitelist()
+def trigger_income_test_notification() -> Dict[str, Any]:
+    """
+    Trigger a test income notification with the decorator pattern
+    Enhanced for admin testing interface
+    """
+    try:
+        from artha.utils.notifications import income_notification
+
+        # Use the decorator pattern to test
+        @income_notification('ledger_created', data_field='ledger_entry')
+        def mock_income_operation():
+            return {
+                "status": "success",
+                "message": "Test income entry created via decorator pattern",
+                "ledger_entry": {
+                    "amount": 5000,
+                    "income_type": "salary",
+                    "source_type": "Monthly Salary Test",
+                    "description": "Test salary payment from admin interface",
+                    "timestamp": frappe.utils.now(),
+                    "test_mode": True,
+                    "user": frappe.session.user
+                }
+            }
+
+        # Execute the decorated function
+        result = mock_income_operation()
+
+        # Also send a direct custom notification for immediate feedback
+        from artha.utils.notifications import send_custom_notification
+
+        send_custom_notification(
+            title="Income Test Notification",
+            message=f"Successfully tested income decorator pattern with ₹5,000 test entry",
+            notification_type="success",
+            target_user=frappe.session.user
+        )
+
+        frappe.logger().info(
+            f"Test income notification triggered for user: {frappe.session.user}")
+
+        return {
+            "status": "success",
+            "message": "Test income notification triggered successfully via decorator pattern",
+            "result": result,
+            "test_data": {
+                "decorator_used": "income_notification",
+                "event_type": "artha:income_ledger_created",
+                "amount": 5000,
+                "user": frappe.session.user
+            }
+        }
+
+    except Exception as e:
+        frappe.logger().error(
+            f"Failed to trigger test income notification: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to trigger test income notification: {str(e)}"
+        }
+
+
+@frappe.whitelist()
+def test_socket_handlers() -> Dict[str, Any]:
+    """
+    Test custom socket handlers by sending events that should be processed
+    by the realtime handlers in apps/artha/realtime/handlers.js
+    """
+    try:
+        # Send a test ping event that should be handled by our custom handlers
+        frappe.publish_realtime(
+            event="artha_test_ping",
+            message={
+                "test": True,
+                "message": "Testing custom socket handlers",
+                "timestamp": frappe.utils.now(),
+                "user": frappe.session.user,
+                "source": "backend_test"
+            },
+            user=frappe.session.user
+        )
+
+        # Send another test event with different data
+        frappe.publish_realtime(
+            event="artha_handler_test",
+            message={
+                "title": "Socket Handler Test",
+                "message": "This tests the custom realtime handlers",
+                "type": "info",
+                "data": {
+                    "handler_test": True,
+                    "endpoint": "test_socket_handlers",
+                    "user": frappe.session.user
+                }
+            },
+            user=frappe.session.user
+        )
+
+        frappe.logger().info(
+            f"Socket handler test events sent for user: {frappe.session.user}")
+
+        return {
+            "status": "success",
+            "message": "Socket handler test events sent successfully",
+            "events_sent": [
+                "artha_test_ping",
+                "artha_handler_test"
+            ],
+            "user": frappe.session.user
+        }
+
+    except Exception as e:
+        frappe.logger().error(f"Failed to test socket handlers: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to test socket handlers: {str(e)}"
+        }
 
 
 @frappe.whitelist()

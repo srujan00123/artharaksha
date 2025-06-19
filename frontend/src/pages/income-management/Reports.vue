@@ -140,7 +140,14 @@
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4 sm:p-6">
             <h3 class="text-sm sm:text-base font-medium text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">Distribution by
               Type</h3>
-            <div v-if="incomeByTypeData.length > 0" class="space-y-3">
+            
+            <!-- Loading state -->
+            <div v-if="loading" class="text-center py-6">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+              <p class="text-xs text-gray-500 mt-2">Loading income data...</p>
+            </div>
+            
+            <div v-else-if="incomeByTypeData.length > 0" class="space-y-3">
               <div v-for="item in incomeByTypeData" :key="item.type" class="flex items-center justify-between">
                 <div class="flex items-center">
                   <div class="w-3 h-3 rounded-full mr-3" :style="{ backgroundColor: item.color }"></div>
@@ -189,7 +196,13 @@
       <div class="trend-analysis">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Monthly Trends</h2>
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-6">
-          <div v-if="monthlyTrends.length > 0" class="space-y-4">
+          <!-- Loading state -->
+          <div v-if="loading" class="text-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="text-gray-500 mt-2">Loading trend data...</p>
+          </div>
+          
+          <div v-else-if="monthlyTrends.length > 0" class="space-y-4">
             <!-- Trend Chart Area -->
             <div class="h-64 flex items-end space-x-2">
               <div v-for="trend in monthlyTrends" :key="trend.month" class="flex-1 flex flex-col items-center">
@@ -263,7 +276,9 @@
             </div>
           </div>
           <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
-            No trend data available for the selected period
+            <Calendar class="w-12 h-12 mx-auto mb-3 text-gray-400" />
+            <p class="text-lg font-medium mb-2">No trend data available</p>
+            <p class="text-sm">Add some income entries for the selected period to see monthly trends</p>
           </div>
         </div>
       </div>
@@ -364,12 +379,19 @@ const selectedPeriod = ref<
 
 // Computed properties for analytics data using new architecture
 const incomeByTypeData = computed(() => {
+  console.log("🔍 Analytics data:", analytics.value)
+  console.log("🔍 Income by type:", incomeByType.value)
+  
   if (!incomeByType.value || Object.keys(incomeByType.value).length === 0) {
+    console.log("❌ No income by type data available")
     return []
   }
 
   const total = totalIncome.value || 0
-  if (total === 0) return []
+  if (total === 0) {
+    console.log("❌ Total income is 0")
+    return []
+  }
 
   const colors = [
     "#3B82F6",
@@ -384,7 +406,7 @@ const incomeByTypeData = computed(() => {
     "#6366F1",
   ]
 
-  return Object.entries(incomeByType.value)
+  const result = Object.entries(incomeByType.value)
     .filter(([type, amount]) => {
       // Filter out invalid entries
       const numAmount = Number(amount)
@@ -402,15 +424,26 @@ const incomeByTypeData = computed(() => {
       }
     })
     .sort((a, b) => b.amount - a.amount)
+    
+  console.log("✅ Processed income by type data:", result)
+  return result
 })
 
 const monthlyTrends = computed(() => {
-  return analytics.value?.monthly_trends || []
+  const trends = analytics.value?.monthly_trends || []
+  console.log("🔍 Monthly trends from analytics:", trends)
+  console.log("🔍 Full analytics object:", analytics.value)
+  return trends
 })
 
 const maxTrendValue = computed(() => {
-  if (monthlyTrends.value.length === 0) return 1
-  return Math.max(...monthlyTrends.value.map((t) => t.total))
+  if (monthlyTrends.value.length === 0) {
+    console.log("❌ No monthly trends data for max calculation")
+    return 1
+  }
+  const max = Math.max(...monthlyTrends.value.map((t) => t.total))
+  console.log("✅ Max trend value:", max)
+  return max
 })
 
 const recurringPercentage = computed(() => {
@@ -491,17 +524,32 @@ const formatPeriod = (period: string) => {
 // Event handlers using new architecture
 const updatePeriodFilter = async () => {
   try {
+    console.log("🔄 Updating period filter to:", selectedPeriod.value)
     await setPeriod(selectedPeriod.value)
+    console.log("✅ Period filter updated successfully")
+    
+    // Log the analytics data after update
+    setTimeout(() => {
+      console.log("🔍 Analytics after period update:", analytics.value)
+    }, 100)
   } catch (error) {
-    console.error("Failed to update period filter:", error)
+    console.error("❌ Failed to update period filter:", error)
   }
 }
 
 const refreshReports = async () => {
   try {
+    console.log("🔄 Refreshing reports with force refresh")
     await fetchIncomeWithAnalytics({ forceRefresh: true })
+    console.log("✅ Reports refreshed successfully")
+    
+    // Log the analytics data after refresh
+    setTimeout(() => {
+      console.log("🔍 Analytics after refresh:", analytics.value)
+      console.log("🔍 Monthly trends after refresh:", analytics.value?.monthly_trends)
+    }, 100)
   } catch (error) {
-    console.error("Failed to refresh reports:", error)
+    console.error("❌ Failed to refresh reports:", error)
   }
 }
 
@@ -535,11 +583,23 @@ const generateCSVData = () => {
 // Lifecycle using new architecture
 onMounted(async () => {
   try {
+    console.log("🚀 Initializing Reports page")
+    
     // Initialize with analytics and set default period
+    console.log("🔄 Calling initialize with analytics...")
     await initialize({ withAnalytics: true, forceRefresh: false })
+    console.log("✅ Initialize completed")
+    
+    console.log("🔄 Updating period filter...")
     await updatePeriodFilter()
+    console.log("✅ Period filter updated")
+    
+    // Log final state
+    console.log("🔍 Final analytics state:", analytics.value)
+    console.log("🔍 Final monthly trends:", analytics.value?.monthly_trends)
+    console.log("🔍 Final income by type:", incomeByType.value)
   } catch (error) {
-    console.error("Reports: Failed to initialize:", error)
+    console.error("❌ Reports: Failed to initialize:", error)
   }
 })
 </script>
