@@ -23,7 +23,6 @@ from artha.utils.income_utils import (
     create_expense_entry
 )
 from artha.utils.notifications import (
-    expense_notification,
     send_notification,
     realtime_notification
 )
@@ -224,7 +223,7 @@ def get_expense_dashboard_metrics(period: str = "this_month") -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-@expense_notification('created', data_field='expense_data')
+@realtime_notification('artha:expense_created', data_field='expense_data')
 def create_expense(expense_data: Union[str, Dict]) -> Dict[str, Any]:
     """
     Create a new expense entry in the appropriate child table
@@ -283,7 +282,7 @@ def create_expense(expense_data: Union[str, Dict]) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-@expense_notification('updated', data_field='expense_data')
+@realtime_notification('artha:expense_updated', data_field='expense_data')
 def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[str, Any]:
     """
     Update an existing expense entry in child table
@@ -355,7 +354,7 @@ def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[st
 
 
 @frappe.whitelist()
-@expense_notification('deleted', data_field='deleted_expense')
+@realtime_notification('artha:expense_deleted', data_field='deleted_expense')
 def delete_expense(expense_name: str, expense_id: str) -> Dict[str, Any]:
     """
     Delete an expense entry from child table

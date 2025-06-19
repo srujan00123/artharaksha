@@ -92,21 +92,35 @@ export function useNotifications() {
 
     // Listen to income/expense events from decorators
     socketClient.on("artha:income_ledger_created", (data: any) => {
-      const ledgerData = data.data || {};
-      const amount = ledgerData.amount || 0;
-      const incomeType =
-        ledgerData.income_type || ledgerData.source_type || "income";
+      const eventData = data.data || data;
+      const entriesData =
+        eventData.entries_added || eventData.ledger_entry || {};
 
-      addNotification({
-        title: "Income Entry Added",
-        message: `₹${amount.toLocaleString()} from ${incomeType}`,
-        type: "success",
-        data: ledgerData,
-      });
+      if (typeof eventData.entries_added === "number") {
+        // Bulk entry creation
+        addNotification({
+          title: "Income Entries Added",
+          message: `Added ${eventData.entries_added} recurring income entries`,
+          type: "success",
+          data: eventData,
+        });
+      } else {
+        // Single entry creation
+        const amount = entriesData.amount || 0;
+        const incomeType =
+          entriesData.income_type || entriesData.source_type || "income";
+
+        addNotification({
+          title: "Income Entry Added",
+          message: `₹${amount.toLocaleString()} from ${incomeType}`,
+          type: "success",
+          data: entriesData,
+        });
+      }
     });
 
     socketClient.on("artha:income_ledger_updated", (data: any) => {
-      const ledgerData = data.data || {};
+      const ledgerData = data.data?.ledger_entry || data.data || {};
       const amount = ledgerData.amount || 0;
       const incomeType =
         ledgerData.income_type || ledgerData.source_type || "income";
@@ -120,35 +134,49 @@ export function useNotifications() {
     });
 
     socketClient.on("artha:income_ledger_deleted", (data: any) => {
-      const ledgerData = data.data || {};
-      const incomeType =
-        ledgerData.income_type || ledgerData.source_type || "income";
+      const deletedData = data.data?.deleted_entry || data.data || {};
+      const incomeType = deletedData.income_type || "income";
 
       addNotification({
         title: "Income Entry Removed",
         message: `${incomeType} income entry was deleted`,
         type: "warning",
-        data: ledgerData,
+        data: deletedData,
       });
     });
 
+    socketClient.on("artha:income_saved", (data: any) => {
+      const incomeData = data.data?.income_data || data.data || {};
+      const action = incomeData.action || "saved";
+
+      addNotification({
+        title: "Income Record Updated",
+        message: `Income record ${action} with ${incomeData.total_sources || 0} sources`,
+        type: "success",
+        data: incomeData,
+      });
+    });
+
+    // Listen to expense events from decorators
     socketClient.on("artha:expense_created", (data: any) => {
-      const expenseData = data.data || {};
+      const expenseData = data.data?.expense_data || data.data || {};
       const amount = expenseData.amount || 0;
-      const category = expenseData.category || expenseData.type || "general";
+      const category = expenseData.category || "expense";
+      const type = expenseData.type || "other";
 
       addNotification({
         title: "Expense Added",
-        message: `₹${amount.toLocaleString()} spent on ${category} expenses`,
-        type: "warning",
+        message: `₹${amount.toLocaleString()} ${type} expense: ${category}`,
+        type: "info",
         data: expenseData,
       });
     });
 
     socketClient.on("artha:expense_updated", (data: any) => {
-      const expenseData = data.data || {};
+      const expenseData = data.data?.expense_data || data.data || {};
       const amount = expenseData.amount || 0;
-      const category = expenseData.category || expenseData.type || "general";
+      const category = expenseData.category || "expense";
+      const type = expenseData.type || "other";
 
       addNotification({
         title: "Expense Updated",
@@ -159,15 +187,29 @@ export function useNotifications() {
     });
 
     socketClient.on("artha:expense_deleted", (data: any) => {
-      const expenseData = data.data || {};
-      const category = expenseData.category || expenseData.type || "general";
+      const deletedData = data.data?.deleted_expense || data.data || {};
+      const type = deletedData.type || "expense";
 
       addNotification({
         title: "Expense Removed",
-        message: `${category} expense was deleted`,
+        message: `${type} expense entry was deleted`,
         type: "warning",
-        data: expenseData,
+        data: deletedData,
       });
+    });
+
+    // Listen to resource cache invalidation (CRM-style)
+    socketClient.on("refetch_resource", (data: any) => {
+      try {
+        console.log("🔄 Resource cache invalidation received:", data);
+        // Here you could integrate with your resource caching system
+        // For now, just log it for debugging
+        if (data.cache_key) {
+          console.log(`Cache key to invalidate: ${data.cache_key}`);
+        }
+      } catch (error) {
+        console.error("Failed to handle resource cache invalidation:", error);
+      }
     });
 
     // Enhanced connection status listeners
@@ -404,9 +446,11 @@ export function useNotifications() {
       socketClient.off("artha:income_ledger_created");
       socketClient.off("artha:income_ledger_updated");
       socketClient.off("artha:income_ledger_deleted");
+      socketClient.off("artha:income_saved");
       socketClient.off("artha:expense_created");
       socketClient.off("artha:expense_updated");
       socketClient.off("artha:expense_deleted");
+      socketClient.off("refetch_resource");
       socketClient.off("connect");
       socketClient.off("disconnect");
       socketClient.off("connect_error");

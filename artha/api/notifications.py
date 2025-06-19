@@ -91,13 +91,13 @@ def send_role_based_notification(roles=None, title=None, message=None, notificat
             ))
 
         # Send notification using utility function
-        from artha.utils.notifications import send_role_notification
+        from artha.utils.notifications import send_notification
 
-        send_role_notification(
+        send_notification(
             title=title or "Role-based Notification",
             message=message or f"Notification for users with roles: {', '.join(roles)}",
-            roles=roles,
-            notification_type=notification_type
+            notification_type=notification_type,
+            target_roles=roles
         )
 
         # Count target users
@@ -426,4 +426,31 @@ def send_test_notification(title: str = "Test Notification", message: str = "Thi
         return {
             "status": "error",
             "message": f"Failed to send test notification: {str(e)}"
+        }
+
+
+@frappe.whitelist()
+def invalidate_resource_cache(cache_key: str, user: str = None) -> Dict[str, Any]:
+    """Invalidate frontend resource cache (CRM-style approach)."""
+    try:
+        if not cache_key:
+            frappe.throw(_("Cache key is required"))
+
+        # Send cache invalidation event
+        frappe.publish_realtime(
+            event="refetch_resource",
+            message={"cache_key": cache_key},
+            user=user or frappe.session.user
+        )
+
+        return {
+            "status": "success",
+            "message": f"Cache invalidated for key: {cache_key}"
+        }
+
+    except Exception as e:
+        frappe.logger().error(f"Failed to invalidate resource cache: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to invalidate cache: {str(e)}"
         }

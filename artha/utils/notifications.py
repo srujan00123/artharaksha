@@ -1,6 +1,11 @@
 """
 Notification decorators and utilities for Artha APIs
 Core notification system following Frappe's realtime patterns
+
+Main Functions:
+- @realtime_notification() decorator for automatic API notifications  
+- send_notification() for manual user/role/room notifications
+- invalidate_resource_cache() for frontend cache invalidation
 """
 
 import frappe
@@ -249,159 +254,42 @@ def _create_notification_log_entry(title: str, message: str, notification_type: 
         return None
 
 
-# Specialized notification functions following Frappe patterns
-def send_income_notification(title: str, message: str, target_user: str = None,
-                             income_name: str = None, amount: float = None, **kwargs):
-    """Send income-related notifications with financial data."""
+# Note: Removed specialized notification functions - use send_notification() directly
+# with appropriate parameters for role-based, user-specific notifications
+
+
+# Note: Removed convenience decorators in favor of direct @realtime_notification usage
+# This ensures consistent event naming and better maintainability
+
+
+# Note: For progress notifications, use frappe.publish_progress() directly
+
+
+def invalidate_resource_cache(cache_key: str, user: str = None) -> Dict[str, Any]:
+    """Invalidate frontend resource cache (CRM-style approach)."""
     try:
-        if not target_user:
-            target_user = frappe.session.user
+        if not cache_key:
+            raise ValueError("Cache key is required")
 
-        if amount:
-            formatted_amount = f"₹{amount:,.0f}"
-            if formatted_amount not in message:
-                message = f"{message} - {formatted_amount}"
-
-        send_notification(
-            title=title,
-            message=message,
-            notification_type="success",
-            target_user=target_user,
-            document_type="Income" if income_name else None,
-            document_name=income_name
-        )
-
-        # Also send realtime event for income-specific listeners
-        if income_name:
-            frappe.publish_realtime(
-                event="artha:income_updated",
-                message={
-                    'title': title,
-                    'message': message,
-                    'amount': amount,
-                    'income_name': income_name,
-                    'timestamp': frappe.utils.now(),
-                    **kwargs
-                },
-                user=target_user
-            )
-
-    except Exception as e:
-        frappe.logger().error(f"Failed to send income notification: {str(e)}")
-
-
-def send_role_notification(title: str, message: str, roles: List[str],
-                           notification_type: str = 'info'):
-    """Send notifications to users with specific roles using Frappe patterns."""
-    try:
-        send_notification(
-            title=title,
-            message=message,
-            notification_type=notification_type,
-            target_roles=roles
-        )
-
-        # Also send to role-based rooms for realtime updates
-        for role in roles:
-            frappe.publish_realtime(
-                event="artha_notification",
-                message={
-                    'title': title,
-                    'message': message,
-                    'type': notification_type,
-                    'timestamp': frappe.utils.now(),
-                    'role': role
-                },
-                room=f"role:{role}"
-            )
-
-    except Exception as e:
-        frappe.logger().error(f"Failed to send role notification: {str(e)}")
-
-
-# Convenience decorators for common operations
-def income_notification(operation: str, **kwargs):
-    """Specialized decorator for income operations."""
-    event_type = f"artha:income_{operation}"
-    return realtime_notification(event_type, **kwargs)
-
-
-def expense_notification(operation: str, **kwargs):
-    """Specialized decorator for expense operations."""
-    event_type = f"artha:expense_{operation}"
-    return realtime_notification(event_type, **kwargs)
-
-
-# Predefined decorators following Frappe event naming
-income_created = income_notification(
-    'ledger_created', data_field='ledger_entry')
-income_updated = income_notification(
-    'ledger_updated', data_field='ledger_entry')
-income_deleted = income_notification(
-    'ledger_deleted', data_field='deleted_entry')
-
-expense_created = expense_notification('created', data_field='expense_data')
-expense_updated = expense_notification('updated', data_field='expense_data')
-expense_deleted = expense_notification('deleted')
-
-
-# Progress notification using Frappe's standard progress system
-def send_progress_notification(percent: int, title: str = "Processing",
-                               description: str = "", user: str = None):
-    """Send progress notification using Frappe's publish_progress."""
-    try:
-        frappe.publish_progress(
-            percent=percent,
-            title=title,
-            description=description,
+        # Send cache invalidation event
+        frappe.publish_realtime(
+            event="refetch_resource",
+            message={"cache_key": cache_key},
             user=user or frappe.session.user
         )
-    except Exception as e:
-        frappe.logger().error(
-            f"Failed to send progress notification: {str(e)}")
 
-
-# Document-specific notifications using Frappe's DocType events
-def send_document_notification(doctype: str, docname: str, event: str,
-                               message: str = None, user: str = None):
-    """Send document-specific notifications using Frappe's document rooms."""
-    try:
-        notification_data = {
-            'doctype': doctype,
-            'docname': docname,
-            'event': event,
-            'message': message or f"{doctype} {docname} {event}",
-            'timestamp': frappe.utils.now()
+        return {
+            "status": "success",
+            "message": f"Cache invalidated for key: {cache_key}"
         }
 
-        # Send to document-specific room
-        frappe.publish_realtime(
-            event=f"doc_update",
-            message=notification_data,
-            room=f"doc:{doctype}/{docname}"
-        )
-
-        # Send to DocType room
-        frappe.publish_realtime(
-            event=f"doctype_update",
-            message=notification_data,
-            room=f"doctype:{doctype}"
-        )
-
-        # Send to specific user if provided
-        if user:
-            frappe.publish_realtime(
-                event="artha_notification",
-                message={
-                    'title': f"{doctype} Updated",
-                    'message': notification_data['message'],
-                    'type': 'info',
-                    'document_type': doctype,
-                    'document_name': docname
-                },
-                user=user
-            )
-
     except Exception as e:
-        frappe.logger().error(
-            f"Failed to send document notification: {str(e)}")
+        frappe.logger().error(f"Failed to invalidate resource cache: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to invalidate cache: {str(e)}"
+        }
+
+
+# Note: Removed document-specific notification function
+# Use @realtime_notification decorator on API functions instead

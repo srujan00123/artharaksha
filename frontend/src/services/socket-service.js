@@ -202,6 +202,15 @@ class ArthaSpaSocketClient {
 			this.processTaskResponse(data, "progress")
 		})
 
+		// CRM-style resource cache invalidation (IMPORTANT ADDITION)
+		this.socket.on('refetch_resource', (data) => {
+			if (data.cache_key) {
+				// Emit custom event for resource management
+				this.emit('resource_invalidated', data)
+				console.log('🔄 Resource cache invalidated:', data.cache_key)
+			}
+		})
+
 		// Re-register all event listeners after connection
 		this.eventListeners.forEach((callbacks, event) => {
 			callbacks.forEach((callback) => {

@@ -25,10 +25,7 @@ from artha.utils.income_utils import (
     apply_income_filters
 )
 from artha.utils.notifications import (
-    income_notification,
-    send_income_notification,
     realtime_notification,
-    send_notification
 )
 import frappe
 from frappe import _
@@ -54,7 +51,7 @@ IncomeType = DocType("Income Type")
 # ===============================
 
 @frappe.whitelist()
-@income_notification('ledger_updated', data_field='entries_added')
+@realtime_notification('artha:income_ledger_created', data_field='entries_added')
 def create_initial_recurring_entries(income_name: str, source_name: str) -> Dict[str, Any]:
     """
     Create initial ledger entries for a new recurring source using utility function
@@ -93,14 +90,7 @@ def create_initial_recurring_entries(income_name: str, source_name: str) -> Dict
                 stop_date, today)
         )
 
-        # FIXED: Send additional notification for each entry since utility bypasses decorators
-        if entries_added > 0:
-            send_notification(
-                title=f"Income Ledger Updated",
-                message=f"Added {entries_added} recurring {source.type} entries (₹{source.income:,.0f} each)",
-                notification_type="success",
-                target_user=frappe.session.user
-            )
+        # Note: Notification sent via decorator @realtime_notification
 
         log_income_operation("create_initial_recurring_entries", {
             "income_name": income_name,
@@ -190,16 +180,7 @@ def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: 
                             total_entries_added += 1
                             entry_count += 1
 
-                            # Send notification for new entry using enhanced system
-                            if entry_count == 1:  # Send notification for first entry of each source
-                                send_income_notification(
-                                    title=f"New {source.type} Income Entry",
-                                    message=f"Added new recurring entry: ₹{source.income:,.0f}",
-                                    target_user=frappe.session.user,
-                                    income_name=income_name,
-                                    amount=flt(source.income),
-                                    entry_type="recurring_update"
-                                )
+                            # Note: Batch notification sent at end of function
 
                         next_date = get_next_occurrence(
                             next_date, source.recur_frequency)
@@ -217,15 +198,7 @@ def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: 
                         income_name, source.name)
                     total_entries_added += result.get("entries_added", 0)
 
-        # Send summary notification if entries were added using enhanced system
-        if total_entries_added > 0:
-            send_income_notification(
-                title="Income Ledger Updated",
-                message=f"Successfully added {total_entries_added} new income entries to your ledger",
-                target_user=frappe.session.user,
-                income_name=income_name,
-                entry_type="ledger_update_summary"
-            )
+        # Summary notification handled by individual API calls
 
         return {
             "status": "success",
@@ -1142,7 +1115,7 @@ def get_income_insights() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-@income_notification('ledger_updated', data_field='ledger_entry')
+@realtime_notification('artha:income_ledger_updated', data_field='ledger_entry')
 def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], new_date: str, new_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Update a specific ledger entry directly without affecting the income source
@@ -1215,7 +1188,7 @@ def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], n
 
 
 @frappe.whitelist()
-@income_notification('ledger_deleted', data_field='deleted_entry')
+@realtime_notification('artha:income_ledger_deleted', data_field='deleted_entry')
 def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
     """
     Delete a specific ledger entry without affecting the income source
@@ -1270,7 +1243,7 @@ def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-@income_notification('ledger_created', data_field='ledger_entry')
+@realtime_notification('artha:income_ledger_created', data_field='ledger_entry')
 def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date_time: str, description: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a direct ledger entry for one-time income without creating an income source

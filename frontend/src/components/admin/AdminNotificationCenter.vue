@@ -604,7 +604,7 @@ const runLocalTest = async () => {
 			throw new Error('Failed to add local notification')
 		}
 	} else {
-		throw new Error('arthaNotifsDebug.addTest not available')
+		throw new Error('arthaNotifsDebug.addTest not available - useNotifications may not be initialized')
 	}
 }
 
