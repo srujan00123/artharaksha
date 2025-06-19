@@ -22,6 +22,27 @@ module.exports = function (socket) {
     }
   }
 
+  // Handle standard Frappe join_room events (used by frontend)
+  socket.on('join_room', (room) => {
+    if (typeof room === 'string') {
+      // Validate room access
+      if (canJoinRoom(socket, room)) {
+        socket.join(room);
+        console.log(`✅ Socket ${socket.id} joined room: ${room}`);
+      } else {
+        console.warn(`❌ Unauthorized attempt to join room ${room} by ${socket.id}`);
+      }
+    }
+  });
+
+  // Handle standard Frappe leave_room events
+  socket.on('leave_room', (room) => {
+    if (typeof room === 'string') {
+      socket.leave(room);
+      console.log(`👋 Socket ${socket.id} left room: ${room}`);
+    }
+  });
+
   // Handle explicit user room joining
   socket.on('join_user_room', (data) => {
     if (data.user && data.user === socket.user) {
@@ -71,9 +92,9 @@ module.exports = function (socket) {
     }
   });
 
-  // Handle room leaving
+  // Handle room leaving (legacy format)
   socket.on('leave_room', (data) => {
-    if (data.room) {
+    if (data && data.room) {
       socket.leave(data.room);
       console.log(`👋 Socket ${socket.id} left room: ${data.room}`);
     }
@@ -93,4 +114,46 @@ module.exports = function (socket) {
   });
 
   console.log(`✅ Artha handlers ready for socket ${socket.id}`);
-}; 
+};
+
+// Helper function to validate room access
+function canJoinRoom(socket, room) {
+  // Allow public rooms
+  const publicRooms = ['all', 'website'];
+  if (publicRooms.includes(room)) {
+    return true;
+  }
+  
+  // User must be authenticated for other rooms
+  if (!socket.user || socket.user === 'Guest') {
+    return false;
+  }
+  
+  // Allow user-specific rooms only for the user themselves
+  if (room.startsWith('user:')) {
+    const targetUser = room.replace('user:', '');
+    return targetUser === socket.user;
+  }
+  
+  // Allow role-based rooms if user has the role
+  if (room.startsWith('role:')) {
+    const targetRole = room.replace('role:', '');
+    return socket.user_roles && socket.user_roles.includes(targetRole);
+  }
+  
+  // Allow specific Artha rooms based on roles
+  const allowedRooms = {
+    'artha_users': ['Artha User'],
+    'insights_users': ['Insights User'], 
+    'admin': ['System Manager', 'Administrator']
+  };
+  
+  if (allowedRooms[room]) {
+    return socket.user_roles && allowedRooms[room].some(role => 
+      socket.user_roles.includes(role)
+    );
+  }
+  
+  // Deny access to unknown rooms
+  return false;
+} 

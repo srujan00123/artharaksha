@@ -301,6 +301,8 @@ onMounted(() => {
 		}).catch((error) => {
 			console.error("NotificationCenter initialization failed:", error)
 			// Still allow the component to function in offline mode
+			// You could show a toast notification here if needed:
+			// toast.warning("Notifications may be delayed due to connection issues")
 		})
 	} catch (error) {
 		console.error("Failed to mount NotificationCenter:", error)

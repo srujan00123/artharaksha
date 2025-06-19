@@ -527,7 +527,7 @@ const refreshDebugInfo = async () => {
 					notificationCount: 0,
 					siteName: result.site_name || 'Unknown',
 					version: '2.0.0',
-					connectionError: 'Debug interface not available'
+					connectionError: 'Debug interface not available - useNotifications may not be initialized'
 				}
 			} catch (apiError) {
 				debugInfo.value = {
@@ -535,7 +535,7 @@ const refreshDebugInfo = async () => {
 					notificationCount: 0,
 					siteName: 'Unknown',
 					version: '2.0.0',
-					connectionError: 'Unable to connect to backend'
+					connectionError: `Unable to connect to backend: ${apiError.message || 'Unknown error'}`
 				}
 			}
 		}

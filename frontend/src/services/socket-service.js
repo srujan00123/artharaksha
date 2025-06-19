@@ -53,7 +53,7 @@ class ArthaSpaSocketClient {
 		}
 	}
 
-	// Initialize socket connection following Frappe patterns
+	// Initialize socket connection using CRM's simple approach + our advanced features
 	async init(config = {}) {
 		const {
 			port = 9000,
@@ -66,19 +66,19 @@ class ArthaSpaSocketClient {
 		}
 
 		try {
-			// Get site info using Frappe's standard approach
-			const siteInfo = await this.fetchSiteInfo()
-			const siteName = siteInfo?.site_name || this.getSiteName()
+			// Use CRM's simple connection approach
+			const siteName = this.getSiteName()
 			const socketUrl = this.getSocketUrl(port, siteName)
 			
 			console.log(`🔌 Connecting to Frappe realtime: ${socketUrl}`)
 			
+			// Simplified socket options inspired by CRM
 			const socketOptions = {
 				withCredentials,
+				reconnectionAttempts,
 				transports: ["websocket", "polling"],
 				timeout: 20000,
 				reconnection: true,
-				reconnectionAttempts,
 				reconnectionDelay: 1000,
 				reconnectionDelayMax: 5000,
 				upgrade: true,
@@ -106,39 +106,29 @@ class ArthaSpaSocketClient {
 		}
 	}
 
-	// Get socket URL following Frappe's namespace pattern
+	// Get socket URL using CRM's simple approach
 	getSocketUrl(port, siteName) {
-		let host = window.location.origin
+		let host = window.location.hostname
+		let portStr = window.location.port ? `:${port}` : ''
+		let protocol = portStr ? 'http' : 'https'
+		let url = `${protocol}://${host}${portStr}/${siteName}`
 		
-		// In development, use the specified port
-		if (this.isDevelopment()) {
-			const protocol = window.location.protocol
-			const hostname = window.location.hostname
-			host = `${protocol}//${hostname}:${port}`
-		}
-		
-		// Frappe namespace format: /{sitename}
-		return `${host}/${siteName}`
+		return url
 	}
 
-	// Check if we're in development
+	// Simple development check (kept for backward compatibility)
 	isDevelopment() {
-		return (
-			window.dev_server ||
-			window.location.hostname.includes("localhost") ||
-			window.location.hostname.includes("127.0.0.1") ||
-			frappe.boot?.developer_mode
-		)
+		return window.location.port !== ''
 	}
 
-	// Get site name using Frappe's standard methods
+	// Get site name using CRM approach first, then fallbacks
 	getSiteName() {
-		// Use Frappe's boot data first (most reliable)
-		if (window.frappe?.boot?.sitename) {
-			return window.frappe.boot.sitename
+		// Use window.site_name first (CRM approach)
+		if (window.site_name) {
+			return window.site_name
 		}
 		
-		// Fallback to session
+		// Fallback to session data
 		if (session?.site_name) {
 			return session.site_name
 		}
@@ -232,13 +222,13 @@ class ArthaSpaSocketClient {
 			this.socket.emit("join_room", "website")
 
 			// Join user-specific room
-			const user = session?.user || window.frappe?.session?.user
+			const user = session?.user
 			if (user && user !== "Guest") {
 				this.socket.emit("join_room", `user:${user}`)
 			}
 
-			// Join role-based rooms
-			const userRoles = window.frappe?.boot?.user?.roles || []
+			// Join role-based rooms if available in session
+			const userRoles = session?.user_roles || []
 			userRoles.forEach(role => {
 				this.socket.emit("join_room", `role:${role}`)
 			})
