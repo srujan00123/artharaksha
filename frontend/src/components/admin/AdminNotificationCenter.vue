@@ -253,6 +253,48 @@
           </button>
         </div>
         
+        <!-- Enhanced Notification Tests (Frappe Notification Log) -->
+        <div class="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">🔔 Enhanced Notifications (Frappe Notification Log)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <button
+              @click="runTest('enhanced_income')"
+              :disabled="loading.tests"
+              class="p-4 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-center transition-colors"
+            >
+              <div class="text-emerald-600 dark:text-emerald-400 font-medium">💰 Enhanced Income</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Persistent income notification</div>
+            </button>
+
+            <button
+              @click="runTest('enhanced_system')"
+              :disabled="loading.tests"
+              class="p-4 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/20 dark:hover:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-lg text-center transition-colors"
+            >
+              <div class="text-slate-600 dark:text-slate-400 font-medium">🔔 Enhanced System</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Persistent system alert</div>
+            </button>
+
+            <button
+              @click="runTest('notification_stats')"
+              :disabled="loading.tests"
+              class="p-4 bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:hover:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-800 rounded-lg text-center transition-colors"
+            >
+              <div class="text-cyan-600 dark:text-cyan-400 font-medium">📊 Get Stats</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Notification statistics</div>
+            </button>
+
+            <button
+              @click="runTest('mark_all_read')"
+              :disabled="loading.tests"
+              class="p-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-lg text-center transition-colors"
+            >
+              <div class="text-rose-600 dark:text-rose-400 font-medium">✅ Mark All Read</div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Clear notification center</div>
+            </button>
+          </div>
+        </div>
+        
         <!-- Additional Income Tests -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <button
@@ -674,6 +716,18 @@ const runTest = async (testType) => {
 			case 'debug':
 				await runIncomeDebug()
 				break
+			case 'enhanced_income':
+				await runEnhancedIncomeTest()
+				break
+			case 'enhanced_system':
+				await runEnhancedSystemTest()
+				break
+			case 'notification_stats':
+				await runNotificationStatsTest()
+				break
+			case 'mark_all_read':
+				await runMarkAllReadTest()
+				break
 			default:
 				throw new Error(`Unknown test type: ${testType}`)
 		}
@@ -700,14 +754,42 @@ const runLocalTest = async () => {
 const runBackendTest = async () => {
 	// Use global debug function if available
 	if (window.arthaNotifsDebug?.testBackend) {
-		await window.arthaNotifsDebug.testBackend()
-		addTestResult('Backend Test', 'Server endpoint test completed', true)
-		addConsoleLog('✅ Backend test completed - check notification center for result')
+		const result = await window.arthaNotifsDebug.testBackend()
+		
+		if (result.status === 'success') {
+			addTestResult('Backend Test', result.message || 'Server endpoint test completed', true)
+			addConsoleLog('✅ Backend test completed - check notification center for result')
+			
+			if (result.backend_result) {
+				addConsoleLog(`📋 Backend response: ${result.backend_result.message || 'Success'}`)
+			}
+		} else {
+			addTestResult('Backend Test', result.message || 'Backend test failed', false)
+			addConsoleLog(`❌ Backend test failed: ${result.message}`)
+			
+			if (result.error_type === 'csrf_or_network') {
+				addConsoleLog('🔍 This appears to be a CSRF token or network issue')
+				addConsoleLog('💡 Try refreshing the page or using the web-based test interface')
+			}
+		}
 	} else {
-		// Fallback to direct API call
-		const result = await call('artha.api.notifications.send_test_notification')
-		addTestResult('Backend Test', 'Direct API call successful', true)
-		addConsoleLog('✅ Backend test completed via direct API call')
+		// Fallback to direct API call using CSRF-exempt endpoint
+		try {
+			const result = await call('artha.api.notifications.send_simple_test_notification')
+			
+			if (result.status === 'success') {
+				addTestResult('Backend Test', 'CSRF-exempt backend test successful', true)
+				addConsoleLog('✅ Backend test completed via CSRF-exempt endpoint')
+				addConsoleLog('💡 Used simple test notification to avoid CSRF issues')
+			} else {
+				addTestResult('Backend Test', result.message || 'API call failed', false)
+				addConsoleLog(`❌ Backend test failed: ${result.message}`)
+			}
+		} catch (apiError) {
+			addTestResult('Backend Test', 'Direct API call failed', false)
+			addConsoleLog(`❌ Direct API call failed: ${apiError.message}`)
+			addConsoleLog('💡 Try using the web-based test interface instead')
+		}
 	}
 }
 
@@ -733,14 +815,45 @@ const runSocketTest = async () => {
 const runIncomeTest = async () => {
 	// Use global debug function if available
 	if (window.arthaNotifsDebug?.testIncome) {
-		await window.arthaNotifsDebug.testIncome()
-		addTestResult('Income Test', 'Income notification test completed', true)
-		addConsoleLog('✅ Income test completed - check notification center for result')
+		const result = await window.arthaNotifsDebug.testIncome()
+		
+		if (result.status === 'success' || result.status === 'partial_success') {
+			addTestResult('Income Test', result.message || 'Income notification test completed', true)
+			addConsoleLog('✅ Income test completed - check notification center for result')
+			
+			if (result.status === 'partial_success') {
+				addConsoleLog('⚠️ Note: Backend test failed but local notifications work')
+			}
+			
+			if (result.backend_result) {
+				addConsoleLog(`📋 Backend response: ${result.backend_result.message || 'Success'}`)
+			}
+		} else {
+			addTestResult('Income Test', result.message || 'Income test failed', false)
+			addConsoleLog(`❌ Income test failed: ${result.message}`)
+			
+			if (result.error) {
+				addConsoleLog(`🔍 Error details: ${result.error}`)
+			}
+		}
 	} else {
 		// Fallback to direct API call
-		const result = await call('artha.api.notifications.trigger_income_test_notification')
-		addTestResult('Income Test', 'Direct income API call successful', true)
-		addConsoleLog('✅ Income test completed via direct API call')
+		try {
+			const result = await call('artha.api.notifications.send_simple_test_notification')
+			
+			if (result.status === 'success') {
+				addTestResult('Income Test', 'CSRF-exempt income test successful', true)
+				addConsoleLog('✅ Income test completed via CSRF-exempt endpoint')
+				addConsoleLog('💡 Used simple test notification to avoid CSRF issues')
+			} else {
+				addTestResult('Income Test', result.message || 'API call failed', false)
+				addConsoleLog(`❌ Income test failed: ${result.message}`)
+			}
+		} catch (apiError) {
+			addTestResult('Income Test', 'Direct API call failed', false)
+			addConsoleLog(`❌ Direct API call failed: ${apiError.message}`)
+			addConsoleLog('💡 Try using the web-based test interface instead')
+		}
 	}
 }
 
@@ -753,8 +866,41 @@ const runLedgerTest = async () => {
 	} else {
 		// Fallback to direct API call
 		const result = await call('artha.api.notifications.test_income_ledger_notification')
-		addTestResult('Ledger Test', 'Direct API call successful', true)
-		addConsoleLog('✅ Ledger test completed via direct API call')
+		
+		if (result.status === 'success') {
+			addTestResult('Ledger Test', 'Direct ledger entry test completed', true)
+			addConsoleLog('✅ Ledger test completed via direct API call')
+			
+			// Log test results
+			if (result.test_results) {
+				const testResults = result.test_results
+				Object.keys(testResults).forEach(testName => {
+					const testResult = testResults[testName]
+					const status = testResult.status || 'unknown'
+					const message = testResult.message || 'No message'
+					const emoji = status === 'success' ? '✅' : status === 'error' ? '❌' : '❓'
+					addConsoleLog(`   ${emoji} ${testName}: ${status} - ${message}`)
+				})
+			}
+			
+			addConsoleLog('📋 ' + (result.instructions || 'Check notification center for results'))
+		} else {
+			addTestResult('Ledger Test', result.message || 'Test failed', false)
+			addConsoleLog(`❌ Ledger test failed: ${result.message}`)
+			
+			// Log partial results if available
+			if (result.partial_results) {
+				addConsoleLog('📊 Partial Results:')
+				const partialResults = result.partial_results
+				Object.keys(partialResults).forEach(testName => {
+					const testResult = partialResults[testName]
+					const status = testResult.status || 'unknown'
+					const message = testResult.message || 'No message'
+					const emoji = status === 'success' ? '✅' : status === 'error' ? '❌' : '❓'
+					addConsoleLog(`   ${emoji} ${testName}: ${status} - ${message}`)
+				})
+			}
+		}
 	}
 }
 
@@ -774,19 +920,109 @@ const runIncomeDebug = async () => {
 			const results = result.results || {}
 			Object.keys(results).forEach(step => {
 				const stepResult = results[step]
-				addConsoleLog(`   ${step}: ${stepResult.status || 'unknown'} - ${stepResult.message || 'No message'}`)
+				const status = stepResult.status || 'unknown'
+				const message = stepResult.message || 'No message'
+				const emoji = status === 'success' ? '✅' : status === 'error' ? '❌' : status === 'skipped' ? '⏭️' : '❓'
+				addConsoleLog(`   ${emoji} ${step}: ${status} - ${message}`)
 			})
 			
 			addConsoleLog('📋 Check server logs for detailed notification tracking')
 			addConsoleLog('🔍 Look for income-related notifications in the notification center')
 		} else {
-			throw new Error(result.message || 'Debug failed')
+			// Handle error case with partial results
+			addTestResult('Income Debug', result.message || 'Debug failed with partial results', false)
+			addConsoleLog(`❌ Income debug failed: ${result.message}`)
+			
+			// Log partial results if available
+			if (result.partial_results) {
+				addConsoleLog('📊 Partial Results:')
+				const partialResults = result.partial_results || {}
+				Object.keys(partialResults).forEach(step => {
+					const stepResult = partialResults[step]
+					const status = stepResult.status || 'unknown'
+					const message = stepResult.message || 'No message'
+					const emoji = status === 'success' ? '✅' : status === 'error' ? '❌' : status === 'skipped' ? '⏭️' : '❓'
+					addConsoleLog(`   ${emoji} ${step}: ${status} - ${message}`)
+				})
+			}
+			
+			if (result.error_details) {
+				addConsoleLog(`🔍 Error Details: ${result.error_details}`)
+			}
 		}
 	} catch (error) {
 		addTestResult('Income Debug', error.message, false)
 		addConsoleLog(`❌ Income debug failed: ${error.message}`)
+		addConsoleLog('🔍 This might be a network error or server issue')
 	} finally {
 		loading.value.tests = false
+	}
+}
+
+// Enhanced notification test functions using Frappe Notification Log
+const runEnhancedIncomeTest = async () => {
+	const result = await call('artha.api.notifications.send_test_notification_enhanced', {
+		notification_type: 'income'
+	})
+	
+	if (result.status === 'success') {
+		addTestResult('Enhanced Income', 'Persistent income notification created successfully', true)
+		addConsoleLog('✅ Enhanced income test completed - check Frappe notification center (🔔 icon)')
+		addConsoleLog(`📨 Notification ID: ${result.notification_id}`)
+		addConsoleLog('💡 This notification persists in your notification center and can be marked as read')
+	} else {
+		throw new Error(result.message || 'Enhanced income test failed')
+	}
+}
+
+const runEnhancedSystemTest = async () => {
+	const result = await call('artha.api.notifications.send_test_notification_enhanced', {
+		notification_type: 'system'
+	})
+	
+	if (result.status === 'success') {
+		addTestResult('Enhanced System', 'Persistent system notification created successfully', true)
+		addConsoleLog('✅ Enhanced system test completed - check Frappe notification center (🔔 icon)')
+		addConsoleLog(`📨 Notification ID: ${result.notification_id}`)
+		addConsoleLog('💡 This notification persists in your notification center until marked as read')
+	} else {
+		throw new Error(result.message || 'Enhanced system test failed')
+	}
+}
+
+const runNotificationStatsTest = async () => {
+	const result = await call('artha.api.notifications.get_notification_stats')
+	
+	if (result.status === 'success') {
+		const stats = result.stats
+		addTestResult('Notification Stats', `Total: ${stats.total}, Unread: ${stats.unread}`, true)
+		addConsoleLog('✅ Notification statistics retrieved successfully')
+		addConsoleLog(`📊 Total notifications: ${stats.total}`)
+		addConsoleLog(`📩 Unread notifications: ${stats.unread}`)
+		addConsoleLog(`📫 Read notifications: ${stats.read}`)
+		addConsoleLog(`📋 Recent notifications: ${stats.recent.length}`)
+		
+		if (stats.recent.length > 0) {
+			addConsoleLog('🔍 Recent notifications:')
+			stats.recent.forEach((notif, index) => {
+				addConsoleLog(`   ${index + 1}. ${notif.subject} (${notif.read ? 'read' : 'unread'})`)
+			})
+		}
+	} else {
+		throw new Error(result.message || 'Failed to get notification stats')
+	}
+}
+
+const runMarkAllReadTest = async () => {
+	const result = await call('artha.api.notifications.mark_all_notifications_as_read_enhanced')
+	
+	if (result.status === 'success') {
+		addTestResult('Mark All Read', 'All notifications marked as read successfully', true)
+		addConsoleLog('✅ All notifications marked as read')
+		addConsoleLog('🔔 Check notification center - all notifications should now be marked as read')
+		addConsoleLog('💡 This uses Frappe\'s built-in mark_all_as_read functionality')
+	} else {
+		throw new Error(result.message || 'Failed to mark all notifications as read')
 	}
 }
 

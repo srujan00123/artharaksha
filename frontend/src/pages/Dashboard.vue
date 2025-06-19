@@ -289,30 +289,25 @@
                         </div>
 
                         <div class="space-y-2">
-                            <!-- 🚀 NEW: Recent Activity from Notifications -->
-                            <div v-for="notification in recentActivityFromNotifications" :key="`notification-${notification.id}`"
-                                :class="getNotificationBgClass(notification.type)"
-                                class="flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer"
-                                @click="markNotificationAsRead(notification.id)">
-                                <div class="flex items-center space-x-3">
-                                    <div
-                                        :class="getNotificationIconBgClass(notification.type)"
-                                        class="w-8 h-8 rounded-full flex items-center justify-center">
-                                        <component :is="getNotificationIcon(notification.type)"
-                                            :class="getNotificationIconColorClass(notification.type)"
-                                            class="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p class="font-medium text-gray-900 dark:text-gray-100">{{ notification.title }}</p>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{
-                                            formatDate(notification.timestamp) }}</p>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm text-gray-700 dark:text-gray-300 max-w-32 truncate">{{ notification.message }}</p>
-                                    <div v-if="!notification.read" class="w-2 h-2 bg-blue-500 rounded-full mt-1 ml-auto"></div>
-                                </div>
-                            </div>
+                                        <!-- Recent Notifications (Simple) -->
+            <div v-for="notification in recentNotifications.slice(0, 3)" :key="`notification-${notification.id}`"
+                class="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                @click="markNotificationAsRead(notification.id)">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                        <AlertCircle class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-gray-100">{{ notification.title }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{
+                            formatDate(notification.timestamp) }}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-700 dark:text-gray-300 max-w-32 truncate">{{ notification.message }}</p>
+                    <div v-if="!notification.read" class="w-2 h-2 bg-blue-500 rounded-full mt-1 ml-auto"></div>
+                </div>
+            </div>
 
                             <!-- Recent Expenses -->
                             <div v-for="expense in recentExpenses" :key="`expense-${expense.name}`"
@@ -327,7 +322,7 @@
                                         <p class="font-medium text-gray-900 dark:text-gray-100">{{ expense.category ||
                                             'Medical Expense' }}</p>
                                         <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{
-                                            formatDate(expense.date_time || expense.date || expense.creation) }}</p>
+                                            formatDate(expense.date_time) }}</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -351,7 +346,7 @@
                                         <p class="font-medium text-gray-900 dark:text-gray-100">{{ income.type ||
                                             'Income' }}</p>
                                         <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{
-                                            formatDate(income.date_time || income.date || income.creation) }}</p>
+                                            formatDate(income.date_time) }}</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -661,7 +656,6 @@ const {
 const {
     notifications: allNotifications,
     isConnected: notificationConnectionStatus,
-    getRecentActivity,
     initialize: initializeNotifications,
     markAsRead: markNotificationAsRead,
 } = notificationsComposable
@@ -735,13 +729,13 @@ const recentIncomeEntries = computed(() => {
             const dateB = new Date(b.date_time || b.date || b.creation || 0)
             return dateB - dateA
         })
-        .slice(0, 3)
+        .slice(0, 5) // Increased to 5 for better recent activity
         .map((entry) => ({
             name: entry.name || entry.source_type,
             type: entry.source_type || "Income",
             amount: entry.amount || 0,
             frequency: entry.income_type === "recurring" ? "Monthly" : "One-time",
-            date: entry.date_time || entry.date || entry.creation,
+            date_time: entry.date_time || entry.date || entry.creation,
         }))
 })
 
@@ -765,105 +759,20 @@ const recentExpenses = computed(() => {
             const dateB = new Date(b.date_time || b.date || b.creation || 0)
             return dateB - dateA
         })
-        .slice(0, 3)
+        .slice(0, 5) // Increased to 5 for better recent activity
         .map((expense) => ({
             name: expense.name,
             category: expense.category || "Medical Expense",
             amount: expense.amount || 0,
             provider: expense.provider || "Healthcare",
-            date: expense.date_time || expense.date || expense.creation,
+            date_time: expense.date_time || expense.date || expense.creation,
         }))
 })
 
-// 🚀 NEW: Recent activity from notifications
-const recentActivityFromNotifications = computed(() => {
-    try {
-        return getRecentActivity() || []
-    } catch (error) {
-        console.warn("Failed to get recent activity:", error)
-        return []
-    }
+// Simple recent notifications
+const recentNotifications = computed(() => {
+    return allNotifications?.value?.slice(0, 5) || []
 })
-
-// 🚀 NEW: Get notification icon based on type
-const getNotificationIcon = (type) => {
-    const iconMap = {
-        income: TrendingUp,
-        expense: PieChart,
-        health: Heart,
-        support: Shield,
-        success: TrendingUp,
-        warning: AlertTriangle,
-        error: AlertCircle,
-        info: FileText,
-        default: FileText,
-    }
-    return iconMap[type] || iconMap.default
-}
-
-// 🚀 NEW: Get notification color based on type
-const getNotificationColor = (type) => {
-    const colorMap = {
-        income: "green",
-        expense: "blue", 
-        health: "pink",
-        support: "purple",
-        success: "green",
-        warning: "yellow",
-        error: "red",
-        info: "blue",
-        default: "gray",
-    }
-    return colorMap[type] || colorMap.default
-}
-
-// 🚀 NEW: Get notification background class
-const getNotificationBgClass = (type) => {
-    const bgMap = {
-        income: "bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30",
-        expense: "bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30",
-        health: "bg-pink-50 dark:bg-pink-900/20 hover:bg-pink-100 dark:hover:bg-pink-900/30",
-        support: "bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30",
-        success: "bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30",
-        warning: "bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30",
-        error: "bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30",
-        info: "bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30",
-        default: "bg-gray-50 dark:bg-gray-900/20 hover:bg-gray-100 dark:hover:bg-gray-900/30",
-    }
-    return bgMap[type] || bgMap.default
-}
-
-// 🚀 NEW: Get notification icon background class
-const getNotificationIconBgClass = (type) => {
-    const bgMap = {
-        income: "bg-green-100 dark:bg-green-900/30",
-        expense: "bg-blue-100 dark:bg-blue-900/30",
-        health: "bg-pink-100 dark:bg-pink-900/30",
-        support: "bg-purple-100 dark:bg-purple-900/30",
-        success: "bg-green-100 dark:bg-green-900/30",
-        warning: "bg-yellow-100 dark:bg-yellow-900/30",
-        error: "bg-red-100 dark:bg-red-900/30",
-        info: "bg-blue-100 dark:bg-blue-900/30",
-        default: "bg-gray-100 dark:bg-gray-900/30",
-    }
-    return bgMap[type] || bgMap.default
-}
-
-// 🚀 NEW: Get notification icon color class
-const getNotificationIconColorClass = (type) => {
-    const colorMap = {
-        income: "text-green-600 dark:text-green-400",
-        expense: "text-blue-600 dark:text-blue-400",
-        health: "text-pink-600 dark:text-pink-400",
-        support: "text-purple-600 dark:text-purple-400",
-        success: "text-green-600 dark:text-green-400",
-        warning: "text-yellow-600 dark:text-yellow-400",
-        error: "text-red-600 dark:text-red-400",
-        info: "text-blue-600 dark:text-blue-400",
-        default: "text-gray-600 dark:text-gray-400",
-    }
-    return colorMap[type] || colorMap.default
-}
 
 // 🚀 FIXED: Medical and other expense counts
 const medicalExpenseCount = computed(() => {
@@ -940,7 +849,7 @@ const hasRecentActivity = computed(() => {
         recentIncomeEntries.value.length > 0 ||
         recentApplications.value.length > 0 ||
         recentClaims.value.length > 0 ||
-        recentActivityFromNotifications.value.length > 0
+        recentNotifications.value.length > 0
     )
 })
 

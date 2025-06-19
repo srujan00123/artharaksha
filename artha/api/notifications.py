@@ -669,57 +669,81 @@ def debug_income_notification_flow() -> Dict[str, Any]:
     Debug function to test the complete income notification flow
     This replicates what happens when real income is added/updated
     """
+    # Initialize results to avoid variable scope issues
+    result1 = {"status": "not_executed", "message": "Step 1 not started"}
+    result2 = {"status": "not_executed", "message": "Step 2 not started"}
+    result3 = {"status": "not_executed", "message": "Step 3 not started"}
+
     try:
         frappe.logger().info("=== Starting Income Notification Debug ===")
 
         # Step 1: Test direct ledger entry creation (this should trigger notification)
-        from artha.api.income import create_direct_ledger_entry
+        try:
+            from artha.api.income import create_direct_ledger_entry
 
-        frappe.logger().info("Step 1: Testing create_direct_ledger_entry")
-        result1 = create_direct_ledger_entry(
-            income_type="freelance",
-            amount=1000,
-            date_time=frappe.utils.now(),
-            description="Debug test - direct ledger entry"
-        )
-        frappe.logger().info(f"Direct ledger result: {result1}")
+            frappe.logger().info("Step 1: Testing create_direct_ledger_entry")
+            result1 = create_direct_ledger_entry(
+                income_type="freelance",
+                amount=1000,
+                date_time=frappe.utils.now(),
+                description="Debug test - direct ledger entry"
+            )
+            frappe.logger().info(f"Direct ledger result: {result1}")
+        except Exception as e1:
+            result1 = {"status": "error",
+                       "message": f"Step 1 failed: {str(e1)}"}
+            frappe.logger().error(f"Step 1 error: {str(e1)}")
 
         # Step 2: Test create_or_update_income (adding new source)
-        from artha.api.income import create_or_update_income
+        try:
+            from artha.api.income import create_or_update_income
 
-        frappe.logger().info("Step 2: Testing create_or_update_income")
-        test_source = [{
-            "type": "salary",
-            "income": 5000,
-            "date_time": frappe.utils.now(),
-            "recur_frequency": "Monthly",
-            "stop_date": None
-        }]
+            frappe.logger().info("Step 2: Testing create_or_update_income")
+            test_source = [{
+                "type": "salary",
+                "income": 5000,
+                "date_time": frappe.utils.now(),
+                "recur_frequency": "Monthly",
+                "stop_date": None
+            }]
 
-        result2 = create_or_update_income(
-            income_source=test_source
-        )
-        frappe.logger().info(f"Create/update income result: {result2}")
+            result2 = create_or_update_income(
+                income_source=test_source
+            )
+            frappe.logger().info(f"Create/update income result: {result2}")
+        except Exception as e2:
+            result2 = {"status": "error",
+                       "message": f"Step 2 failed: {str(e2)}"}
+            frappe.logger().error(f"Step 2 error: {str(e2)}")
 
         # Step 3: Test manual ledger update trigger
-        if result2.get('status') == 'success' and result2.get('income_data', {}).get('name'):
-            from artha.api.income import trigger_ledger_update
+        try:
+            if result2.get('status') == 'success' and result2.get('income_data', {}).get('name'):
+                from artha.api.income import trigger_ledger_update
 
-            frappe.logger().info("Step 3: Testing trigger_ledger_update")
-            income_name = result2['income_data']['name']
-            result3 = trigger_ledger_update(income_name)
-            frappe.logger().info(f"Trigger ledger update result: {result3}")
-        else:
-            result3 = {"status": "skipped",
-                       "message": "No income created in step 2"}
+                frappe.logger().info("Step 3: Testing trigger_ledger_update")
+                income_name = result2['income_data']['name']
+                result3 = trigger_ledger_update(income_name)
+                frappe.logger().info(
+                    f"Trigger ledger update result: {result3}")
+            else:
+                result3 = {"status": "skipped",
+                           "message": "No income created in step 2"}
+        except Exception as e3:
+            result3 = {"status": "error",
+                       "message": f"Step 3 failed: {str(e3)}"}
+            frappe.logger().error(f"Step 3 error: {str(e3)}")
 
         # Step 4: Send final summary notification
-        send_custom_notification(
-            title="Income Debug Complete",
-            message=f"Income notification debug completed. Check server logs for details.",
-            notification_type="info",
-            target_user=frappe.session.user
-        )
+        try:
+            send_custom_notification(
+                title="Income Debug Complete",
+                message=f"Income notification debug completed. Check server logs for details.",
+                notification_type="info",
+                target_user=frappe.session.user
+            )
+        except Exception as e4:
+            frappe.logger().error(f"Step 4 notification error: {str(e4)}")
 
         frappe.logger().info("=== Income Notification Debug Complete ===")
 
@@ -746,7 +770,12 @@ def debug_income_notification_flow() -> Dict[str, Any]:
         return {
             "status": "error",
             "message": f"Income notification debug failed: {str(e)}",
-            "error_details": str(e)
+            "error_details": str(e),
+            "partial_results": {
+                "step1_direct_ledger": result1,
+                "step2_create_income": result2,
+                "step3_trigger_update": result3
+            }
         }
 
 
@@ -756,41 +785,61 @@ def test_income_ledger_notification() -> Dict[str, Any]:
     Test function specifically for income ledger notifications
     This tests the actual API endpoints that should trigger notifications
     """
+    # Initialize result to avoid variable scope issues
+    result1 = {"status": "not_executed", "message": "Test not started"}
+
     try:
         frappe.logger().info("=== Testing Income Ledger Notifications ===")
 
         # Test 1: Create direct ledger entry (should trigger artha:income_ledger_created)
-        from artha.api.income import create_direct_ledger_entry
+        try:
+            from artha.api.income import create_direct_ledger_entry
 
-        frappe.logger().info("Testing create_direct_ledger_entry...")
-        result1 = create_direct_ledger_entry(
-            income_type="bonus",
-            amount=2500,
-            date_time=frappe.utils.now(),
-            description="Test notification - bonus payment"
-        )
-        frappe.logger().info(f"Direct ledger entry result: {result1}")
-
-        # Test 2: Create income with recurring source (should trigger notifications)
-        if result1.get('status') == 'success':
-            frappe.logger().info("✅ Direct ledger entry created successfully")
-
-            # Send confirmation notification
-            send_custom_notification(
-                title="Income Ledger Test Complete",
-                message="Successfully created test income entry. You should see notifications for this action.",
-                notification_type="success",
-                target_user=frappe.session.user,
-                additional_data={
-                    "test_type": "income_ledger_notification",
-                    "entry_amount": 2500,
-                    "entry_type": "bonus"
-                }
+            frappe.logger().info("Testing create_direct_ledger_entry...")
+            result1 = create_direct_ledger_entry(
+                income_type="bonus",
+                amount=2500,
+                date_time=frappe.utils.now(),
+                description="Test notification - bonus payment"
             )
+            frappe.logger().info(f"Direct ledger entry result: {result1}")
+        except Exception as e1:
+            result1 = {"status": "error",
+                       "message": f"Direct ledger entry failed: {str(e1)}"}
+            frappe.logger().error(f"Direct ledger entry error: {str(e1)}")
+
+        # Test 2: Send confirmation notification if successful
+        try:
+            if result1.get('status') == 'success':
+                frappe.logger().info("✅ Direct ledger entry created successfully")
+
+                # Send confirmation notification
+                send_custom_notification(
+                    title="Income Ledger Test Complete",
+                    message="Successfully created test income entry. You should see notifications for this action.",
+                    notification_type="success",
+                    target_user=frappe.session.user,
+                    additional_data={
+                        "test_type": "income_ledger_notification",
+                        "entry_amount": 2500,
+                        "entry_type": "bonus"
+                    }
+                )
+            else:
+                # Send notification about the failure
+                send_custom_notification(
+                    title="Income Ledger Test Failed",
+                    message=f"Test failed: {result1.get('message', 'Unknown error')}",
+                    notification_type="error",
+                    target_user=frappe.session.user
+                )
+        except Exception as e2:
+            frappe.logger().error(
+                f"Confirmation notification error: {str(e2)}")
 
         return {
             "status": "success",
-            "message": "Income ledger notification test completed successfully",
+            "message": "Income ledger notification test completed",
             "test_results": {
                 "direct_ledger_entry": result1
             },
@@ -803,7 +852,10 @@ def test_income_ledger_notification() -> Dict[str, Any]:
         return {
             "status": "error",
             "message": f"Test failed: {str(e)}",
-            "error_details": str(e)
+            "error_details": str(e),
+            "partial_results": {
+                "direct_ledger_entry": result1
+            }
         }
 
 
@@ -881,3 +933,247 @@ def ping_notification_system() -> Dict[str, Any]:
             "status": "error",
             "message": f"Ping failed: {str(e)}"
         }
+
+
+@frappe.whitelist()
+def get_user_notifications_enhanced(limit: int = 20, include_read: bool = False):
+    """
+    Get notifications for the current user using Frappe's Notification Log system
+    This integrates with the standard notification center
+    """
+    try:
+        user = frappe.session.user
+        if user == "Guest":
+            frappe.throw(_("Not authenticated"))
+
+        filters = {"for_user": user}
+        if not include_read:
+            filters["read"] = 0
+
+        # Get notifications from Notification Log
+        notifications = frappe.get_all(
+            "Notification Log",
+            filters=filters,
+            fields=[
+                "name", "subject", "email_content", "creation",
+                "document_type", "document_name", "type", "read",
+                "from_user", "link"
+            ],
+            order_by="creation desc",
+            limit=limit
+        )
+
+        # Enhance with user info
+        for notification in notifications:
+            if notification.from_user:
+                notification.from_user_fullname = frappe.get_value(
+                    "User", notification.from_user, "full_name"
+                ) or notification.from_user
+
+            # Format timestamps
+            notification.created_ago = frappe.utils.pretty_date(
+                notification.creation)
+
+            # Add action link if document is linked
+            if notification.document_type and notification.document_name:
+                notification.action_link = f"/app/{notification.document_type.lower().replace(' ', '-')}/{notification.document_name}"
+
+        return {
+            "status": "success",
+            "notifications": notifications,
+            "total_unread": len([n for n in notifications if not n.read]) if include_read else len(notifications)
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Failed to get enhanced notifications: {str(e)}")
+        frappe.throw(_("Failed to get notifications"))
+
+
+@frappe.whitelist()
+def mark_notification_as_read_enhanced(notification_id: str):
+    """
+    Mark a notification as read using Frappe's standard system
+    """
+    try:
+        user = frappe.session.user
+        if user == "Guest":
+            frappe.throw(_("Not authenticated"))
+
+        # Verify notification belongs to user
+        notification = frappe.get_doc("Notification Log", notification_id)
+        if notification.for_user != user:
+            frappe.throw(_("Not authorized"))
+
+        # Mark as read using Frappe's method
+        frappe.call("frappe.desk.doctype.notification_log.notification_log.mark_as_read",
+                    docname=notification_id)
+
+        return {"status": "success", "message": "Notification marked as read"}
+
+    except Exception as e:
+        frappe.log_error(f"Failed to mark notification as read: {str(e)}")
+        frappe.throw(_("Failed to mark notification as read"))
+
+
+@frappe.whitelist()
+def mark_all_notifications_as_read_enhanced():
+    """
+    Mark all notifications as read for the current user
+    """
+    try:
+        user = frappe.session.user
+        if user == "Guest":
+            frappe.throw(_("Not authenticated"))
+
+        # Use Frappe's built-in method
+        frappe.call(
+            "frappe.desk.doctype.notification_log.notification_log.mark_all_as_read")
+
+        return {"status": "success", "message": "All notifications marked as read"}
+
+    except Exception as e:
+        frappe.log_error(f"Failed to mark all notifications as read: {str(e)}")
+        frappe.throw(_("Failed to mark all notifications as read"))
+
+
+@frappe.whitelist()
+def send_income_notification_enhanced(title: str, message: str, income_name: str = None,
+                                      amount: float = None, target_user: str = None):
+    """
+    Send an income-related notification using Frappe's Notification Log system
+    This creates persistent notifications that appear in the notification center
+    """
+    try:
+        current_user = frappe.session.user
+        if current_user == "Guest":
+            frappe.throw(_("Not authenticated"))
+
+        # Default to current user if not specified
+        if not target_user:
+            target_user = current_user
+
+        # Enhance message with amount if provided
+        if amount:
+            formatted_amount = f"₹{amount:,.0f}"
+            if formatted_amount not in message:
+                message = f"{message} - {formatted_amount}"
+
+        # Create notification log entry
+        notification = frappe.new_doc("Notification Log")
+        notification.for_user = target_user
+        notification.from_user = current_user
+        notification.subject = title
+        notification.email_content = message
+        notification.type = "Alert"
+
+        # Link to income document if provided
+        if income_name:
+            notification.document_type = "Income"
+            notification.document_name = income_name
+            notification.link = f"/app/income/{income_name}"
+
+        notification.insert(ignore_permissions=True)
+        frappe.db.commit()
+
+        return {
+            "status": "success",
+            "notification_id": notification.name,
+            "message": "Income notification sent successfully"
+        }
+
+    except Exception as e:
+        frappe.log_error(
+            f"Failed to send enhanced income notification: {str(e)}")
+        frappe.throw(_("Failed to send income notification"))
+
+
+@frappe.whitelist()
+def send_test_notification_enhanced(notification_type: str = "income"):
+    """
+    Send a test notification using Frappe's Notification Log system
+    """
+    try:
+        current_user = frappe.session.user
+        if current_user == "Guest":
+            frappe.throw(_("Not authenticated"))
+
+        if notification_type == "income":
+            title = "Test Income Notification"
+            message = "This is a test income notification using Frappe's Notification Log system"
+
+            # Create notification
+            notification = frappe.new_doc("Notification Log")
+            notification.for_user = current_user
+            notification.from_user = current_user
+            notification.subject = title
+            notification.email_content = message
+            notification.type = "Alert"
+            notification.insert(ignore_permissions=True)
+
+        elif notification_type == "system":
+            title = "Test System Notification"
+            message = "This is a test system notification with persistent storage"
+
+            notification = frappe.new_doc("Notification Log")
+            notification.for_user = current_user
+            notification.from_user = "Administrator"
+            notification.subject = title
+            notification.email_content = message
+            notification.type = "Alert"
+            notification.insert(ignore_permissions=True)
+
+        else:
+            frappe.throw(_("Invalid notification type"))
+
+        frappe.db.commit()
+
+        return {
+            "status": "success",
+            "notification_id": notification.name,
+            "message": f"Test {notification_type} notification sent successfully"
+        }
+
+    except Exception as e:
+        frappe.log_error(
+            f"Failed to send enhanced test notification: {str(e)}")
+        frappe.throw(_("Failed to send test notification"))
+
+
+@frappe.whitelist()
+def get_notification_stats():
+    """
+    Get notification statistics for the current user
+    """
+    try:
+        user = frappe.session.user
+        if user == "Guest":
+            frappe.throw(_("Not authenticated"))
+
+        # Get notification counts
+        total_notifications = frappe.db.count(
+            "Notification Log", {"for_user": user})
+        unread_notifications = frappe.db.count(
+            "Notification Log", {"for_user": user, "read": 0})
+
+        # Get recent notifications
+        recent_notifications = frappe.get_all(
+            "Notification Log",
+            filters={"for_user": user},
+            fields=["subject", "creation", "type", "read"],
+            order_by="creation desc",
+            limit=5
+        )
+
+        return {
+            "status": "success",
+            "stats": {
+                "total": total_notifications,
+                "unread": unread_notifications,
+                "read": total_notifications - unread_notifications,
+                "recent": recent_notifications
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Failed to get notification stats: {str(e)}")
+        frappe.throw(_("Failed to get notification statistics"))

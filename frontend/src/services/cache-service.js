@@ -45,7 +45,6 @@ export const CACHE_KEYS = {
 	// Notification related
 	USER_NOTIFICATIONS: "user_notifications",
 	NOTIFICATION_SETTINGS: "notification_settings",
-	RECENT_ACTIVITY: "recent_activity",
 	REALTIME_CONNECTION: "realtime_connection",
 }
 

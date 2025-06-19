@@ -240,38 +240,55 @@ def _send_realtime_notification(event_type: str, data: Dict[str, Any],
 
 def send_custom_notification(title: str, message: str, notification_type: str = 'info',
                              target_user: str = None, rooms: List[str] = None,
-                             additional_data: Dict[str, Any] = None):
+                             additional_data: Dict[str, Any] = None,
+                             document_type: str = None, document_name: str = None,
+                             use_notification_log: bool = True):
     """
-    Utility function to send custom notifications programmatically.
-    Enhanced for better testing and debugging.
+    Enhanced notification function that uses Frappe's Notification Log system
+    This creates persistent notifications that appear in the user's notification center
 
     Args:
         title: Notification title
-        message: Notification message
+        message: Notification message  
         notification_type: Type of notification ('info', 'success', 'warning', 'error')
         target_user: Specific user to notify (optional)
         rooms: Rooms to broadcast to (optional)
         additional_data: Extra data to include in notification (optional)
+        document_type: Related document type (optional)
+        document_name: Related document name (optional)
+        use_notification_log: Whether to create persistent notification (default: True)
     """
     try:
+        # If target_user is specified, create a Notification Log entry for persistent notification
+        if target_user and use_notification_log:
+            _create_notification_log_entry(
+                title=title,
+                message=message,
+                notification_type=notification_type,
+                target_user=target_user,
+                document_type=document_type,
+                document_name=document_name
+            )
+
+        # Also send real-time notification for immediate display
         notification_data = {
             'title': title,
             'message': message,
             'type': notification_type,
             'timestamp': frappe.utils.now(),
             'user': frappe.session.user,
-            'source': 'send_custom_notification'
+            'source': 'enhanced_notification_system'
         }
 
         # Add any additional data
         if additional_data:
             notification_data.update(additional_data)
 
+        # Send real-time notification
         _send_realtime_notification(
             event_type="artha_notification",
             data=notification_data,
             target_user=target_user,
-            # Only broadcast if no specific targets
             broadcast=not target_user and not rooms,
             rooms=rooms or []
         )
@@ -279,12 +296,242 @@ def send_custom_notification(title: str, message: str, notification_type: str = 
         # Log successful notification
         target_info = f"user: {target_user}" if target_user else f"rooms: {rooms}" if rooms else "broadcast"
         frappe.logger().info(
-            f"Custom notification sent - Title: '{title}', Target: {target_info}")
+            f"Enhanced notification sent - Title: '{title}', Target: {target_info}, Persistent: {use_notification_log}")
 
     except Exception as e:
-        frappe.logger().error(f"Failed to send custom notification: {str(e)}")
+        frappe.logger().error(
+            f"Failed to send enhanced notification: {str(e)}")
         frappe.log_error(
-            f"Custom notification error: {str(e)}", "Notification System")
+            f"Enhanced notification error: {str(e)}", "Notification System")
+
+
+def _create_notification_log_entry(title: str, message: str, notification_type: str,
+                                   target_user: str, document_type: str = None,
+                                   document_name: str = None):
+    """
+    Create a persistent notification using Frappe's Notification Log system
+    This creates notifications that persist in the user's notification center
+    """
+    try:
+        # Map our notification types to Frappe's notification types
+        frappe_type_map = {
+            'info': 'Alert',
+            'success': 'Alert',
+            'warning': 'Alert',
+            'error': 'Alert',
+            'income': 'Alert',
+            'expense': 'Alert'
+        }
+
+        frappe_type = frappe_type_map.get(notification_type, 'Alert')
+
+        # Create notification log entry
+        notification = frappe.new_doc("Notification Log")
+        notification.for_user = target_user
+        notification.from_user = frappe.session.user or "Administrator"
+        notification.subject = title
+        notification.email_content = message
+        notification.type = frappe_type
+
+        # Link to document if provided
+        if document_type and document_name:
+            notification.document_type = document_type
+            notification.document_name = document_name
+            # Create link for easy access
+            notification.link = f"/app/{document_type.lower().replace(' ', '-')}/{document_name}"
+
+        # Save notification (this automatically triggers real-time notification via after_insert)
+        notification.insert(ignore_permissions=True)
+        frappe.db.commit()
+
+        frappe.logger().info(
+            f"Created Notification Log entry: {notification.name} for user: {target_user}")
+
+        return notification.name
+
+    except Exception as e:
+        frappe.logger().error(
+            f"Failed to create Notification Log entry: {str(e)}")
+        frappe.log_error(
+            f"Notification Log creation error: {str(e)}", "Notification System")
+        return None
+
+
+def send_income_notification(title: str, message: str, target_user: str = None,
+                             income_name: str = None, amount: float = None,
+                             entry_type: str = None):
+    """
+    Specialized function for sending income-related notifications
+    Uses Notification Log for persistence and includes income-specific data
+    """
+    try:
+        # Default to current user if not specified
+        if not target_user:
+            target_user = frappe.session.user
+
+        # Enhance message with amount if provided
+        if amount:
+            formatted_amount = f"₹{amount:,.0f}"
+            if formatted_amount not in message:
+                message = f"{message} - {formatted_amount}"
+
+        # Create notification with income document link if available
+        document_type = "Income" if income_name else None
+
+        # Send enhanced notification
+        send_custom_notification(
+            title=title,
+            message=message,
+            notification_type="success",
+            target_user=target_user,
+            document_type=document_type,
+            document_name=income_name,
+            additional_data={
+                "amount": amount,
+                "entry_type": entry_type,
+                "category": "income",
+                "formatted_amount": f"₹{amount:,.0f}" if amount else None
+            }
+        )
+
+        frappe.logger().info(
+            f"Income notification sent: {title} to {target_user}")
+
+    except Exception as e:
+        frappe.logger().error(f"Failed to send income notification: {str(e)}")
+
+
+def send_expense_notification(title: str, message: str, target_user: str = None,
+                              expense_name: str = None, amount: float = None,
+                              category: str = None):
+    """
+    Specialized function for sending expense-related notifications
+    Uses Notification Log for persistence and includes expense-specific data
+    """
+    try:
+        # Default to current user if not specified
+        if not target_user:
+            target_user = frappe.session.user
+
+        # Enhance message with amount if provided
+        if amount:
+            formatted_amount = f"₹{amount:,.0f}"
+            if formatted_amount not in message:
+                message = f"{message} - {formatted_amount}"
+
+        # Create notification with expense document link if available
+        document_type = "Expense" if expense_name else None
+
+        # Send enhanced notification
+        send_custom_notification(
+            title=title,
+            message=message,
+            notification_type="info",
+            target_user=target_user,
+            document_type=document_type,
+            document_name=expense_name,
+            additional_data={
+                "amount": amount,
+                "category": category,
+                "type": "expense",
+                "formatted_amount": f"₹{amount:,.0f}" if amount else None
+            }
+        )
+
+        frappe.logger().info(
+            f"Expense notification sent: {title} to {target_user}")
+
+    except Exception as e:
+        frappe.logger().error(f"Failed to send expense notification: {str(e)}")
+
+
+def get_user_notifications(limit: int = 20, include_read: bool = False):
+    """
+    Get notifications for the current user using Frappe's Notification Log
+    This integrates with the standard Frappe notification system
+    """
+    try:
+        user = frappe.session.user
+        if user == "Guest":
+            return []
+
+        filters = {"for_user": user}
+        if not include_read:
+            filters["read"] = 0
+
+        notifications = frappe.get_all(
+            "Notification Log",
+            filters=filters,
+            fields=[
+                "name", "subject", "email_content", "creation",
+                "document_type", "document_name", "type", "read",
+                "from_user", "link"
+            ],
+            order_by="creation desc",
+            limit=limit
+        )
+
+        # Enhance with user info
+        for notification in notifications:
+            if notification.from_user:
+                notification.from_user_fullname = frappe.get_value(
+                    "User", notification.from_user, "full_name"
+                ) or notification.from_user
+
+        return notifications
+
+    except Exception as e:
+        frappe.logger().error(f"Failed to get user notifications: {str(e)}")
+        return []
+
+
+def mark_notification_as_read(notification_id: str):
+    """
+    Mark a notification as read using Frappe's standard system
+    """
+    try:
+        user = frappe.session.user
+        if user == "Guest":
+            return False
+
+        # Verify notification belongs to user
+        notification = frappe.get_doc("Notification Log", notification_id)
+        if notification.for_user != user:
+            frappe.logger().warning(
+                f"User {user} attempted to mark notification {notification_id} as read, but it belongs to {notification.for_user}")
+            return False
+
+        # Mark as read
+        notification.read = 1
+        notification.save(ignore_permissions=True)
+        frappe.db.commit()
+
+        return True
+
+    except Exception as e:
+        frappe.logger().error(f"Failed to mark notification as read: {str(e)}")
+        return False
+
+
+def mark_all_notifications_as_read():
+    """
+    Mark all notifications as read for the current user
+    """
+    try:
+        user = frappe.session.user
+        if user == "Guest":
+            return False
+
+        # Use Frappe's built-in method
+        frappe.call(
+            "frappe.desk.doctype.notification_log.notification_log.mark_all_as_read")
+
+        return True
+
+    except Exception as e:
+        frappe.logger().error(
+            f"Failed to mark all notifications as read: {str(e)}")
+        return False
 
 
 def bulk_notification(operation: str, entity_type: str, count: int, **notification_kwargs):

@@ -29,6 +29,7 @@ from artha.utils.notifications import (
     bulk_notification,
     analytics_notification,
     send_custom_notification,
+    send_income_notification,
     realtime_notification
 )
 import frappe
@@ -200,21 +201,15 @@ def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: 
                             total_entries_added += 1
                             entry_count += 1
 
-                            # Send notification for new entry
+                            # Send notification for new entry using enhanced system
                             if entry_count == 1:  # Send notification for first entry of each source
-                                send_custom_notification(
+                                send_income_notification(
                                     title=f"New {source.type} Income Entry",
                                     message=f"Added new recurring entry: ₹{source.income:,.0f}",
-                                    notification_type="success",
                                     target_user=frappe.session.user,
-                                    additional_data={
-                                        "amount": flt(source.income),
-                                        "source_type": source.type,
-                                        "frequency": source.recur_frequency,
-                                        "date": str(next_date),
-                                        "income_name": income_name,
-                                        "entry_type": "recurring_update"
-                                    }
+                                    income_name=income_name,
+                                    amount=flt(source.income),
+                                    entry_type="recurring_update"
                                 )
 
                         next_date = get_next_occurrence(
@@ -233,18 +228,14 @@ def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: 
                         income_name, source.name)
                     total_entries_added += result.get("entries_added", 0)
 
-        # Send summary notification if entries were added
+        # Send summary notification if entries were added using enhanced system
         if total_entries_added > 0:
-            send_custom_notification(
+            send_income_notification(
                 title="Income Ledger Updated",
                 message=f"Successfully added {total_entries_added} new income entries to your ledger",
-                notification_type="success",
                 target_user=frappe.session.user,
-                additional_data={
-                    "total_entries_added": total_entries_added,
-                    "income_name": income_name,
-                    "operation": "update_recurring_entries"
-                }
+                income_name=income_name,
+                entry_type="ledger_update_summary"
             )
 
         return {

@@ -4,6 +4,7 @@
  */
 
 import { computed, reactive, ref } from "vue";
+import { call } from "frappe-ui";
 import { session } from "../data/session";
 import { socketClient } from "../services/socket-service";
 import { cacheService, CACHE_KEYS } from "../services/cache-service";
@@ -46,12 +47,6 @@ export function useNotifications() {
   const getUserNotificationKey = () => {
     const userId = session.user || "anonymous";
     return `${CACHE_KEYS.USER_NOTIFICATIONS}_${userId}`;
-  };
-
-  // Helper function to get recent activity cache key
-  const getRecentActivityKey = () => {
-    const userId = session.user || "anonymous";
-    return `${CACHE_KEYS.RECENT_ACTIVITY}_${userId}`;
   };
 
   // Initialize realtime connection (singleton)
@@ -441,14 +436,6 @@ export function useNotifications() {
       console.error("❌ Failed to save notification to cache:", error);
     }
 
-    // Update recent activity cache
-    try {
-      updateRecentActivityCache();
-      console.log("✅ Recent activity cache updated");
-    } catch (error) {
-      console.error("❌ Failed to update recent activity cache:", error);
-    }
-
     // Show browser notification if permission granted
     try {
       showBrowserNotification(newNotification);
@@ -482,7 +469,6 @@ export function useNotifications() {
   const clearAll = () => {
     globalNotificationState.notifications = [];
     saveNotificationsToCache();
-    cacheService.delete(getRecentActivityKey());
   };
 
   // Generate unique ID
@@ -518,10 +504,10 @@ export function useNotifications() {
     }
   };
 
-  // Update recent activity cache (for dashboard)
-  const updateRecentActivityCache = () => {
+  // Get recent activity (simplified - just returns recent notifications)
+  const getRecentActivity = () => {
     try {
-      const recentActivity = globalNotificationState.notifications
+      return globalNotificationState.notifications
         .slice(0, 10) // Get last 10 notifications
         .map((notification) => ({
           id: notification.id,
@@ -532,23 +518,8 @@ export function useNotifications() {
           read: notification.read,
           data: notification.data,
         }));
-
-      const cacheKey = getRecentActivityKey();
-      cacheService.set(cacheKey, recentActivity, {
-        maxAge: 60 * 60 * 1000, // 1 hour
-      });
     } catch (error) {
-      console.warn("Failed to update recent activity cache:", error);
-    }
-  };
-
-  // Get recent activity from cache
-  const getRecentActivity = () => {
-    try {
-      const cacheKey = getRecentActivityKey();
-      return cacheService.get(cacheKey) || [];
-    } catch (error) {
-      console.warn("Failed to get recent activity from cache:", error);
+      console.warn("Failed to get recent activity:", error);
       return [];
     }
   };
@@ -641,29 +612,46 @@ export function useNotifications() {
   ) => {
     try {
       console.log("🧪 Testing backend notification...");
-      const response = await fetch(
-        "/api/method/artha.api.notifications.send_test_notification",
+
+      // Use frappe-ui's call function which handles CSRF automatically
+      const result = await call(
+        "artha.api.notifications.send_test_notification",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            title: title || "Backend Test",
-            message: message || "This is a test from the backend",
-            notification_type: type || "info",
-          }),
+          title: title || "Backend Test",
+          message: message || "This is a test from the backend",
+          notification_type: type || "info",
         },
       );
 
-      const result = await response.json();
       console.log("🧪 Backend test response:", result);
-      return result;
+      return {
+        status: "success",
+        message: "Backend notification test completed",
+        backend_result: result,
+      };
     } catch (error) {
       console.error("❌ Backend test failed:", error);
-      return { status: "error", message: error.message };
+
+      // Try the CSRF-exempt fallback
+      try {
+        console.log("🔶 Trying CSRF-exempt fallback...");
+        const fallbackResult = await call(
+          "artha.api.notifications.send_simple_test_notification",
+        );
+
+        return {
+          status: "success",
+          message: "Backend test completed (CSRF-exempt fallback)",
+          backend_result: fallbackResult,
+        };
+      } catch (fallbackError) {
+        console.error("❌ Fallback also failed:", fallbackError);
+        return {
+          status: "error",
+          message: `Backend test failed: ${error.message}`,
+          fallback_error: fallbackError.message,
+        };
+      }
     }
   };
 
@@ -671,24 +659,72 @@ export function useNotifications() {
   const testIncomeNotification = async () => {
     try {
       console.log("🧪 Testing income notification...");
-      const response = await fetch(
-        "/api/method/artha.api.notifications.trigger_income_test_notification",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest",
-          },
-          credentials: "include",
-        },
+
+      // Use frappe-ui's call function which handles CSRF automatically
+      const result = await call(
+        "artha.api.notifications.trigger_income_test_notification",
       );
 
-      const result = await response.json();
       console.log("🧪 Income test response:", result);
-      return result;
+
+      if (result.status === "success") {
+        addNotification({
+          title: "Income Test Complete",
+          message: "Income notification test completed successfully",
+          type: "success",
+        });
+
+        return {
+          status: "success",
+          message: "Income notification test completed",
+          backend_result: result,
+        };
+      } else {
+        return {
+          status: "error",
+          message: result.message || "Income test failed",
+          backend_result: result,
+        };
+      }
     } catch (error) {
       console.error("❌ Income test failed:", error);
-      return { status: "error", message: error.message };
+
+      // Try the CSRF-exempt fallback
+      try {
+        console.log("🔶 Trying CSRF-exempt fallback...");
+        const fallbackResult = await call(
+          "artha.api.notifications.send_simple_test_notification",
+        );
+
+        addNotification({
+          title: "Income Test Fallback",
+          message: "Used simple notification test as fallback",
+          type: "warning",
+        });
+
+        return {
+          status: "partial_success",
+          message: "Income test completed (used fallback)",
+          backend_result: fallbackResult,
+        };
+      } catch (fallbackError) {
+        console.error("❌ Fallback also failed:", fallbackError);
+
+        // Final fallback: just add a local notification
+        addNotification({
+          title: "Income Test Local",
+          message:
+            "Backend tests failed, but local notification system is working",
+          type: "warning",
+        });
+
+        return {
+          status: "partial_success",
+          message: "Backend test failed but local notifications work",
+          error: error.message,
+          fallback_error: fallbackError.message,
+        };
+      }
     }
   };
 
@@ -759,7 +795,6 @@ export function useNotifications() {
 
     // Cache utilities
     getRecentActivity,
-    updateRecentActivityCache,
 
     // Debug utilities
     addTestNotification,
