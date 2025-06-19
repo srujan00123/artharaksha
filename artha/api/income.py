@@ -26,11 +26,9 @@ from artha.utils.income_utils import (
 )
 from artha.utils.notifications import (
     income_notification,
-    bulk_notification,
-    analytics_notification,
-    send_custom_notification,
     send_income_notification,
-    realtime_notification
+    realtime_notification,
+    send_notification
 )
 import frappe
 from frappe import _
@@ -97,19 +95,11 @@ def create_initial_recurring_entries(income_name: str, source_name: str) -> Dict
 
         # FIXED: Send additional notification for each entry since utility bypasses decorators
         if entries_added > 0:
-            send_custom_notification(
+            send_notification(
                 title=f"Income Ledger Updated",
                 message=f"Added {entries_added} recurring {source.type} entries (₹{source.income:,.0f} each)",
                 notification_type="success",
-                target_user=frappe.session.user,
-                additional_data={
-                    "entries_added": entries_added,
-                    "source_type": source.type,
-                    "amount_each": source.income,
-                    "frequency": source.recur_frequency,
-                    "income_name": income_name,
-                    "source_name": source_name
-                }
+                target_user=frappe.session.user
             )
 
         log_income_operation("create_initial_recurring_entries", {
@@ -130,7 +120,6 @@ def create_initial_recurring_entries(income_name: str, source_name: str) -> Dict
 
 
 @frappe.whitelist()
-@bulk_notification('updated', 'ledger', 0)
 def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: int = 1000) -> Dict[str, Any]:
     """
     Update recurring ledger entries for a specific income record
@@ -1489,7 +1478,6 @@ def cleanup_income_data() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-@analytics_notification(broadcast=False)
 def trigger_ledger_update(income_name: str = None) -> Dict[str, Any]:
     """
     Manually trigger ledger updates for income records

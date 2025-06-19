@@ -24,8 +24,7 @@ from artha.utils.income_utils import (
 )
 from artha.utils.notifications import (
     expense_notification,
-    analytics_notification,
-    send_custom_notification,
+    send_notification,
     realtime_notification
 )
 

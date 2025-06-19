@@ -1,6 +1,6 @@
 """
-Notifications and Socket Configuration API
-Handles notifications and provides socket configuration for frontend
+Notifications API
+Core notification endpoints for role-based and user-specific notifications
 """
 
 import frappe
@@ -11,22 +11,12 @@ from typing import Dict, Any
 
 @frappe.whitelist()
 def get_site_info():
-    """
-    Get site information including socket configuration.
-    """
+    """Get site information including socket configuration."""
     try:
-        # Get site config
         site_config = frappe.conf
-
-        # Get site name from frappe.local.site - this is the actual site folder name
-        # This is what Frappe uses for namespacing: /{sitename}
         site_name = frappe.local.site if hasattr(
             frappe.local, 'site') else 'development.localhost'
-
-        # Get socket port (use standard Frappe socketio_port)
         socketio_port = site_config.get('socketio_port', 9000)
-
-        # Properly detect environment
         is_development = frappe.conf.get('developer_mode', 1) == 1
         environment = "development" if is_development else "production"
 
@@ -49,15 +39,12 @@ def get_site_info():
 
 @frappe.whitelist()
 def get_user_rooms():
-    """
-    Get socket rooms that the current user should join.
-    """
+    """Get socket rooms that the current user should join."""
     try:
         user = frappe.session.user
         if user == "Guest":
             return {"rooms": ["website", "all"]}
 
-        # Basic rooms for authenticated users
         rooms = [
             "all",
             "website",
@@ -69,7 +56,7 @@ def get_user_rooms():
         for role in user_roles:
             rooms.append(f"role:{role}")
 
-        # Add company/organization rooms if applicable
+        # Add site room
         if hasattr(frappe.local, 'site'):
             rooms.append(f"site:{frappe.local.site}")
 
@@ -81,385 +68,9 @@ def get_user_rooms():
 
 
 @frappe.whitelist()
-def get_notifications():
-    """
-    Get notifications for the current user.
-    """
-    try:
-        user = frappe.session.user
-        if user == "Guest":
-            return []
-
-        # Get notifications from Notification Log
-        notifications = frappe.get_all(
-            "Notification Log",
-            filters={
-                "for_user": user,
-                "read": 0
-            },
-            fields=[
-                "name", "subject", "email_content as content",
-                "creation", "document_type", "document_name", "type"
-            ],
-            order_by="creation desc",
-            limit=50
-        )
-
-        return notifications
-
-    except Exception as e:
-        frappe.log_error(f"Failed to get notifications: {str(e)}")
-        return []
-
-
-@frappe.whitelist()
-def mark_notification_read(notification_id):
-    """
-    Mark a notification as read.
-    """
-    try:
-        user = frappe.session.user
-        if user == "Guest":
-            frappe.throw(_("Not authenticated"))
-
-        # Verify notification belongs to user
-        notification = frappe.get_doc("Notification Log", notification_id)
-        if notification.for_user != user:
-            frappe.throw(_("Not authorized"))
-
-        # Mark as read
-        notification.read = 1
-        notification.save(ignore_permissions=True)
-        frappe.db.commit()
-
-        return {"success": True}
-
-    except Exception as e:
-        frappe.log_error(f"Failed to mark notification as read: {str(e)}")
-        frappe.throw(_("Failed to mark notification as read"))
-
-
-@frappe.whitelist()
-def mark_all_notifications_read():
-    """
-    Mark all notifications as read for the current user.
-    """
-    try:
-        user = frappe.session.user
-        if user == "Guest":
-            frappe.throw(_("Not authenticated"))
-
-        # Update all unread notifications for the user
-        frappe.db.set_value(
-            "Notification Log",
-            {"for_user": user, "read": 0},
-            "read", 1
-        )
-        frappe.db.commit()
-
-        return {"success": True}
-
-    except Exception as e:
-        frappe.log_error(f"Failed to mark all notifications as read: {str(e)}")
-        frappe.throw(_("Failed to mark all notifications as read"))
-
-
-@frappe.whitelist()
-def send_notification(to_user, subject, content, doctype=None, docname=None):
-    """
-    Send a notification to a user (creates Notification Log entry).
-    """
-    try:
-        current_user = frappe.session.user
-        if current_user == "Guest":
-            frappe.throw(_("Not authenticated"))
-
-        # Create notification log entry
-        notification = frappe.new_doc("Notification Log")
-        notification.for_user = to_user
-        notification.from_user = current_user
-        notification.subject = subject
-        notification.email_content = content
-        notification.document_type = doctype
-        notification.document_name = docname
-        notification.type = "Alert"
-        notification.save(ignore_permissions=True)
-        frappe.db.commit()
-
-        # Emit socket event for real-time notification
-        frappe.publish_realtime(
-            event="notification",
-            message={
-                "id": notification.name,
-                "subject": subject,
-                "content": content,
-                "from_user": current_user,
-                "creation": notification.creation,
-                "type": "Alert"
-            },
-            user=to_user
-        )
-
-        return {"success": True, "notification_id": notification.name}
-
-    except Exception as e:
-        frappe.log_error(f"Failed to send notification: {str(e)}")
-        frappe.throw(_("Failed to send notification"))
-
-
-@frappe.whitelist()
-def broadcast_notification(subject, content, role=None):
-    """
-    Broadcast a notification to all users or users with a specific role.
-    """
-    try:
-        current_user = frappe.session.user
-        if current_user == "Guest":
-            frappe.throw(_("Not authenticated"))
-
-        # Check if user has permission to broadcast
-        if "System Manager" not in frappe.get_roles(current_user):
-            frappe.throw(_("Not authorized to broadcast notifications"))
-
-        # Get target users
-        if role:
-            # Get users with specific role
-            users = frappe.get_all(
-                "Has Role",
-                filters={"role": role},
-                fields=["parent as user"],
-                distinct=True
-            )
-            target_users = [u.user for u in users if u.user != "Guest"]
-        else:
-            # Get all active users
-            users = frappe.get_all(
-                "User",
-                filters={"enabled": 1, "user_type": "System User"},
-                fields=["name as user"]
-            )
-            target_users = [u.user for u in users if u.user != "Guest"]
-
-        # Create notifications for each user
-        for user in target_users:
-            notification = frappe.new_doc("Notification Log")
-            notification.for_user = user
-            notification.from_user = current_user
-            notification.subject = subject
-            notification.email_content = content
-            notification.type = "Alert"
-            notification.save(ignore_permissions=True)
-
-            # Emit socket event
-            frappe.publish_realtime(
-                event="notification",
-                message={
-                    "id": notification.name,
-                    "subject": subject,
-                    "content": content,
-                    "from_user": current_user,
-                    "creation": notification.creation,
-                    "type": "Alert"
-                },
-                user=user
-            )
-
-        frappe.db.commit()
-
-        return {"success": True, "users_notified": len(target_users)}
-
-    except Exception as e:
-        frappe.log_error(f"Failed to broadcast notification: {str(e)}")
-        frappe.throw(_("Failed to broadcast notification"))
-
-
-@frappe.whitelist(allow_guest=False, methods=['POST'])
-def send_test_notification(title: str = "Test Notification", message: str = "This is a test notification from the backend", notification_type: str = "info", custom_message: str = None) -> Dict[str, Any]:
-    """
-    Send a test notification for debugging purposes
-    Enhanced for admin testing interface
-    """
-    try:
-        from artha.utils.notifications import send_custom_notification
-
-        # Use custom message if provided (for stress testing)
-        final_message = custom_message or message
-        final_title = title if not custom_message else "Backend Test"
-
-        # Send custom notification via utility function
-        send_custom_notification(
-            title=final_title,
-            message=final_message,
-            notification_type=notification_type,
-            target_user=frappe.session.user
-        )
-
-        # Also publish directly via Frappe's realtime system for redundancy
-        frappe.publish_realtime(
-            event="artha_notification",
-            message={
-                "title": final_title,
-                "message": final_message,
-                "type": notification_type,
-                "timestamp": frappe.utils.now(),
-                "user": frappe.session.user,
-                "test": True,
-                "source": "backend_endpoint"
-            },
-            user=frappe.session.user
-        )
-
-        frappe.logger().info(
-            f"Test notification sent to user: {frappe.session.user} - Title: {final_title}")
-
-        return {
-            "status": "success",
-            "message": "Test notification sent successfully via backend endpoint",
-            "notification_data": {
-                "title": final_title,
-                "message": final_message,
-                "type": notification_type,
-                "user": frappe.session.user,
-                "endpoint": "send_test_notification"
-            }
-        }
-
-    except Exception as e:
-        frappe.logger().error(f"Failed to send test notification: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Failed to send test notification: {str(e)}"
-        }
-
-
-@frappe.whitelist(allow_guest=False, methods=['POST'])
-def trigger_income_test_notification() -> Dict[str, Any]:
-    """
-    Trigger a test income notification with the decorator pattern
-    Enhanced for admin testing interface
-    """
-    try:
-        from artha.utils.notifications import income_notification
-
-        # Use the decorator pattern to test
-        @income_notification('ledger_created', data_field='ledger_entry')
-        def mock_income_operation():
-            return {
-                "status": "success",
-                "message": "Test income entry created via decorator pattern",
-                "ledger_entry": {
-                    "amount": 5000,
-                    "income_type": "salary",
-                    "source_type": "Monthly Salary Test",
-                    "description": "Test salary payment from admin interface",
-                    "timestamp": frappe.utils.now(),
-                    "test_mode": True,
-                    "user": frappe.session.user
-                }
-            }
-
-        # Execute the decorated function
-        result = mock_income_operation()
-
-        # Also send a direct custom notification for immediate feedback
-        from artha.utils.notifications import send_custom_notification
-
-        send_custom_notification(
-            title="Income Test Notification",
-            message=f"Successfully tested income decorator pattern with ₹5,000 test entry",
-            notification_type="success",
-            target_user=frappe.session.user
-        )
-
-        frappe.logger().info(
-            f"Test income notification triggered for user: {frappe.session.user}")
-
-        return {
-            "status": "success",
-            "message": "Test income notification triggered successfully via decorator pattern",
-            "result": result,
-            "test_data": {
-                "decorator_used": "income_notification",
-                "event_type": "artha:income_ledger_created",
-                "amount": 5000,
-                "user": frappe.session.user
-            }
-        }
-
-    except Exception as e:
-        frappe.logger().error(
-            f"Failed to trigger test income notification: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Failed to trigger test income notification: {str(e)}"
-        }
-
-
-@frappe.whitelist(allow_guest=False, methods=['POST'])
-def test_socket_handlers() -> Dict[str, Any]:
-    """
-    Test custom socket handlers by sending events that should be processed
-    by the realtime handlers in apps/artha/realtime/handlers.js
-    """
-    try:
-        # Send a test ping event that should be handled by our custom handlers
-        frappe.publish_realtime(
-            event="artha_test_ping",
-            message={
-                "test": True,
-                "message": "Testing custom socket handlers",
-                "timestamp": frappe.utils.now(),
-                "user": frappe.session.user,
-                "source": "backend_test"
-            },
-            user=frappe.session.user
-        )
-
-        # Send another test event with different data
-        frappe.publish_realtime(
-            event="artha_handler_test",
-            message={
-                "title": "Socket Handler Test",
-                "message": "This tests the custom realtime handlers",
-                "type": "info",
-                "data": {
-                    "handler_test": True,
-                    "endpoint": "test_socket_handlers",
-                    "user": frappe.session.user
-                }
-            },
-            user=frappe.session.user
-        )
-
-        frappe.logger().info(
-            f"Socket handler test events sent for user: {frappe.session.user}")
-
-        return {
-            "status": "success",
-            "message": "Socket handler test events sent successfully",
-            "events_sent": [
-                "artha_test_ping",
-                "artha_handler_test"
-            ],
-            "user": frappe.session.user
-        }
-
-    except Exception as e:
-        frappe.logger().error(f"Failed to test socket handlers: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Failed to test socket handlers: {str(e)}"
-        }
-
-
-@frappe.whitelist()
 def send_role_based_notification(roles=None, title=None, message=None, notification_type='info'):
-    """
-    Send notification to users with specific roles
-    Limited to: Artha User, Insights User, System Manager, Administrator
-    """
+    """Send notification to users with specific roles."""
     try:
-        # Check if user has permission to send role-based notifications
         if not frappe.has_permission('System Settings', 'write'):
             frappe.throw(
                 _("Insufficient permissions to send role-based notifications"))
@@ -470,7 +81,7 @@ def send_role_based_notification(roles=None, title=None, message=None, notificat
         if not roles:
             frappe.throw(_("No roles specified"))
 
-        # Validate roles - only allow specific roles
+        # Validate roles
         allowed_roles = ['Artha User', 'Insights User',
                          'System Manager', 'Administrator']
         invalid_roles = [role for role in roles if role not in allowed_roles]
@@ -479,35 +90,26 @@ def send_role_based_notification(roles=None, title=None, message=None, notificat
                 ', '.join(invalid_roles), ', '.join(allowed_roles)
             ))
 
-        # Get all users with the specified roles
+        # Send notification using utility function
+        from artha.utils.notifications import send_role_notification
+
+        send_role_notification(
+            title=title or "Role-based Notification",
+            message=message or f"Notification for users with roles: {', '.join(roles)}",
+            roles=roles,
+            notification_type=notification_type
+        )
+
+        # Count target users
         users_with_roles = []
         for role in roles:
             users = frappe.get_all('Has Role',
                                    filters={'role': role},
                                    fields=['parent'],
-                                   distinct=True
-                                   )
+                                   distinct=True)
             users_with_roles.extend([user.parent for user in users])
 
-        # Remove duplicates
         target_users = list(set(users_with_roles))
-
-        # Send notification to each user
-        for user in target_users:
-            frappe.publish_realtime(
-                event='artha_notification',
-                message={
-                    'title': title or f'Role-based Notification',
-                    'message': message or f'Notification for users with roles: {", ".join(roles)}',
-                    'type': notification_type,
-                    'data': {
-                        'timestamp': frappe.utils.now(),
-                        'sender': frappe.session.user,
-                        'target_roles': roles
-                    }
-                },
-                user=user
-            )
 
         return {
             'success': True,
@@ -522,12 +124,8 @@ def send_role_based_notification(roles=None, title=None, message=None, notificat
 
 @frappe.whitelist()
 def send_room_notification(room=None, title=None, message=None, notification_type='info'):
-    """
-    Send notification to a specific room
-    Limited to standard Frappe rooms: all, website, admin, artha_users, insights_users
-    """
+    """Send notification to a specific room."""
     try:
-        # Check if user has permission to send room notifications
         if not frappe.has_permission('System Settings', 'write'):
             frappe.throw(
                 _("Insufficient permissions to send room notifications"))
@@ -535,7 +133,7 @@ def send_room_notification(room=None, title=None, message=None, notification_typ
         if not room:
             frappe.throw(_("No room specified"))
 
-        # Validate room - only allow specific rooms
+        # Validate room
         allowed_rooms = ['all', 'website', 'admin',
                          'artha_users', 'insights_users']
         if room not in allowed_rooms and not room.startswith('user:'):
@@ -543,20 +141,14 @@ def send_room_notification(room=None, title=None, message=None, notification_typ
                 room, ', '.join(allowed_rooms)
             ))
 
-        # Publish to specific room
-        frappe.publish_realtime(
-            event='artha_notification',
-            message={
-                'title': title or f'Room Notification',
-                'message': message or f'Notification for room: {room}',
-                'type': notification_type,
-                'data': {
-                    'timestamp': frappe.utils.now(),
-                    'sender': frappe.session.user,
-                    'target_room': room
-                }
-            },
-            room=room
+        # Send notification using utility function
+        from artha.utils.notifications import send_notification
+
+        send_notification(
+            title=title or "Room Notification",
+            message=message or f"Notification for room: {room}",
+            notification_type=notification_type,
+            rooms=[room]
         )
 
         return {
@@ -571,11 +163,8 @@ def send_room_notification(room=None, title=None, message=None, notification_typ
 
 @frappe.whitelist()
 def send_user_notification(target_user=None, title=None, message=None, notification_type='info'):
-    """
-    Send notification to a specific user
-    """
+    """Send notification to a specific user."""
     try:
-        # Check if user has permission to send notifications
         if not frappe.has_permission('System Settings', 'write'):
             frappe.throw(
                 _("Insufficient permissions to send user notifications"))
@@ -583,24 +172,17 @@ def send_user_notification(target_user=None, title=None, message=None, notificat
         if not target_user:
             frappe.throw(_("No target user specified"))
 
-        # Validate user exists
         if not frappe.db.exists('User', target_user):
             frappe.throw(_("User {} does not exist").format(target_user))
 
-        # Send to user-specific room
-        frappe.publish_realtime(
-            event='artha_notification',
-            message={
-                'title': title or f'Personal Notification',
-                'message': message or f'You have a new notification',
-                'type': notification_type,
-                'data': {
-                    'timestamp': frappe.utils.now(),
-                    'sender': frappe.session.user,
-                    'target_user': target_user
-                }
-            },
-            user=target_user
+        # Send notification using utility function
+        from artha.utils.notifications import send_notification
+
+        send_notification(
+            title=title or "Personal Notification",
+            message=message or "You have a new notification",
+            notification_type=notification_type,
+            target_user=target_user
         )
 
         return {
@@ -615,12 +197,10 @@ def send_user_notification(target_user=None, title=None, message=None, notificat
 
 @frappe.whitelist()
 def get_available_rooms():
-    """
-    Get list of available rooms for the current user
-    """
+    """Get list of available rooms for the current user."""
     try:
         user_rooms_data = get_user_rooms()
-        user_roles = user_rooms_data.get('rooms', [])
+        user_roles = frappe.get_roles(frappe.session.user)
 
         # Define available rooms with descriptions
         all_rooms = {
@@ -663,284 +243,9 @@ def get_available_rooms():
         }
 
 
-@frappe.whitelist(allow_guest=False, methods=['POST'])
-def debug_income_notification_flow() -> Dict[str, Any]:
-    """
-    Debug function to test the complete income notification flow
-    This replicates what happens when real income is added/updated
-    """
-    # Initialize results to avoid variable scope issues
-    result1 = {"status": "not_executed", "message": "Step 1 not started"}
-    result2 = {"status": "not_executed", "message": "Step 2 not started"}
-    result3 = {"status": "not_executed", "message": "Step 3 not started"}
-
-    try:
-        frappe.logger().info("=== Starting Income Notification Debug ===")
-
-        # Step 1: Test direct ledger entry creation (this should trigger notification)
-        try:
-            from artha.api.income import create_direct_ledger_entry
-
-            frappe.logger().info("Step 1: Testing create_direct_ledger_entry")
-            result1 = create_direct_ledger_entry(
-                income_type="freelance",
-                amount=1000,
-                date_time=frappe.utils.now(),
-                description="Debug test - direct ledger entry"
-            )
-            frappe.logger().info(f"Direct ledger result: {result1}")
-        except Exception as e1:
-            result1 = {"status": "error",
-                       "message": f"Step 1 failed: {str(e1)}"}
-            frappe.logger().error(f"Step 1 error: {str(e1)}")
-
-        # Step 2: Test create_or_update_income (adding new source)
-        try:
-            from artha.api.income import create_or_update_income
-
-            frappe.logger().info("Step 2: Testing create_or_update_income")
-            test_source = [{
-                "type": "salary",
-                "income": 5000,
-                "date_time": frappe.utils.now(),
-                "recur_frequency": "Monthly",
-                "stop_date": None
-            }]
-
-            result2 = create_or_update_income(
-                income_source=test_source
-            )
-            frappe.logger().info(f"Create/update income result: {result2}")
-        except Exception as e2:
-            result2 = {"status": "error",
-                       "message": f"Step 2 failed: {str(e2)}"}
-            frappe.logger().error(f"Step 2 error: {str(e2)}")
-
-        # Step 3: Test manual ledger update trigger
-        try:
-            if result2.get('status') == 'success' and result2.get('income_data', {}).get('name'):
-                from artha.api.income import trigger_ledger_update
-
-                frappe.logger().info("Step 3: Testing trigger_ledger_update")
-                income_name = result2['income_data']['name']
-                result3 = trigger_ledger_update(income_name)
-                frappe.logger().info(
-                    f"Trigger ledger update result: {result3}")
-            else:
-                result3 = {"status": "skipped",
-                           "message": "No income created in step 2"}
-        except Exception as e3:
-            result3 = {"status": "error",
-                       "message": f"Step 3 failed: {str(e3)}"}
-            frappe.logger().error(f"Step 3 error: {str(e3)}")
-
-        # Step 4: Send final summary notification
-        try:
-            send_custom_notification(
-                title="Income Debug Complete",
-                message=f"Income notification debug completed. Check server logs for details.",
-                notification_type="info",
-                target_user=frappe.session.user
-            )
-        except Exception as e4:
-            frappe.logger().error(f"Step 4 notification error: {str(e4)}")
-
-        frappe.logger().info("=== Income Notification Debug Complete ===")
-
-        return {
-            "status": "success",
-            "message": "Income notification flow debug completed",
-            "results": {
-                "step1_direct_ledger": result1,
-                "step2_create_income": result2,
-                "step3_trigger_update": result3
-            },
-            "debug_info": {
-                "user": frappe.session.user,
-                "timestamp": frappe.utils.now(),
-                "logs": "Check server logs for detailed notification flow"
-            }
-        }
-
-    except Exception as e:
-        frappe.logger().error(f"Income notification debug failed: {str(e)}")
-        frappe.log_error(
-            f"Income debug error: {str(e)}", "Income Notification Debug")
-
-        return {
-            "status": "error",
-            "message": f"Income notification debug failed: {str(e)}",
-            "error_details": str(e),
-            "partial_results": {
-                "step1_direct_ledger": result1,
-                "step2_create_income": result2,
-                "step3_trigger_update": result3
-            }
-        }
-
-
-@frappe.whitelist(allow_guest=False, methods=['POST'])
-def test_income_ledger_notification() -> Dict[str, Any]:
-    """
-    Test function specifically for income ledger notifications
-    This tests the actual API endpoints that should trigger notifications
-    """
-    # Initialize result to avoid variable scope issues
-    result1 = {"status": "not_executed", "message": "Test not started"}
-
-    try:
-        frappe.logger().info("=== Testing Income Ledger Notifications ===")
-
-        # Test 1: Create direct ledger entry (should trigger artha:income_ledger_created)
-        try:
-            from artha.api.income import create_direct_ledger_entry
-
-            frappe.logger().info("Testing create_direct_ledger_entry...")
-            result1 = create_direct_ledger_entry(
-                income_type="bonus",
-                amount=2500,
-                date_time=frappe.utils.now(),
-                description="Test notification - bonus payment"
-            )
-            frappe.logger().info(f"Direct ledger entry result: {result1}")
-        except Exception as e1:
-            result1 = {"status": "error",
-                       "message": f"Direct ledger entry failed: {str(e1)}"}
-            frappe.logger().error(f"Direct ledger entry error: {str(e1)}")
-
-        # Test 2: Send confirmation notification if successful
-        try:
-            if result1.get('status') == 'success':
-                frappe.logger().info("✅ Direct ledger entry created successfully")
-
-                # Send confirmation notification
-                send_custom_notification(
-                    title="Income Ledger Test Complete",
-                    message="Successfully created test income entry. You should see notifications for this action.",
-                    notification_type="success",
-                    target_user=frappe.session.user,
-                    additional_data={
-                        "test_type": "income_ledger_notification",
-                        "entry_amount": 2500,
-                        "entry_type": "bonus"
-                    }
-                )
-            else:
-                # Send notification about the failure
-                send_custom_notification(
-                    title="Income Ledger Test Failed",
-                    message=f"Test failed: {result1.get('message', 'Unknown error')}",
-                    notification_type="error",
-                    target_user=frappe.session.user
-                )
-        except Exception as e2:
-            frappe.logger().error(
-                f"Confirmation notification error: {str(e2)}")
-
-        return {
-            "status": "success",
-            "message": "Income ledger notification test completed",
-            "test_results": {
-                "direct_ledger_entry": result1
-            },
-            "instructions": "Check your notifications center for income-related notifications"
-        }
-
-    except Exception as e:
-        frappe.logger().error(
-            f"Income ledger notification test failed: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Test failed: {str(e)}",
-            "error_details": str(e),
-            "partial_results": {
-                "direct_ledger_entry": result1
-            }
-        }
-
-
-@frappe.whitelist(allow_guest=False)
-def send_simple_test_notification() -> Dict[str, Any]:
-    """
-    Simple test notification endpoint - CSRF exempt for production testing
-    """
-    try:
-        from artha.utils.notifications import send_custom_notification
-
-        send_custom_notification(
-            title="Simple Test Notification",
-            message="This is a simple test notification (CSRF exempt)",
-            notification_type="info",
-            target_user=frappe.session.user
-        )
-
-        frappe.logger().info(
-            f"Simple test notification sent to user: {frappe.session.user}")
-
-        return {
-            "status": "success",
-            "message": "Simple test notification sent successfully",
-            "user": frappe.session.user,
-            "timestamp": frappe.utils.now()
-        }
-
-    except Exception as e:
-        frappe.logger().error(
-            f"Failed to send simple test notification: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Failed to send test notification: {str(e)}"
-        }
-
-
-@frappe.whitelist(allow_guest=False)
-def ping_notification_system() -> Dict[str, Any]:
-    """
-    Simple ping endpoint to verify notification system is working
-    """
-    try:
-        # Basic system info
-        user = frappe.session.user
-        site_name = frappe.local.site if hasattr(
-            frappe.local, 'site') else 'unknown'
-
-        # Send a simple ping notification
-        frappe.publish_realtime(
-            event="artha_notification",
-            message={
-                "title": "System Ping",
-                "message": f"Notification system is working! User: {user}",
-                "type": "info",
-                "timestamp": frappe.utils.now(),
-                "source": "ping_endpoint"
-            },
-            user=user
-        )
-
-        return {
-            "status": "success",
-            "message": "Notification system ping successful",
-            "system_info": {
-                "user": user,
-                "site": site_name,
-                "timestamp": frappe.utils.now()
-            }
-        }
-
-    except Exception as e:
-        frappe.logger().error(f"Notification system ping failed: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Ping failed: {str(e)}"
-        }
-
-
 @frappe.whitelist()
 def get_user_notifications_enhanced(limit: int = 20, include_read: bool = False):
-    """
-    Get notifications for the current user using Frappe's Notification Log system
-    This integrates with the standard notification center
-    """
+    """Get notifications for the current user using Frappe's Notification Log system."""
     try:
         user = frappe.session.user
         if user == "Guest":
@@ -950,14 +255,13 @@ def get_user_notifications_enhanced(limit: int = 20, include_read: bool = False)
         if not include_read:
             filters["read"] = 0
 
-        # Get notifications from Notification Log
         notifications = frappe.get_all(
             "Notification Log",
             filters=filters,
             fields=[
                 "name", "subject", "email_content", "creation",
                 "document_type", "document_name", "type", "read",
-                "from_user", "link"
+                "from_user"
             ],
             order_by="creation desc",
             limit=limit
@@ -970,11 +274,9 @@ def get_user_notifications_enhanced(limit: int = 20, include_read: bool = False)
                     "User", notification.from_user, "full_name"
                 ) or notification.from_user
 
-            # Format timestamps
             notification.created_ago = frappe.utils.pretty_date(
                 notification.creation)
 
-            # Add action link if document is linked
             if notification.document_type and notification.document_name:
                 notification.action_link = f"/app/{notification.document_type.lower().replace(' ', '-')}/{notification.document_name}"
 
@@ -991,20 +293,16 @@ def get_user_notifications_enhanced(limit: int = 20, include_read: bool = False)
 
 @frappe.whitelist()
 def mark_notification_as_read_enhanced(notification_id: str):
-    """
-    Mark a notification as read using Frappe's standard system
-    """
+    """Mark a notification as read using Frappe's standard system."""
     try:
         user = frappe.session.user
         if user == "Guest":
             frappe.throw(_("Not authenticated"))
 
-        # Verify notification belongs to user
         notification = frappe.get_doc("Notification Log", notification_id)
         if notification.for_user != user:
             frappe.throw(_("Not authorized"))
 
-        # Mark as read using Frappe's method
         frappe.call("frappe.desk.doctype.notification_log.notification_log.mark_as_read",
                     docname=notification_id)
 
@@ -1017,15 +315,12 @@ def mark_notification_as_read_enhanced(notification_id: str):
 
 @frappe.whitelist()
 def mark_all_notifications_as_read_enhanced():
-    """
-    Mark all notifications as read for the current user
-    """
+    """Mark all notifications as read for the current user."""
     try:
         user = frappe.session.user
         if user == "Guest":
             frappe.throw(_("Not authenticated"))
 
-        # Use Frappe's built-in method
         frappe.call(
             "frappe.desk.doctype.notification_log.notification_log.mark_all_as_read")
 
@@ -1037,125 +332,18 @@ def mark_all_notifications_as_read_enhanced():
 
 
 @frappe.whitelist()
-def send_income_notification_enhanced(title: str, message: str, income_name: str = None,
-                                      amount: float = None, target_user: str = None):
-    """
-    Send an income-related notification using Frappe's Notification Log system
-    This creates persistent notifications that appear in the notification center
-    """
-    try:
-        current_user = frappe.session.user
-        if current_user == "Guest":
-            frappe.throw(_("Not authenticated"))
-
-        # Default to current user if not specified
-        if not target_user:
-            target_user = current_user
-
-        # Enhance message with amount if provided
-        if amount:
-            formatted_amount = f"₹{amount:,.0f}"
-            if formatted_amount not in message:
-                message = f"{message} - {formatted_amount}"
-
-        # Create notification log entry
-        notification = frappe.new_doc("Notification Log")
-        notification.for_user = target_user
-        notification.from_user = current_user
-        notification.subject = title
-        notification.email_content = message
-        notification.type = "Alert"
-
-        # Link to income document if provided
-        if income_name:
-            notification.document_type = "Income"
-            notification.document_name = income_name
-            notification.link = f"/app/income/{income_name}"
-
-        notification.insert(ignore_permissions=True)
-        frappe.db.commit()
-
-        return {
-            "status": "success",
-            "notification_id": notification.name,
-            "message": "Income notification sent successfully"
-        }
-
-    except Exception as e:
-        frappe.log_error(
-            f"Failed to send enhanced income notification: {str(e)}")
-        frappe.throw(_("Failed to send income notification"))
-
-
-@frappe.whitelist()
-def send_test_notification_enhanced(notification_type: str = "income"):
-    """
-    Send a test notification using Frappe's Notification Log system
-    """
-    try:
-        current_user = frappe.session.user
-        if current_user == "Guest":
-            frappe.throw(_("Not authenticated"))
-
-        if notification_type == "income":
-            title = "Test Income Notification"
-            message = "This is a test income notification using Frappe's Notification Log system"
-
-            # Create notification
-            notification = frappe.new_doc("Notification Log")
-            notification.for_user = current_user
-            notification.from_user = current_user
-            notification.subject = title
-            notification.email_content = message
-            notification.type = "Alert"
-            notification.insert(ignore_permissions=True)
-
-        elif notification_type == "system":
-            title = "Test System Notification"
-            message = "This is a test system notification with persistent storage"
-
-            notification = frappe.new_doc("Notification Log")
-            notification.for_user = current_user
-            notification.from_user = "Administrator"
-            notification.subject = title
-            notification.email_content = message
-            notification.type = "Alert"
-            notification.insert(ignore_permissions=True)
-
-        else:
-            frappe.throw(_("Invalid notification type"))
-
-        frappe.db.commit()
-
-        return {
-            "status": "success",
-            "notification_id": notification.name,
-            "message": f"Test {notification_type} notification sent successfully"
-        }
-
-    except Exception as e:
-        frappe.log_error(
-            f"Failed to send enhanced test notification: {str(e)}")
-        frappe.throw(_("Failed to send test notification"))
-
-
-@frappe.whitelist()
 def get_notification_stats():
-    """
-    Get notification statistics for the current user
-    """
+    """Get notification statistics for the current user."""
     try:
         user = frappe.session.user
         if user == "Guest":
             frappe.throw(_("Not authenticated"))
 
-        # Get notification counts
         total_notifications = frappe.db.count(
             "Notification Log", {"for_user": user})
         unread_notifications = frappe.db.count(
             "Notification Log", {"for_user": user, "read": 0})
 
-        # Get recent notifications
         recent_notifications = frappe.get_all(
             "Notification Log",
             filters={"for_user": user},
@@ -1177,3 +365,65 @@ def get_notification_stats():
     except Exception as e:
         frappe.log_error(f"Failed to get notification stats: {str(e)}")
         frappe.throw(_("Failed to get notification statistics"))
+
+
+# Simple test endpoints for admin interface
+@frappe.whitelist(allow_guest=False)
+def send_simple_test_notification() -> Dict[str, Any]:
+    """Simple test notification endpoint - CSRF exempt for testing."""
+    try:
+        from artha.utils.notifications import send_notification
+
+        send_notification(
+            title="Simple Test Notification",
+            message="This is a simple test notification (CSRF exempt)",
+            notification_type="info",
+            target_user=frappe.session.user
+        )
+
+        return {
+            "status": "success",
+            "message": "Simple test notification sent successfully",
+            "user": frappe.session.user,
+            "timestamp": frappe.utils.now()
+        }
+
+    except Exception as e:
+        frappe.logger().error(
+            f"Failed to send simple test notification: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to send test notification: {str(e)}"
+        }
+
+
+@frappe.whitelist(allow_guest=False, methods=['POST'])
+def send_test_notification(title: str = "Test Notification", message: str = "This is a test notification from the backend", notification_type: str = "info") -> Dict[str, Any]:
+    """Send a test notification for admin testing."""
+    try:
+        from artha.utils.notifications import send_notification
+
+        send_notification(
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            target_user=frappe.session.user
+        )
+
+        return {
+            "status": "success",
+            "message": "Test notification sent successfully",
+            "notification_data": {
+                "title": title,
+                "message": message,
+                "type": notification_type,
+                "user": frappe.session.user
+            }
+        }
+
+    except Exception as e:
+        frappe.logger().error(f"Failed to send test notification: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to send test notification: {str(e)}"
+        }
