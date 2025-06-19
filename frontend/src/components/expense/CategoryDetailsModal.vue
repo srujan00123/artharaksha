@@ -119,6 +119,7 @@ import {
 	X,
 } from "lucide-vue-next"
 import { computed } from "vue"
+import { formatExpenseDate } from "../../utils/expense"
 
 // Props
 interface Props {
@@ -184,6 +185,23 @@ const iconColorClass = computed(() => {
 	return "text-green-600 dark:text-green-400"
 })
 
+// Category icon mapping
+const categoryIconMap = {
+	"General Medical": Stethoscope,
+	"Pharmacy/Medication": Pill,
+	"Hospital Visit": Bed,
+	"Emergency Care": Syringe,
+	"Health Check-up": Heart,
+	"Transportation": Car,
+	"Food & Groceries": Utensils,
+	"Utilities": Home,
+	"Phone/Internet": Phone,
+	"Education": Building2,
+	"Entertainment": Plane,
+	"Shopping": ShoppingBag,
+	default: Stethoscope,
+}
+
 // Methods
 const closeModal = () => {
 	emit("close")
@@ -204,73 +222,19 @@ const getTypeLabel = (type: string): string => {
 	}
 }
 
-const getTypeTagClass = (isDirect: boolean): string => {
-	if (isDirect) {
-		return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200"
-	}
-	return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200"
+const getTypeTagClass = (isDirect: boolean) => {
+	return isDirect
+		? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
+		: "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200"
 }
 
 const getCategoryIcon = (category: string) => {
-	const categoryLower = category.toLowerCase()
-
-	if (
-		categoryLower.includes("medicine") ||
-		categoryLower.includes("drug") ||
-		categoryLower.includes("pharmacy")
-	) {
-		return Pill
-	}
-	if (categoryLower.includes("hospital") || categoryLower.includes("clinic")) {
-		return Building2
-	}
-	if (categoryLower.includes("bed") || categoryLower.includes("admission")) {
-		return Bed
-	}
-	if (
-		categoryLower.includes("injection") ||
-		categoryLower.includes("vaccine")
-	) {
-		return Syringe
-	}
-	if (
-		categoryLower.includes("transport") ||
-		categoryLower.includes("travel") ||
-		categoryLower.includes("flight")
-	) {
-		return categoryLower.includes("flight") ? Plane : Car
-	}
-	if (
-		categoryLower.includes("accommodation") ||
-		categoryLower.includes("hotel")
-	) {
-		return Home
-	}
-	if (categoryLower.includes("food") || categoryLower.includes("meal")) {
-		return Utensils
-	}
-	if (
-		categoryLower.includes("phone") ||
-		categoryLower.includes("communication")
-	) {
-		return Phone
-	}
-
-	return Heart
+	return categoryIconMap[category] || categoryIconMap.default
 }
 
-const formatDate = (dateString: string): string => {
-	if (!dateString) return ""
-
-	try {
-		return new Date(dateString).toLocaleDateString("en-IN", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		})
-	} catch {
-		return dateString
-	}
+const formatDate = (dateValue: string | undefined) => {
+	if (!dateValue) return "No date"
+	return formatExpenseDate(dateValue, "en-IN")
 }
 </script>
 

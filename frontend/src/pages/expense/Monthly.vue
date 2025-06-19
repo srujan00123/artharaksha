@@ -170,14 +170,14 @@
         <div v-else class="space-y-2">
           <div 
             v-for="expense in recentExpenses" 
-            :key="expense.id"
+            :key="expense.name"
             class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 rounded-lg transition-colors"
           >
             <div class="flex items-center space-x-3">
               <div :class="getCategoryColor(expense.category)" class="w-2 h-2 rounded-full"></div>
               <div>
                 <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ expense.category }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ formatDate(expense.date) }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ formatDate(expense.date_time) }}</p>
               </div>
             </div>
             <div class="text-right">
@@ -187,8 +187,8 @@
           </div>
         </div>
       </div>
-        </div>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -202,6 +202,7 @@ import {
 	TrendingUp,
 } from "lucide-vue-next"
 import { computed, onMounted, ref } from "vue"
+import { formatExpenseDate } from "../../utils/expense"
 import type { FlattenedExpenseEntry } from "../../types/expense"
 
 // Composables
@@ -361,33 +362,31 @@ const monthlyBreakdown = computed(() => {
 		const change = total - prevTotal
 
 		months.push({
-			period: `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`,
-			monthShort: date.toLocaleDateString("en-US", { month: "short" }),
+			period: date.toLocaleDateString("en-IN", {
+				month: "long",
+				year: "numeric",
+			}),
+			monthShort: date.toLocaleDateString("en-IN", { month: "short" }),
 			year: date.getFullYear(),
 			total,
 			count,
 			change,
 			changeText:
 				change > 0
-					? `+${Math.abs(change).toLocaleString()}`
+					? `+₹${change.toLocaleString()}`
 					: change < 0
-						? `-${Math.abs(change).toLocaleString()}`
-						: "0",
+						? `-₹${Math.abs(change).toLocaleString()}`
+						: "No change",
 			changeClass:
 				change > 0
-					? "text-red-600"
+					? "text-red-600 dark:text-red-400"
 					: change < 0
-						? "text-green-600"
-						: "text-gray-500",
-			percentage: 0, // Will be calculated below
+						? "text-green-600 dark:text-green-400"
+						: "text-gray-500 dark:text-gray-400",
+			percentage:
+				total > 0 ? Math.round((total / Math.max(...months.map(m => m?.total || 0), total)) * 100) : 0,
 		})
 	}
-
-	// Calculate percentages based on max value
-	const maxTotal = Math.max(...months.map((m) => m.total))
-	months.forEach((month) => {
-		month.percentage = maxTotal > 0 ? (month.total / maxTotal) * 100 : 0
-	})
 
 	return months
 })
@@ -461,28 +460,30 @@ const recentExpenses = computed(() => {
 
 // Helper functions
 function getCategoryColor(category: string): string {
-	const colors = [
-		"bg-blue-500",
-		"bg-green-500",
-		"bg-yellow-500",
-		"bg-red-500",
-		"bg-purple-500",
-		"bg-pink-500",
-		"bg-indigo-500",
-		"bg-gray-500",
-	]
-	const hash = category
-		.split("")
-		.reduce((acc, char) => acc + char.charCodeAt(0), 0)
-	return colors[hash % colors.length]
+	const categoryLower = category.toLowerCase()
+	const colorMap = {
+		medical: "bg-red-500",
+		pharmacy: "bg-blue-500",
+		hospital: "bg-purple-500",
+		emergency: "bg-red-600",
+		transport: "bg-green-500",
+		accommodation: "bg-yellow-500",
+		food: "bg-orange-500",
+		other: "bg-gray-500",
+	}
+
+	for (const [key, color] of Object.entries(colorMap)) {
+		if (categoryLower.includes(key)) {
+			return color
+		}
+	}
+
+	return "bg-blue-500"
 }
 
-function formatDate(dateString: string): string {
-	const date = new Date(dateString)
-	return date.toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-	})
+function formatDate(dateValue: string | undefined): string {
+	if (!dateValue) return "No date"
+	return formatExpenseDate(dateValue, "en-IN")
 }
 
 // Event handlers

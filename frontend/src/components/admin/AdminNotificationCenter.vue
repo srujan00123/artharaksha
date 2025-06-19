@@ -252,6 +252,27 @@
             <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Income notifications</div>
           </button>
         </div>
+        
+        <!-- Additional Income Tests -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <button
+            @click="runTest('ledger')"
+            :disabled="loading.tests"
+            class="p-4 bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/20 dark:hover:bg-teal-900/30 border border-teal-200 dark:border-teal-800 rounded-lg text-center transition-colors"
+          >
+            <div class="text-teal-600 dark:text-teal-400 font-medium">📊 Ledger Test</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Direct ledger entry notification</div>
+          </button>
+          
+          <button
+            @click="runTest('debug')"
+            :disabled="loading.tests"
+            class="p-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg text-center transition-colors"
+          >
+            <div class="text-indigo-600 dark:text-indigo-400 font-medium">🐛 Full Debug</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Complete income flow</div>
+          </button>
+        </div>
 
         <!-- Advanced Tests -->
         <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
@@ -314,6 +335,17 @@
                   class="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-400 text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   {{ loading.tests ? 'Running...' : 'Run All Tests' }}
+                </button>
+              </div>
+              
+              <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-3">🐛 Income Debug</h4>
+                <button
+                  @click="runIncomeDebug"
+                  :disabled="loading.tests"
+                  class="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Debug Income Flow
                 </button>
               </div>
             </div>
@@ -636,6 +668,12 @@ const runTest = async (testType) => {
 			case 'income':
 				await runIncomeTest()
 				break
+			case 'ledger':
+				await runLedgerTest()
+				break
+			case 'debug':
+				await runIncomeDebug()
+				break
 			default:
 				throw new Error(`Unknown test type: ${testType}`)
 		}
@@ -703,6 +741,52 @@ const runIncomeTest = async () => {
 		const result = await call('artha.api.notifications.trigger_income_test_notification')
 		addTestResult('Income Test', 'Direct income API call successful', true)
 		addConsoleLog('✅ Income test completed via direct API call')
+	}
+}
+
+const runLedgerTest = async () => {
+	// Use global debug function if available
+	if (window.arthaNotifsDebug?.testLedger) {
+		await window.arthaNotifsDebug.testLedger()
+		addTestResult('Ledger Test', 'Direct ledger entry notification test completed', true)
+		addConsoleLog('✅ Ledger test completed - check notification center for result')
+	} else {
+		// Fallback to direct API call
+		const result = await call('artha.api.notifications.test_income_ledger_notification')
+		addTestResult('Ledger Test', 'Direct API call successful', true)
+		addConsoleLog('✅ Ledger test completed via direct API call')
+	}
+}
+
+const runIncomeDebug = async () => {
+	loading.value.tests = true
+	addConsoleLog('🐛 Starting comprehensive income notification debug...')
+	
+	try {
+		const result = await call('artha.api.notifications.debug_income_notification_flow')
+		
+		if (result.status === 'success') {
+			addTestResult('Income Debug', 'Income notification flow debug completed', true)
+			addConsoleLog('✅ Income debug completed successfully')
+			addConsoleLog('📊 Debug Results:')
+			
+			// Log each step result
+			const results = result.results || {}
+			Object.keys(results).forEach(step => {
+				const stepResult = results[step]
+				addConsoleLog(`   ${step}: ${stepResult.status || 'unknown'} - ${stepResult.message || 'No message'}`)
+			})
+			
+			addConsoleLog('📋 Check server logs for detailed notification tracking')
+			addConsoleLog('🔍 Look for income-related notifications in the notification center')
+		} else {
+			throw new Error(result.message || 'Debug failed')
+		}
+	} catch (error) {
+		addTestResult('Income Debug', error.message, false)
+		addConsoleLog(`❌ Income debug failed: ${error.message}`)
+	} finally {
+		loading.value.tests = false
 	}
 }
 
@@ -819,7 +903,7 @@ const runFullTestSuite = async () => {
 	loading.value.tests = true
 	addConsoleLog('🚀 Starting full test suite...')
 	
-	const tests = ['local', 'backend', 'socket', 'income']
+	const tests = ['local', 'backend', 'socket', 'income', 'ledger', 'debug']
 	let passedTests = 0
 	let totalTests = tests.length
 	

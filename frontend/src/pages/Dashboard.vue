@@ -327,7 +327,7 @@
                                         <p class="font-medium text-gray-900 dark:text-gray-100">{{ expense.category ||
                                             'Medical Expense' }}</p>
                                         <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{
-                                            formatDate(expense.date) }}</p>
+                                            formatDate(expense.date_time || expense.date || expense.creation) }}</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -351,7 +351,7 @@
                                         <p class="font-medium text-gray-900 dark:text-gray-100">{{ income.type ||
                                             'Income' }}</p>
                                         <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{
-                                            formatDate(income.date) }}</p>
+                                            formatDate(income.date_time || income.date || income.creation) }}</p>
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -729,14 +729,19 @@ const recentIncomeEntries = computed(() => {
     if (!ledgerEntries?.value || !Array.isArray(ledgerEntries.value)) return []
 
     return ledgerEntries.value
-        .sort((a, b) => new Date(b.date_time) - new Date(a.date_time))
+        .sort((a, b) => {
+            // Safe date comparison with fallback values
+            const dateA = new Date(a.date_time || a.date || a.creation || 0)
+            const dateB = new Date(b.date_time || b.date || b.creation || 0)
+            return dateB - dateA
+        })
         .slice(0, 3)
         .map((entry) => ({
             name: entry.name || entry.source_type,
             type: entry.source_type || "Income",
             amount: entry.amount || 0,
             frequency: entry.income_type === "recurring" ? "Monthly" : "One-time",
-            date: entry.date_time || entry.creation || new Date().toISOString(),
+            date: entry.date_time || entry.date || entry.creation,
         }))
 })
 
@@ -754,14 +759,19 @@ const recentExpenses = computed(() => {
     if (!expenses?.value || !Array.isArray(expenses.value)) return []
 
     return expenses.value
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .sort((a, b) => {
+            // Safe date comparison with fallback values
+            const dateA = new Date(a.date_time || a.date || a.creation || 0)
+            const dateB = new Date(b.date_time || b.date || b.creation || 0)
+            return dateB - dateA
+        })
         .slice(0, 3)
         .map((expense) => ({
             name: expense.name,
             category: expense.category || "Medical Expense",
             amount: expense.amount || 0,
             provider: expense.provider || "Healthcare",
-            date: expense.date,
+            date: expense.date_time || expense.date || expense.creation,
         }))
 })
 

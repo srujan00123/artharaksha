@@ -273,7 +273,7 @@ def broadcast_notification(subject, content, role=None):
         frappe.throw(_("Failed to broadcast notification"))
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False, methods=['POST'])
 def send_test_notification(title: str = "Test Notification", message: str = "This is a test notification from the backend", notification_type: str = "info", custom_message: str = None) -> Dict[str, Any]:
     """
     Send a test notification for debugging purposes
@@ -332,7 +332,7 @@ def send_test_notification(title: str = "Test Notification", message: str = "Thi
         }
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False, methods=['POST'])
 def trigger_income_test_notification() -> Dict[str, Any]:
     """
     Trigger a test income notification with the decorator pattern
@@ -395,7 +395,7 @@ def trigger_income_test_notification() -> Dict[str, Any]:
         }
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False, methods=['POST'])
 def test_socket_handlers() -> Dict[str, Any]:
     """
     Test custom socket handlers by sending events that should be processed
@@ -660,4 +660,224 @@ def get_available_rooms():
             'available_rooms': {},
             'user_rooms': [],
             'user_roles': []
+        }
+
+
+@frappe.whitelist(allow_guest=False, methods=['POST'])
+def debug_income_notification_flow() -> Dict[str, Any]:
+    """
+    Debug function to test the complete income notification flow
+    This replicates what happens when real income is added/updated
+    """
+    try:
+        frappe.logger().info("=== Starting Income Notification Debug ===")
+
+        # Step 1: Test direct ledger entry creation (this should trigger notification)
+        from artha.api.income import create_direct_ledger_entry
+
+        frappe.logger().info("Step 1: Testing create_direct_ledger_entry")
+        result1 = create_direct_ledger_entry(
+            income_type="freelance",
+            amount=1000,
+            date_time=frappe.utils.now(),
+            description="Debug test - direct ledger entry"
+        )
+        frappe.logger().info(f"Direct ledger result: {result1}")
+
+        # Step 2: Test create_or_update_income (adding new source)
+        from artha.api.income import create_or_update_income
+
+        frappe.logger().info("Step 2: Testing create_or_update_income")
+        test_source = [{
+            "type": "salary",
+            "income": 5000,
+            "date_time": frappe.utils.now(),
+            "recur_frequency": "Monthly",
+            "stop_date": None
+        }]
+
+        result2 = create_or_update_income(
+            income_source=test_source
+        )
+        frappe.logger().info(f"Create/update income result: {result2}")
+
+        # Step 3: Test manual ledger update trigger
+        if result2.get('status') == 'success' and result2.get('income_data', {}).get('name'):
+            from artha.api.income import trigger_ledger_update
+
+            frappe.logger().info("Step 3: Testing trigger_ledger_update")
+            income_name = result2['income_data']['name']
+            result3 = trigger_ledger_update(income_name)
+            frappe.logger().info(f"Trigger ledger update result: {result3}")
+        else:
+            result3 = {"status": "skipped",
+                       "message": "No income created in step 2"}
+
+        # Step 4: Send final summary notification
+        send_custom_notification(
+            title="Income Debug Complete",
+            message=f"Income notification debug completed. Check server logs for details.",
+            notification_type="info",
+            target_user=frappe.session.user
+        )
+
+        frappe.logger().info("=== Income Notification Debug Complete ===")
+
+        return {
+            "status": "success",
+            "message": "Income notification flow debug completed",
+            "results": {
+                "step1_direct_ledger": result1,
+                "step2_create_income": result2,
+                "step3_trigger_update": result3
+            },
+            "debug_info": {
+                "user": frappe.session.user,
+                "timestamp": frappe.utils.now(),
+                "logs": "Check server logs for detailed notification flow"
+            }
+        }
+
+    except Exception as e:
+        frappe.logger().error(f"Income notification debug failed: {str(e)}")
+        frappe.log_error(
+            f"Income debug error: {str(e)}", "Income Notification Debug")
+
+        return {
+            "status": "error",
+            "message": f"Income notification debug failed: {str(e)}",
+            "error_details": str(e)
+        }
+
+
+@frappe.whitelist(allow_guest=False, methods=['POST'])
+def test_income_ledger_notification() -> Dict[str, Any]:
+    """
+    Test function specifically for income ledger notifications
+    This tests the actual API endpoints that should trigger notifications
+    """
+    try:
+        frappe.logger().info("=== Testing Income Ledger Notifications ===")
+
+        # Test 1: Create direct ledger entry (should trigger artha:income_ledger_created)
+        from artha.api.income import create_direct_ledger_entry
+
+        frappe.logger().info("Testing create_direct_ledger_entry...")
+        result1 = create_direct_ledger_entry(
+            income_type="bonus",
+            amount=2500,
+            date_time=frappe.utils.now(),
+            description="Test notification - bonus payment"
+        )
+        frappe.logger().info(f"Direct ledger entry result: {result1}")
+
+        # Test 2: Create income with recurring source (should trigger notifications)
+        if result1.get('status') == 'success':
+            frappe.logger().info("✅ Direct ledger entry created successfully")
+
+            # Send confirmation notification
+            send_custom_notification(
+                title="Income Ledger Test Complete",
+                message="Successfully created test income entry. You should see notifications for this action.",
+                notification_type="success",
+                target_user=frappe.session.user,
+                additional_data={
+                    "test_type": "income_ledger_notification",
+                    "entry_amount": 2500,
+                    "entry_type": "bonus"
+                }
+            )
+
+        return {
+            "status": "success",
+            "message": "Income ledger notification test completed successfully",
+            "test_results": {
+                "direct_ledger_entry": result1
+            },
+            "instructions": "Check your notifications center for income-related notifications"
+        }
+
+    except Exception as e:
+        frappe.logger().error(
+            f"Income ledger notification test failed: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Test failed: {str(e)}",
+            "error_details": str(e)
+        }
+
+
+@frappe.whitelist(allow_guest=False)
+def send_simple_test_notification() -> Dict[str, Any]:
+    """
+    Simple test notification endpoint - CSRF exempt for production testing
+    """
+    try:
+        from artha.utils.notifications import send_custom_notification
+
+        send_custom_notification(
+            title="Simple Test Notification",
+            message="This is a simple test notification (CSRF exempt)",
+            notification_type="info",
+            target_user=frappe.session.user
+        )
+
+        frappe.logger().info(
+            f"Simple test notification sent to user: {frappe.session.user}")
+
+        return {
+            "status": "success",
+            "message": "Simple test notification sent successfully",
+            "user": frappe.session.user,
+            "timestamp": frappe.utils.now()
+        }
+
+    except Exception as e:
+        frappe.logger().error(
+            f"Failed to send simple test notification: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to send test notification: {str(e)}"
+        }
+
+
+@frappe.whitelist(allow_guest=False)
+def ping_notification_system() -> Dict[str, Any]:
+    """
+    Simple ping endpoint to verify notification system is working
+    """
+    try:
+        # Basic system info
+        user = frappe.session.user
+        site_name = frappe.local.site if hasattr(
+            frappe.local, 'site') else 'unknown'
+
+        # Send a simple ping notification
+        frappe.publish_realtime(
+            event="artha_notification",
+            message={
+                "title": "System Ping",
+                "message": f"Notification system is working! User: {user}",
+                "type": "info",
+                "timestamp": frappe.utils.now(),
+                "source": "ping_endpoint"
+            },
+            user=user
+        )
+
+        return {
+            "status": "success",
+            "message": "Notification system ping successful",
+            "system_info": {
+                "user": user,
+                "site": site_name,
+                "timestamp": frappe.utils.now()
+            }
+        }
+
+    except Exception as e:
+        frappe.logger().error(f"Notification system ping failed: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Ping failed: {str(e)}"
         }

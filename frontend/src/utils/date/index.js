@@ -110,17 +110,50 @@ export const toIndiaDateTimeString = toClientDateTimeString
 
 // Custom date formatter
 export function formatDate(dateString, options = {}) {
-	const timezone = getClientTimezone()
-	const defaultOptions = {
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-		timeZone: timezone,
+	try {
+		// Handle null/undefined/empty values
+		if (!dateString) {
+			return "Invalid Date"
+		}
+
+		// Handle specific expense field issues where date might be a different field
+		let dateValue = dateString
+		if (typeof dateString === 'object' && dateString !== null) {
+			// If it's an object, try to extract date from common fields
+			dateValue = dateString.date_time || dateString.date || dateString.creation || dateString.modified
+			if (!dateValue) {
+				return "Invalid Date"
+			}
+		}
+
+		// If it's a datetime string with space (e.g., "2024-01-15 10:30:00"), extract date part
+		if (typeof dateValue === "string" && dateValue.includes(" ")) {
+			dateValue = dateValue.split(" ")[0]
+		}
+
+		const timezone = getClientTimezone()
+		const defaultOptions = {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+			timeZone: timezone,
+		}
+
+		const date = new Date(dateValue)
+		
+		// Check if the date is valid
+		if (isNaN(date.getTime())) {
+			return "Invalid Date"
+		}
+
+		return date.toLocaleDateString("en-IN", {
+			...defaultOptions,
+			...options,
+		})
+	} catch (error) {
+		console.warn("Error formatting date:", error, "Original value:", dateString)
+		return "Invalid Date"
 	}
-	return new Date(dateString).toLocaleDateString("en-IN", {
-		...defaultOptions,
-		...options,
-	})
 }
 
 // Time ago formatter (e.g., "2 hours ago", "3 days ago")

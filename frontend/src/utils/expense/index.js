@@ -99,11 +99,19 @@ export function getCategoryInfo(category, type = "medical") {
 export function extractExpenseDate(expense) {
 	try {
 		// Try different date fields in order of preference
-		const dateFields = ["date", "date_time", "creation", "modified"]
+		const dateFields = ["date_time", "date", "creation", "modified"]
 
 		for (const field of dateFields) {
 			if (expense[field]) {
-				const date = new Date(expense[field])
+				// Handle datetime strings by extracting date part if needed
+				let dateValue = expense[field]
+				
+				// If it's a datetime string with space (e.g., "2024-01-15 10:30:00"), extract date part
+				if (typeof dateValue === "string" && dateValue.includes(" ")) {
+					dateValue = dateValue.split(" ")[0]
+				}
+				
+				const date = new Date(dateValue)
 				if (!isNaN(date.getTime())) {
 					return date
 				}
@@ -111,8 +119,10 @@ export function extractExpenseDate(expense) {
 		}
 
 		// If no valid date found, return current date
+		console.warn("No valid date found in expense object:", expense)
 		return new Date()
 	} catch (error) {
+		console.warn("Error extracting expense date:", error, "Expense object:", expense)
 		return new Date()
 	}
 }
@@ -176,13 +186,30 @@ export function formatAmount(amount, currency = "INR", locale = "en-IN") {
  */
 export function formatExpenseDate(date, locale = "en-IN") {
 	try {
-		return new Date(date).toLocaleDateString(locale, {
+		// Handle null/undefined/empty values
+		if (!date) {
+			return "Invalid Date"
+		}
+
+		// If it's already a Date object, use it directly
+		let dateObj = date
+		if (!(date instanceof Date)) {
+			dateObj = new Date(date)
+		}
+
+		// Check if the date is valid
+		if (isNaN(dateObj.getTime())) {
+			return "Invalid Date"
+		}
+
+		return dateObj.toLocaleDateString(locale, {
 			day: "2-digit",
 			month: "short",
 			year: "numeric",
 		})
 	} catch (error) {
-		return date
+		console.warn("Error formatting expense date:", error, "Original date:", date)
+		return "Invalid Date"
 	}
 }
 

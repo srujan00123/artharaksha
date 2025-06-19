@@ -483,6 +483,9 @@ import type {
 // Components
 import { ExpenseFilter, ExpenseForm } from "../../components"
 
+// Utilities
+import { formatExpenseDate } from "../../utils/expense"
+
 // Composables
 import { useExpense } from "../../composables/useExpense"
 import { useHousehold } from "../../composables/useHousehold"
@@ -501,7 +504,7 @@ const itemsPerPage = 20
 
 // Local state for form management
 const showExpenseForm = ref(false)
-const editingExpense = ref<ProcessedExpenseItem | null>(null)
+const editingExpense = ref<FlattenedExpenseEntry | null>(null)
 
 // Household profile status
 const showProfileWarning = computed(
@@ -576,6 +579,23 @@ const processExpense = (
   expense: FlattenedExpenseEntry,
   index = 0,
 ): ProcessedExpenseItem => {
+  // Safe date extraction
+  let dateString = ""
+  if (expense.date_time) {
+    // If it's a datetime string, extract just the date part
+    dateString = typeof expense.date_time === "string" && expense.date_time.includes(" ") 
+      ? expense.date_time.split(" ")[0] 
+      : expense.date_time
+  } else if (expense.creation) {
+    // Fallback to creation date
+    dateString = typeof expense.creation === "string" && expense.creation.includes(" ") 
+      ? expense.creation.split(" ")[0] 
+      : expense.creation
+  } else {
+    // Default to today's date if no date available
+    dateString = new Date().toISOString().split("T")[0]
+  }
+
   return {
     id: expense.name,
     name: expense.name,
@@ -583,7 +603,7 @@ const processExpense = (
     category: expense.category,
     description: expense.description || "",
     amount: expense.amount,
-    date: expense.date_time.split(" ")[0], // Extract date part
+    date: dateString,
     hasReceipt: !!expense.proof_of_payment,
     receiptUrl: expense.proof_of_payment || null,
     isDirect: expense.is_direct,
@@ -670,11 +690,8 @@ const state = computed(() => ({
 
 // Utility functions
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
+  // Use the enhanced formatExpenseDate utility for better error handling
+  return formatExpenseDate(dateString, "en-IN")
 }
 
 // Event Handlers
