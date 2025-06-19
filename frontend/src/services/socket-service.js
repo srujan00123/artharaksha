@@ -88,23 +88,37 @@ class ArthaSpaSocketClient {
 			const socketUrl = this.getSocketUrl(actualPort, siteInfo?.site_name)
 			
 			console.log(`Artha Socket: Connecting to ${socketUrl}`)
+			console.log('Site info:', siteInfo)
+			console.log('Location details:', {
+				hostname: window.location.hostname,
+				protocol: window.location.protocol,
+				origin: window.location.origin,
+				dev_server: window.dev_server
+			})
 			
 			const socketOptions = {
 				withCredentials,
 				reconnectionAttempts,
 				autoConnect: !lazy_connect,
 				transports: ["websocket", "polling"],
-				timeout: 20000,
+				timeout: 30000, // Increased timeout for production
 				forceNew: true,
 				// Add upgrade option for better production compatibility
 				upgrade: true,
 				// Enable polling for fallback in production
 				forceBase64: false,
+				// Add more production-friendly settings
+				reconnection: true,
+				reconnectionDelay: 1000,
+				reconnectionDelayMax: 5000,
+				maxReconnectionAttempts: 5,
 			}
 			
 			if (window.location.protocol === "https:") {
 				socketOptions.secure = true
 			}
+			
+			console.log('Socket options:', socketOptions)
 			
 			this.socket = io(socketUrl, socketOptions)
 			if (!this.socket) {
@@ -126,10 +140,24 @@ class ArthaSpaSocketClient {
 	}
 
 	getSocketUrl(port, siteName) {
-		const host = window.location.hostname
-		const protocol = window.location.protocol === "https:" ? "https" : "http"
 		const actualSiteName = siteName || this.getSiteName()
-		return `${protocol}://${host}:${port}/${actualSiteName}`
+		
+		// Follow Frappe's standard approach
+		let host = window.location.origin
+		
+		// Check if we're in development (similar to Frappe's logic)
+		if (window.dev_server || window.location.hostname.includes("localhost") || window.location.hostname.includes("127.0.0.1")) {
+			// Development case - use port
+			let parts = host.split(":")
+			const actualPort = port.toString() || "9000"
+			if (parts.length > 2) {
+				host = parts[0] + ":" + parts[1]
+			}
+			host = host + ":" + actualPort
+		}
+		// Production case - use main domain without port (Traefik/nginx will route)
+		
+		return `${host}/${actualSiteName}`
 	}
 
 	getSiteName() {

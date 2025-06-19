@@ -24,6 +24,13 @@ from artha.utils.income_utils import (
     get_all_ledger_entries,
     apply_income_filters
 )
+from artha.utils.notifications import (
+    income_notification,
+    bulk_notification,
+    analytics_notification,
+    send_custom_notification,
+    realtime_notification
+)
 import frappe
 from frappe import _
 from frappe.utils import flt, getdate, now_datetime
@@ -48,6 +55,7 @@ IncomeType = DocType("Income Type")
 # ===============================
 
 @frappe.whitelist()
+@income_notification('ledger_updated', data_field='entries_added')
 def create_initial_recurring_entries(income_name: str, source_name: str) -> Dict[str, Any]:
     """
     Create initial ledger entries for a new recurring source using utility function
@@ -104,6 +112,7 @@ def create_initial_recurring_entries(income_name: str, source_name: str) -> Dict
 
 
 @frappe.whitelist()
+@bulk_notification('updated', 'ledger', 0)
 def update_recurring_ledger_entries_for_income(income_name: str, limit_entries: int = 1000) -> Dict[str, Any]:
     """
     Update recurring ledger entries for a specific income record
@@ -710,6 +719,7 @@ def get_income_dashboard_metrics(filters: Optional[Union[str, Dict]] = None) -> 
 
 
 @frappe.whitelist()
+@realtime_notification('artha:income_saved', data_field='income_data', broadcast=True)
 def create_or_update_income(income_source: Union[str, List[Dict]], income_name: Optional[str] = None, source_name: Optional[str] = None, action: Optional[str] = None) -> Dict[str, Any]:
     """
     Create or update RECURRING income sources only
@@ -835,11 +845,15 @@ def create_or_update_income(income_source: Union[str, List[Dict]], income_name: 
         })
 
         return {
-            "name": income_doc.name,
-            "household_profile": income_doc.household_profile,
-            "monthly_income": income_doc.monthly_income,
-            "total_ledger_entries": len(income_doc.income_ledger),
-            "total_sources": len(income_doc.income_source)
+            "status": "success",
+            "income_data": {
+                "name": income_doc.name,
+                "household_profile": income_doc.household_profile,
+                "monthly_income": income_doc.monthly_income,
+                "total_ledger_entries": len(income_doc.income_ledger),
+                "total_sources": len(income_doc.income_source),
+                "action": action or "create_or_update"
+            }
         }
     except Exception as e:
         frappe.log_error(f"Error creating/updating income: {str(e)}")
@@ -1100,6 +1114,7 @@ def get_income_insights() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@income_notification('ledger_updated', data_field='ledger_entry')
 def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], new_date: str, new_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Update a specific ledger entry directly without affecting the income source
@@ -1154,7 +1169,7 @@ def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], n
         return {
             "status": "success",
             "message": f"Ledger entry updated successfully. {original_type.title()} source pattern unchanged.",
-            "updated_entry": {
+            "ledger_entry": {
                 "name": ledger_entry.name,
                 "amount": ledger_entry.amount,
                 "date_time": ledger_entry.date_time,
@@ -1172,6 +1187,7 @@ def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], n
 
 
 @frappe.whitelist()
+@income_notification('ledger_deleted', data_field='deleted_entry')
 def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
     """
     Delete a specific ledger entry without affecting the income source
@@ -1214,7 +1230,10 @@ def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
         return {
             "status": "success",
             "message": f"Ledger entry deleted successfully (source unchanged)",
-            "deleted_type": income_type
+            "deleted_entry": {
+                "name": ledger_entry_name,
+                "income_type": income_type
+            }
         }
 
     except Exception as e:
@@ -1223,6 +1242,7 @@ def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@income_notification('ledger_created', data_field='ledger_entry')
 def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date_time: str, description: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a direct ledger entry for one-time income without creating an income source
@@ -1275,7 +1295,13 @@ def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date
         return {
             "status": "success",
             "message": "One-time income entry created successfully",
-            "entry_name": entry_name
+            "ledger_entry": {
+                "name": entry_name,
+                "amount": flt(amount),
+                "income_type": income_type,
+                "date_time": date_time,
+                "description": description or f"One-time {income_type} income"
+            }
         }
 
     except Exception as e:
@@ -1424,6 +1450,7 @@ def cleanup_income_data() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@analytics_notification(broadcast=True)
 def trigger_ledger_update(income_name: str = None) -> Dict[str, Any]:
     """
     Manually trigger ledger updates for income records

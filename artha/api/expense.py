@@ -22,6 +22,12 @@ from artha.utils.income_utils import (
     get_expense_types as get_expense_types_util,
     create_expense_entry
 )
+from artha.utils.notifications import (
+    expense_notification,
+    analytics_notification,
+    send_custom_notification,
+    realtime_notification
+)
 
 
 @frappe.whitelist()
@@ -219,6 +225,7 @@ def get_expense_dashboard_metrics(period: str = "this_month") -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@expense_notification('created', data_field='expense_data', broadcast=True)
 def create_expense(expense_data: Union[str, Dict]) -> Dict[str, Any]:
     """
     Create a new expense entry in the appropriate child table
@@ -260,10 +267,16 @@ def create_expense(expense_data: Union[str, Dict]) -> Dict[str, Any]:
         })
 
         return {
-            "name": expense_doc.name,
-            "household_profile": expense_doc.household_profile,
-            "monthly_expense": expense_doc.monthly_expense,
-            "entry_name": entry_name
+            "status": "success",
+            "expense_data": {
+                "name": expense_doc.name,
+                "household_profile": expense_doc.household_profile,
+                "monthly_expense": expense_doc.monthly_expense,
+                "entry_name": entry_name,
+                "type": expense_data.get("type"),
+                "category": expense_data.get("category"),
+                "amount": expense_data.get("amount")
+            }
         }
     except Exception as e:
         frappe.log_error(f"Error creating expense: {str(e)}")
@@ -271,6 +284,7 @@ def create_expense(expense_data: Union[str, Dict]) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@expense_notification('updated', data_field='expense_data', broadcast=True)
 def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[str, Any]:
     """
     Update an existing expense entry in child table
@@ -325,9 +339,16 @@ def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[st
         parent_doc = frappe.get_doc("Expense", child_doc.parent)
 
         return {
-            "name": parent_doc.name,
-            "household_profile": parent_doc.household_profile,
-            "monthly_expense": parent_doc.monthly_expense
+            "status": "success",
+            "expense_data": {
+                "name": parent_doc.name,
+                "household_profile": parent_doc.household_profile,
+                "monthly_expense": parent_doc.monthly_expense,
+                "entry_name": expense_name,
+                "type": expense_data.get("type"),
+                "category": expense_data.get("category"),
+                "amount": expense_data.get("amount")
+            }
         }
     except Exception as e:
         frappe.log_error(f"Error updating expense: {str(e)}")
@@ -335,6 +356,7 @@ def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[st
 
 
 @frappe.whitelist()
+@expense_notification('deleted', data_field='deleted_expense', broadcast=True)
 def delete_expense(expense_name: str, expense_id: str) -> Dict[str, Any]:
     """
     Delete an expense entry from child table
@@ -353,6 +375,11 @@ def delete_expense(expense_name: str, expense_id: str) -> Dict[str, Any]:
             })
             return {
                 "status": "success",
+                "deleted_expense": {
+                    "expense_id": expense_id,
+                    "type": "medical",
+                    "expense_name": expense_name
+                },
                 "message": "Medical expense deleted successfully"
             }
 
@@ -367,6 +394,11 @@ def delete_expense(expense_name: str, expense_id: str) -> Dict[str, Any]:
             })
             return {
                 "status": "success",
+                "deleted_expense": {
+                    "expense_id": expense_id,
+                    "type": "other",
+                    "expense_name": expense_name
+                },
                 "message": "Expense deleted successfully"
             }
 

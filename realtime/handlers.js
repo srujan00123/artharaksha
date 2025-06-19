@@ -51,6 +51,33 @@ module.exports = function (socket) {
     socket.to(`user:${data.owner}`).emit("income_deleted", data);
   });
 
+  socket.on("artha:income_saved", (data) => {
+    socket.to("all").emit("income_saved", data);
+    socket.to(`user:${data.user}`).emit("income_saved", data);
+  });
+
+  // Handle income ledger events
+  socket.on("artha:income_ledger_created", (data) => {
+    socket.to("all").emit("income_ledger_created", data);
+    socket.to(`user:${data.user}`).emit("income_ledger_created", data);
+  });
+
+  socket.on("artha:income_ledger_updated", (data) => {
+    socket.to("all").emit("income_ledger_updated", data);
+    socket.to(`user:${data.user}`).emit("income_ledger_updated", data);
+  });
+
+  socket.on("artha:income_ledger_deleted", (data) => {
+    socket.to("all").emit("income_ledger_deleted", data);
+    socket.to(`user:${data.user}`).emit("income_ledger_deleted", data);
+  });
+
+  // Handle bulk operations
+  socket.on("artha:bulk_ledger_updated", (data) => {
+    socket.to("all").emit("bulk_ledger_updated", data);
+    socket.to(`user:${data.user}`).emit("bulk_ledger_updated", data);
+  });
+
   // Handle task progress events
   socket.on("artha:task_progress", (data) => {
     socket.to(`task:${data.task_id}`).emit("task_progress", data);
