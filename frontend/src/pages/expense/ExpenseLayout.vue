@@ -1,44 +1,36 @@
 <template>
-  <div class="expense-layout">
-    <!-- Header Section Banner -->
-    <div class="header-section mb-6">
-      <div class="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
-              Expense Management
-            </h1>
-            <p class="text-blue-100 text-sm sm:text-base lg:text-lg mb-4 max-w-3xl leading-relaxed">
-              Track and manage your medical and healthcare expenses with detailed analytics
-            </p>
-          </div>
-          <div class="hidden sm:block">
-            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-              <Receipt class="w-8 h-8 text-white" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+	<div class="expense-layout">
+		<!-- Header Section Banner -->
+		<div class="header-section mb-4 sm:mb-6">
+			<div class="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-4 sm:p-6 lg:p-8 text-white">
+				<div class="flex flex-col sm:flex-row items-start justify-between gap-4">
+					<div class="flex-1">
+						<h1 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">
+							Expense Management
+						</h1>
+						<p class="text-blue-100 text-sm sm:text-base lg:text-lg mb-2 sm:mb-4 max-w-3xl leading-relaxed">
+							Track and manage your medical and healthcare expenses with detailed analytics
+						</p>
+					</div>
+					<div class="hidden sm:block flex-shrink-0">
+						<div
+							class="w-12 h-12 sm:w-16 sm:h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+							<Receipt class="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-    <!-- Child Route Content -->
-    <div class="expense-content">
-      <router-view 
-        :loading="loading"
-        :error="error"
-        @add-expense="handleAddExpense"
-        @refresh="handleRefresh"
-      />
-    </div>
+		<!-- Child Route Content -->
+		<div class="expense-content">
+			<router-view :loading="loading" :error="error" @add-expense="handleAddExpense" @refresh="handleRefresh" />
+		</div>
 
-    <!-- Expense Form Modal -->
-    <ExpenseForm
-      v-if="showExpenseForm"
-      :expense="editingExpense"
-      @close="handleCloseExpenseForm"
-      @success="handleExpenseFormSuccess"
-    />
-  </div>
+		<!-- Expense Form Modal -->
+		<ExpenseForm v-if="showExpenseForm" :expense="editingExpense" @close="handleCloseExpenseForm"
+			@success="handleExpenseFormSuccess" />
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -138,6 +130,13 @@ onMounted(async () => {
 
 <style scoped>
 .expense-layout {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+	@apply max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8;
 }
-</style> 
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+	.expense-layout {
+		@apply px-3 py-4;
+	}
+}
+</style>

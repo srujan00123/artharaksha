@@ -1,126 +1,132 @@
 <template>
-    <div class="h-screen bg-gray-50 dark:bg-slate-900 flex flex-col overflow-hidden">
-        <!-- Main Top Navbar -->
-        <header class="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
-            <div class="flex items-center justify-between px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-                <!-- Left side: Logo + Main Navigation -->
-                <div class="flex items-center space-x-4 sm:space-x-6 min-w-0 flex-1">
-                    <!-- Logo -->
-                    <div class="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
-                        <div class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
-                            <img src="/logo.svg" alt="Artha Raksha Logo" class="w-full h-full object-contain" />
-                        </div>
-                        <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">Artha Raksha</h1>
-                    </div>
+	<div class="h-screen bg-gray-50 dark:bg-slate-900 flex flex-col overflow-hidden">
+		<!-- Main Top Navbar -->
+		<header class="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-slate-700">
+			<div class="flex items-center justify-between px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+				<!-- Left side: Logo + Main Navigation -->
+				<div class="flex items-center space-x-4 sm:space-x-6 min-w-0 flex-1">
+					<!-- Logo -->
+					<div class="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+						<div class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
+							<img src="/logo.svg" alt="Artha Raksha Logo" class="w-full h-full object-contain" />
+						</div>
+						<h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">Artha Raksha
+						</h1>
+					</div>
 
-                    <!-- Main navigation tabs -->
-                    <div class="hidden md:flex space-x-1 flex-1 justify-center">
-                        <button v-for="tab in mainTabs" :key="tab.name" @click="navigateToSection(tab.path)"
-                            class="flex items-center space-x-2 px-3 lg:px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap"
-                            :class="isInSection(tab.section)
-                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700'">
-                            <component :is="tab.icon" class="w-4 h-4" />
-                            <span class="hidden lg:inline">{{ tab.label }}</span>
-                        </button>
-                    </div>
-                </div>
+					<!-- Main navigation tabs -->
+					<div class="hidden md:flex space-x-1 flex-1 justify-center">
+						<button v-for="tab in mainTabs" :key="tab.name" @click="navigateToSection(tab.path)"
+							class="flex items-center space-x-2 px-3 lg:px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap"
+							:class="isInSection(tab.section)
+								? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+								: 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700'">
+							<component :is="tab.icon" class="w-4 h-4" />
+							<span class="hidden lg:inline">{{ tab.label }}</span>
+						</button>
+					</div>
+				</div>
 
-                <!-- Right side: User menu -->
-                <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
-                    <!-- Theme Toggle -->
-                    <ThemeToggle />
-                    <!-- Notification Center -->
-                    <NotificationCenter />
-                    <div class="relative" data-profile-dropdown>
-                        <button @click="profileDropdownOpen = !profileDropdownOpen"
-                            class="flex items-center space-x-2 lg:space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700">
-                            <div class="w-8 h-8 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center">
-                                <span class="text-sm font-medium text-white">
-                                    {{ userInitials }}
-                                </span>
-                            </div>
-                            <div class="hidden sm:block text-left">
-                                <div class="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-24 truncate">{{ userDisplayName }}
-                                </div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400 max-w-24 truncate">{{ session.user }}</div>
-                            </div>
-                            <ChevronDown class="w-4 h-4 text-gray-400 dark:text-gray-500 hidden sm:block" />
-                        </button>
+				<!-- Right side: User menu -->
+				<div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
+					<!-- Theme Toggle -->
+					<ThemeToggle />
+					<!-- Notification Center -->
+					<NotificationCenter />
+					<div class="relative" data-profile-dropdown>
+						<button @click="profileDropdownOpen = !profileDropdownOpen"
+							class="flex items-center space-x-2 lg:space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700">
+							<div
+								class="w-8 h-8 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center">
+								<span class="text-sm font-medium text-white">
+									{{ userInitials }}
+								</span>
+							</div>
+							<div class="hidden sm:block text-left">
+								<div class="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-24 truncate">{{
+									userDisplayName }}
+								</div>
+								<div class="text-xs text-gray-500 dark:text-gray-400 max-w-24 truncate">{{ session.user
+								}}</div>
+							</div>
+							<ChevronDown class="w-4 h-4 text-gray-400 dark:text-gray-500 hidden sm:block" />
+						</button>
 
-                        <!-- Profile dropdown -->
-                        <div v-show="profileDropdownOpen"
-                            class="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-600 py-1 z-50">
-                            <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-600">
-                                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ userDisplayName }}</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ session.user }}</div>
-                            </div>
-                            <router-link to="/profile"
-                                class="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700"
-                                @click="profileDropdownOpen = false">
-                                <User class="w-4 h-4 mr-3" />
-                                Profile Settings
-                            </router-link>
-                            <button @click="handleLogout"
-                                class="w-full flex items-center px-4 py-3 text-sm text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900">
-                                <LogOut class="w-4 h-4 mr-3" />
-                                Logout
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
+						<!-- Profile dropdown -->
+						<div v-show="profileDropdownOpen"
+							class="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-600 py-1 z-50">
+							<div class="px-4 py-3 border-b border-gray-100 dark:border-slate-600">
+								<div class="text-sm font-medium text-gray-900 dark:text-white">{{ userDisplayName }}
+								</div>
+								<div class="text-xs text-gray-500 dark:text-gray-400">{{ session.user }}</div>
+							</div>
+							<router-link to="/profile"
+								class="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700"
+								@click="profileDropdownOpen = false">
+								<User class="w-4 h-4 mr-3" />
+								Profile Settings
+							</router-link>
+							<button @click="handleLogout"
+								class="w-full flex items-center px-4 py-3 text-sm text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900">
+								<LogOut class="w-4 h-4 mr-3" />
+								Logout
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</header>
 
-        <!-- Mobile Main Navigation (below header on mobile) -->
-        <div class="md:hidden bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
-            <div class="px-3 py-3">
-                <div class="flex space-x-1 overflow-x-auto scrollbar-hide">
-                    <button v-for="tab in mainTabs" :key="tab.name" @click="navigateToSection(tab.path)"
-                        class="flex items-center space-x-2 px-4 py-3 text-sm font-medium rounded-lg whitespace-nowrap flex-shrink-0 min-w-0"
-                        :class="isInSection(tab.section)
-                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700'">
-                        <component :is="tab.icon" class="w-5 h-5" />
-                        <span class="truncate">{{ tab.label }}</span>
-                    </button>
-                </div>
-            </div>
-        </div>
+		<!-- Mobile Main Navigation (below header on mobile) -->
+		<div class="md:hidden bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+			<div class="px-3 py-3">
+				<div class="flex space-x-1 overflow-x-auto scrollbar-hide">
+					<button v-for="tab in mainTabs" :key="tab.name" @click="navigateToSection(tab.path)"
+						class="flex items-center space-x-2 px-4 py-3 text-sm font-medium rounded-lg whitespace-nowrap flex-shrink-0 min-w-0"
+						:class="isInSection(tab.section)
+							? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+							: 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700'">
+						<component :is="tab.icon" class="w-5 h-5" />
+						<span class="truncate">{{ tab.label }}</span>
+					</button>
+				</div>
+			</div>
+		</div>
 
-        <!-- Secondary Navigation Bar -->
-        <nav class="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
-            <div class="px-3 sm:px-4 lg:px-6">
-                <div class="flex items-center justify-between py-2 sm:py-3">
-                    <!-- Section title and breadcrumb -->
-                    <div class="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                        <h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">{{ currentSectionTitle }}
-                        </h2>
-                        <span class="text-gray-400 dark:text-gray-500 hidden sm:inline">•</span>
-                        <span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate hidden sm:inline">{{
-                            currentPageTitle }}</span>
-                    </div>
-                </div>
+		<!-- Secondary Navigation Bar -->
+		<nav class="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
+			<div class="px-3 sm:px-4 lg:px-6">
+				<div class="flex items-center justify-between py-2 sm:py-3">
+					<!-- Section title and breadcrumb -->
+					<div class="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+						<h2 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">{{
+							currentSectionTitle }}
+						</h2>
+						<span class="text-gray-400 dark:text-gray-500 hidden sm:inline">•</span>
+						<span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate hidden sm:inline">{{
+							currentPageTitle }}</span>
+					</div>
+				</div>
 
-                <!-- Secondary navigation items -->
-                <div class="flex space-x-1 overflow-x-auto pb-3 scrollbar-hide">
-                    <router-link v-for="item in currentSecondaryItems" :key="item.name" :to="item.path"
-                        class="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium rounded-lg whitespace-nowrap flex-shrink-0 min-w-0"
-                        :class="isActiveRoute(item.path)
-                            ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-700'">
-                        <component :is="item.icon" class="w-4 h-4" />
-                        <span class="truncate">{{ item.label }}</span>
-                    </router-link>
-                </div>
-            </div>
-        </nav>
+				<!-- Secondary navigation items -->
+				<div class="flex space-x-1 overflow-x-auto pb-3 scrollbar-hide">
+					<router-link v-for="item in currentSecondaryItems" :key="item.name" :to="item.path"
+						class="flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium rounded-lg whitespace-nowrap flex-shrink-0 min-w-0"
+						:class="isActiveRoute(item.path)
+							? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+							: 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-700'">
+						<component :is="item.icon" class="w-4 h-4" />
+						<span class="truncate">{{ item.label }}</span>
+					</router-link>
+				</div>
+			</div>
+		</nav>
 
-        <!-- Page content -->
-        <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900">
-            <router-view />
-        </main>
-    </div>
+		<!-- Page content -->
+		<main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900">
+			<router-view />
+		</main>
+	</div>
 </template>
 
 <script setup>
@@ -337,8 +343,18 @@ function isInSection(section) {
 	return currentSection.value === section
 }
 
-function navigateToSection(path) {
-	router.push(path)
+async function navigateToSection(path) {
+	try {
+		await router.push(path)
+	} catch (error) {
+		console.error('Navigation error:', error)
+		// Fallback to dashboard if navigation fails
+		try {
+			await router.push('/dashboard')
+		} catch (fallbackError) {
+			console.error('Fallback navigation also failed:', fallbackError)
+		}
+	}
 }
 
 // Optimized user profile data
@@ -441,11 +457,11 @@ const getThemeTextClass = (intensity = "600") => {
 <style scoped>
 /* Hide scrollbar but keep functionality */
 .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+	-ms-overflow-style: none;
+	scrollbar-width: none;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+	display: none;
 }
 </style>

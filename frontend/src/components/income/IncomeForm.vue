@@ -1,52 +1,42 @@
 <template>
   <div class="income-form">
     <!-- Modal Overlay -->
-    <div 
-      v-if="isOpen" 
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      @click="handleOverlayClick"
-    >
+    <div v-if="isOpen"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 pt-4 sm:pt-4"
+      @click="handleOverlayClick">
       <!-- Modal Content -->
-      <div 
-        class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-        @click.stop
-      >
+      <div
+        class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg shadow dark:shadow-gray-900/20-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
+        @click.stop>
         <!-- Header -->
-        <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+        <div class="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
             {{ getFormTitle() }}
           </h2>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            @click="closeForm"
-            class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
-          >
+          <Button variant="ghost" size="sm" @click="closeForm"
+            class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500 min-h-[44px] min-w-[44px] touch-manipulation">
             <X class="w-5 h-5" />
           </Button>
         </div>
 
         <!-- Form Content -->
-        <form @submit.prevent="handleSubmit" class="p-6 space-y-6">
+        <form @submit.prevent="handleSubmit" class="p-4 sm:p-6 space-y-4 sm:space-y-6">
           <!-- Income Type -->
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
               Income Type <span class="text-red-500">*</span>
             </label>
-            <select
-              v-model="formData.type"
-              :class="[
-                'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                validationErrors.type ? 'border-red-300' : 'border-gray-300'
-              ]"
-              required
-            >
+            <select v-model="formData.type" :class="[
+              'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+              validationErrors.type ? 'border-red-300' : 'border-gray-300'
+            ]" required>
               <option value="">Select income type</option>
               <option v-for="type in incomeTypes" :key="type.name" :value="type.type">
                 {{ type.type }}
               </option>
             </select>
-            <p v-if="validationErrors.type" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ validationErrors.type }}</p>
+            <p v-if="validationErrors.type" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ validationErrors.type
+            }}</p>
           </div>
 
           <!-- Amount -->
@@ -58,20 +48,13 @@
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span class="text-gray-500 dark:text-gray-400 dark:text-gray-500 sm:text-sm">₹</span>
               </div>
-              <input
-                v-model.number="formData.amount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                :class="[
-                  'w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                  validationErrors.amount ? 'border-red-300' : 'border-gray-300'
-                ]"
-                required
-              />
+              <input v-model.number="formData.amount" type="number" step="0.01" min="0" placeholder="0.00" :class="[
+                'w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                validationErrors.amount ? 'border-red-300' : 'border-gray-300'
+              ]" required />
             </div>
-            <p v-if="validationErrors.amount" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ validationErrors.amount }}</p>
+            <p v-if="validationErrors.amount" class="mt-1 text-sm text-red-600 dark:text-red-400">{{
+              validationErrors.amount }}</p>
           </div>
 
           <!-- Recurring Toggle - Enforced for source mode -->
@@ -82,27 +65,25 @@
                 <span class="text-sm font-medium text-green-900 dark:text-green-200">Recurring Income Source</span>
               </div>
               <p class="text-sm text-green-700 dark:text-green-300 mt-1">
-                Income sources must be recurring in nature (salary, rent, business income, etc.). 
+                Income sources must be recurring in nature (salary, rent, business income, etc.).
                 For one-time income, use "Add Income" in the Ledger view.
               </p>
             </div>
           </div>
-          
+
           <!-- Recurring Toggle - Only show for direct mode -->
           <div v-if="mode === 'direct'">
             <label class="flex items-center space-x-3 cursor-pointer">
-              <input
-                v-model="formData.isRecurring"
-                type="checkbox"
-                class="w-4 h-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400"
-              />
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">This is recurring income</span>
+              <input v-model="formData.isRecurring" type="checkbox"
+                class="w-4 h-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400" />
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600">This is recurring
+                income</span>
             </label>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-200 dark:text-gray-500">
               Check this if this income repeats regularly. Leave unchecked for one-time income.
             </p>
           </div>
-          
+
           <!-- Info for direct mode -->
           <div v-if="mode === 'direct'" class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
             <div class="flex items-center space-x-2">
@@ -119,20 +100,17 @@
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
               Frequency <span class="text-red-500">*</span>
             </label>
-            <select
-              v-model="formData.frequency"
-              :class="[
-                'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                validationErrors.frequency ? 'border-red-300' : 'border-gray-300'
-              ]"
-              :required="formData.isRecurring"
-            >
+            <select v-model="formData.frequency" :class="[
+              'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+              validationErrors.frequency ? 'border-red-300' : 'border-gray-300'
+            ]" :required="formData.isRecurring">
               <option value="">Select frequency</option>
               <option v-for="option in frequencyOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
             </select>
-            <p v-if="validationErrors.frequency" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ validationErrors.frequency }}</p>
+            <p v-if="validationErrors.frequency" class="mt-1 text-sm text-red-600 dark:text-red-400">{{
+              validationErrors.frequency }}</p>
           </div>
 
           <!-- End Date (only if recurring) -->
@@ -140,12 +118,8 @@
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-2">
               End Date (optional)
             </label>
-            <input
-              v-model="formData.stop_date"
-              type="date"
-              :min="formData.dateTime"
-              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 border-gray-300"
-            />
+            <input v-model="formData.stop_date" type="date" :min="formData.dateTime"
+              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 border-gray-300" />
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave blank if the income is ongoing.</p>
           </div>
 
@@ -155,21 +129,17 @@
               {{ formData.isRecurring ? 'Start Date' : 'Date Received' }}
               <span class="text-red-500">*</span>
             </label>
-            <input
-              v-model="formData.dateTime"
-              type="date"
-              :max="today"
-              :class="[
-                'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                validationErrors.dateTime ? 'border-red-300' : 'border-gray-300'
-              ]"
-              required
-            />
-            <p v-if="validationErrors.dateTime" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ validationErrors.dateTime }}</p>
+            <input v-model="formData.dateTime" type="date" :max="today" :class="[
+              'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+              validationErrors.dateTime ? 'border-red-300' : 'border-gray-300'
+            ]" required />
+            <p v-if="validationErrors.dateTime" class="mt-1 text-sm text-red-600 dark:text-red-400">{{
+              validationErrors.dateTime }}</p>
           </div>
 
           <!-- Monthly Equivalent (for non-monthly recurring income) -->
-          <div v-if="formData.isRecurring && formData.frequency && formData.frequency !== 'monthly'" class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+          <div v-if="formData.isRecurring && formData.frequency && formData.frequency !== 'monthly'"
+            class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
             <div class="flex items-center space-x-2">
               <Calculator class="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <span class="text-sm font-medium text-blue-900">Monthly Equivalent</span>
@@ -178,25 +148,20 @@
               ₹{{ monthlyEquivalent.toLocaleString() }}
             </p>
             <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">
-              This {{ formData.frequency.replace('every ', '') }} income equals approximately ₹{{ monthlyEquivalent.toLocaleString() }} per month
+              This {{ formData.frequency.replace('every ', '') }} income equals approximately ₹{{
+                monthlyEquivalent.toLocaleString() }} per month
             </p>
           </div>
 
           <!-- Form Actions -->
-          <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <Button 
-              type="button"
-              variant="outline"
-              @click="closeForm"
-              :disabled="loading"
-            >
+          <div
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button type="button" variant="outline" @click="closeForm" :disabled="loading"
+              class="w-full sm:w-auto min-h-[44px] touch-manipulation">
               Cancel
             </Button>
-            <Button 
-              type="submit"
-              :loading="loading"
-              :disabled="!isFormValid"
-            >
+            <Button type="submit" :loading="loading" :disabled="!isFormValid"
+              class="w-full sm:w-auto min-h-[44px] touch-manipulation">
               <Save class="w-4 h-4 mr-2" />
               {{ isEditing ? 'Update Income' : 'Add Income' }}
             </Button>
@@ -213,30 +178,30 @@ import { Calculator, Calendar, Repeat, Save, X } from "lucide-vue-next"
 import { computed, onMounted, ref, watch } from "vue"
 import { useIncome } from "../../composables/useIncome"
 import type {
-	IncomeFormUIData,
-	IncomeTypeRecord,
-	IncomeValidationResult,
-	ProcessedIncomeItem,
-	RECUR_FREQUENCY_OPTIONS,
+  IncomeFormUIData,
+  IncomeTypeRecord,
+  IncomeValidationResult,
+  ProcessedIncomeItem,
+  RECUR_FREQUENCY_OPTIONS,
 } from "../../types/income"
 
 // Props
 interface Props {
-	isOpen: boolean
-	editingSource?: ProcessedIncomeItem | null
-	mode?: "source" | "direct"
+  isOpen: boolean
+  editingSource?: ProcessedIncomeItem | null
+  mode?: "source" | "direct"
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	isOpen: false,
-	editingSource: null,
-	mode: "source",
+  isOpen: false,
+  editingSource: null,
+  mode: "source",
 })
 
 // Emits
 const emit = defineEmits<{
-	close: []
-	submit: [data: IncomeFormUIData]
+  close: []
+  submit: [data: IncomeFormUIData]
 }>()
 
 // Composables
@@ -247,12 +212,12 @@ const loading = ref(false)
 
 // Form data with proper typing
 const formData = ref<IncomeFormUIData>({
-	type: "",
-	amount: 0,
-	isRecurring: false,
-	dateTime: "",
-	frequency: undefined,
-	stop_date: undefined,
+  type: "",
+  amount: 0,
+  isRecurring: false,
+  dateTime: "",
+  frequency: undefined,
+  stop_date: undefined,
 })
 
 // Validation errors
@@ -260,222 +225,222 @@ const validationErrors = ref<Record<string, string>>({})
 
 // Updated frequency options with all supported frequencies
 const frequencyOptions = [
-	{ value: "daily", label: "Daily" },
-	{ value: "weekly", label: "Weekly" },
-	{ value: "bi-weekly", label: "Bi-weekly" },
-	{ value: "monthly", label: "Monthly" },
-	{ value: "quarterly", label: "Quarterly" },
-	{ value: "semi-annually", label: "Semi-annually" },
-	{ value: "annually", label: "Annually" },
-	{ value: "yearly", label: "Yearly" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "bi-weekly", label: "Bi-weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "semi-annually", label: "Semi-annually" },
+  { value: "annually", label: "Annually" },
+  { value: "yearly", label: "Yearly" },
 ] as const
 
 // Computed
 const isEditing = computed(() => !!props.editingSource)
 
 const today = computed(() => {
-	return new Date().toISOString().split("T")[0]
+  return new Date().toISOString().split("T")[0]
 })
 
 const monthlyEquivalent = computed(() => {
-	if (
-		!formData.value.isRecurring ||
-		!formData.value.frequency ||
-		!formData.value.amount
-	) {
-		return 0
-	}
+  if (
+    !formData.value.isRecurring ||
+    !formData.value.frequency ||
+    !formData.value.amount
+  ) {
+    return 0
+  }
 
-	const amount = formData.value.amount
-	switch (formData.value.frequency) {
-		case "daily":
-			return amount * 30 // Approximate monthly
-		case "weekly":
-			return amount * 4.33 // Approximate monthly
-		case "bi-weekly":
-			return amount * 2.17 // Approximate monthly
-		case "monthly":
-			return amount
-		case "quarterly":
-			return amount / 3 // Quarterly to monthly
-		case "semi-annually":
-			return amount / 6 // Semi-annually to monthly
-		case "annually":
-		case "yearly":
-			return amount / 12 // Yearly to monthly
-		default:
-			return amount
-	}
+  const amount = formData.value.amount
+  switch (formData.value.frequency) {
+    case "daily":
+      return amount * 30 // Approximate monthly
+    case "weekly":
+      return amount * 4.33 // Approximate monthly
+    case "bi-weekly":
+      return amount * 2.17 // Approximate monthly
+    case "monthly":
+      return amount
+    case "quarterly":
+      return amount / 3 // Quarterly to monthly
+    case "semi-annually":
+      return amount / 6 // Semi-annually to monthly
+    case "annually":
+    case "yearly":
+      return amount / 12 // Yearly to monthly
+    default:
+      return amount
+  }
 })
 
 const isFormValid = computed(() => {
-	return (
-		formData.value.type &&
-		formData.value.amount > 0 &&
-		formData.value.dateTime &&
-		(!formData.value.isRecurring || formData.value.frequency) &&
-		Object.keys(validationErrors.value).length === 0
-	)
+  return (
+    formData.value.type &&
+    formData.value.amount > 0 &&
+    formData.value.dateTime &&
+    (!formData.value.isRecurring || formData.value.frequency) &&
+    Object.keys(validationErrors.value).length === 0
+  )
 })
 
 // Methods
 const validateForm = (): IncomeValidationResult => {
-	const errors: Record<string, string> = {}
+  const errors: Record<string, string> = {}
 
-	if (!formData.value.type) {
-		errors.type = "Income type is required"
-	}
+  if (!formData.value.type) {
+    errors.type = "Income type is required"
+  }
 
-	if (!formData.value.amount || formData.value.amount <= 0) {
-		errors.amount = "Amount must be greater than 0"
-	}
+  if (!formData.value.amount || formData.value.amount <= 0) {
+    errors.amount = "Amount must be greater than 0"
+  }
 
-	if (!formData.value.dateTime) {
-		errors.dateTime = "Date is required"
-	}
+  if (!formData.value.dateTime) {
+    errors.dateTime = "Date is required"
+  }
 
-	if (formData.value.isRecurring && !formData.value.frequency) {
-		errors.frequency = "Frequency is required for recurring income"
-	}
+  if (formData.value.isRecurring && !formData.value.frequency) {
+    errors.frequency = "Frequency is required for recurring income"
+  }
 
-	// For source mode, isRecurring must ALWAYS be true
-	if (props.mode === "source") {
-		if (!formData.value.isRecurring) {
-			errors.isRecurring = "Income sources must be recurring"
-		}
-		// Ensure frequency is always required for source mode
-		if (!formData.value.frequency) {
-			errors.frequency = "Frequency is required for income sources"
-		}
-	}
+  // For source mode, isRecurring must ALWAYS be true
+  if (props.mode === "source") {
+    if (!formData.value.isRecurring) {
+      errors.isRecurring = "Income sources must be recurring"
+    }
+    // Ensure frequency is always required for source mode
+    if (!formData.value.frequency) {
+      errors.frequency = "Frequency is required for income sources"
+    }
+  }
 
-	// Validate frequency is from supported list
-	if (formData.value.frequency) {
-		const supportedFrequencies = frequencyOptions.map((f) => f.value)
-		if (!supportedFrequencies.includes(formData.value.frequency as any)) {
-			errors.frequency = "Invalid frequency selected"
-		}
-	}
+  // Validate frequency is from supported list
+  if (formData.value.frequency) {
+    const supportedFrequencies = frequencyOptions.map((f) => f.value)
+    if (!supportedFrequencies.includes(formData.value.frequency as any)) {
+      errors.frequency = "Invalid frequency selected"
+    }
+  }
 
-	validationErrors.value = errors
-	return {
-		isValid: Object.keys(errors).length === 0,
-		errors,
-	}
+  validationErrors.value = errors
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  }
 }
 
 const resetForm = () => {
-	formData.value = {
-		type: "",
-		amount: 0,
-		isRecurring: props.mode === "source", // Always true for source mode, user choice for direct mode
-		dateTime: "",
-		frequency: undefined,
-		stop_date: undefined,
-	}
-	validationErrors.value = {}
+  formData.value = {
+    type: "",
+    amount: 0,
+    isRecurring: props.mode === "source", // Always true for source mode, user choice for direct mode
+    dateTime: "",
+    frequency: undefined,
+    stop_date: undefined,
+  }
+  validationErrors.value = {}
 }
 
 const populateForm = (source: ProcessedIncomeItem) => {
-	formData.value = {
-		type: source.type,
-		amount: source.amount,
-		isRecurring: source.isRecurring,
-		dateTime: source.dateTime.split("T")[0], // Extract date part
-		frequency: source.frequency as
-			| "daily"
-			| "weekly"
-			| "bi-weekly"
-			| "monthly"
-			| "quarterly"
-			| "semi-annually"
-			| "annually"
-			| "yearly"
-			| undefined,
-		stop_date: source.stop_date ? source.stop_date.split("T")[0] : undefined,
-	}
+  formData.value = {
+    type: source.type,
+    amount: source.amount,
+    isRecurring: source.isRecurring,
+    dateTime: source.dateTime.split("T")[0], // Extract date part
+    frequency: source.frequency as
+      | "daily"
+      | "weekly"
+      | "bi-weekly"
+      | "monthly"
+      | "quarterly"
+      | "semi-annually"
+      | "annually"
+      | "yearly"
+      | undefined,
+    stop_date: source.stop_date ? source.stop_date.split("T")[0] : undefined,
+  }
 }
 
 const handleSubmit = async () => {
-	const validation = validateForm()
-	if (!validation.isValid) {
-		return
-	}
+  const validation = validateForm()
+  if (!validation.isValid) {
+    return
+  }
 
-	try {
-		loading.value = true
-		emit("submit", { ...formData.value })
-		closeForm()
-	} catch (error) {
-		console.error("Failed to submit income form:", error)
-	} finally {
-		loading.value = false
-	}
+  try {
+    loading.value = true
+    emit("submit", { ...formData.value })
+    closeForm()
+  } catch (error) {
+    console.error("Failed to submit income form:", error)
+  } finally {
+    loading.value = false
+  }
 }
 
 const closeForm = () => {
-	resetForm()
-	emit("close")
+  resetForm()
+  emit("close")
 }
 
 const handleOverlayClick = () => {
-	closeForm()
+  closeForm()
 }
 
 const getFormTitle = () => {
-	if (isEditing.value) {
-		return props.mode === "direct" ? "Edit Income Entry" : "Edit Income Source"
-	}
-	return props.mode === "direct" ? "Add Income Entry" : "Add Income Source"
+  if (isEditing.value) {
+    return props.mode === "direct" ? "Edit Income Entry" : "Edit Income Source"
+  }
+  return props.mode === "direct" ? "Add Income Entry" : "Add Income Source"
 }
 
 const loadIncomeTypes = async () => {
-	try {
-		await fetchIncomeTypes()
-	} catch (error) {
-		console.error("Failed to load income types:", error)
-	}
+  try {
+    await fetchIncomeTypes()
+  } catch (error) {
+    console.error("Failed to load income types:", error)
+  }
 }
 
 // Watchers
 watch(
-	() => props.isOpen,
-	(isOpen) => {
-		if (isOpen) {
-			if (props.editingSource) {
-				populateForm(props.editingSource)
-			} else {
-				resetForm()
-			}
-		}
-	},
+  () => props.isOpen,
+  (isOpen) => {
+    if (isOpen) {
+      if (props.editingSource) {
+        populateForm(props.editingSource)
+      } else {
+        resetForm()
+      }
+    }
+  },
 )
 
 watch(
-	() => formData.value.isRecurring,
-	(isRecurring) => {
-		if (!isRecurring) {
-			formData.value.frequency = undefined
-			delete validationErrors.value.frequency
-		}
-	},
+  () => formData.value.isRecurring,
+  (isRecurring) => {
+    if (!isRecurring) {
+      formData.value.frequency = undefined
+      delete validationErrors.value.frequency
+    }
+  },
 )
 
 // Watch for mode changes to enforce source mode rules
 watch(
-	() => props.mode,
-	(mode) => {
-		if (mode === "source") {
-			// Force recurring to true for source mode
-			formData.value.isRecurring = true
-		}
-	},
-	{ immediate: true },
+  () => props.mode,
+  (mode) => {
+    if (mode === "source") {
+      // Force recurring to true for source mode
+      formData.value.isRecurring = true
+    }
+  },
+  { immediate: true },
 )
 
 // Initialize
 onMounted(() => {
-	loadIncomeTypes()
+  loadIncomeTypes()
 })
 </script>
 
@@ -495,5 +460,38 @@ select:focus,
 textarea:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+
+  /* Better spacing on mobile */
+  .income-form form {
+    @apply space-y-4;
+  }
+
+  /* Improved touch targets */
+  input,
+  select,
+  button {
+    @apply min-h-[44px] touch-manipulation;
+  }
+
+  /* Better text size on mobile */
+  label {
+    @apply text-sm;
+  }
+
+  /* Modal takes more screen space on mobile */
+  .income-form [role="dialog"] {
+    @apply max-h-[95vh] m-2;
+  }
+}
+
+/* Ensure inputs are properly sized for mobile */
+input[type="number"],
+input[type="date"],
+select {
+  @apply min-h-[44px];
 }
 </style>

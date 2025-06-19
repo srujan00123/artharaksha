@@ -4,25 +4,26 @@
 */
 
 <template>
-	<div class="income-management space-y-4 lg:space-y-6">
+	<div class="income-management space-y-3 sm:space-y-4 lg:space-y-6 p-3 sm:p-4 lg:p-0">
 
 		<!-- Top Controls -->
-		<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4 sm:p-5 lg:p-6">
-			<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+		<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-3 sm:p-4 lg:p-6">
+			<div
+				class="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-0 sm:gap-4">
 				<!-- Add Income Buttons -->
-				<div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
+				<div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
 					<button v-if="currentView === 'sources'" @click="openIncomeSourceForm" :disabled="loading"
-						class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto">
+						class="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-blue-600 text-white rounded-lg shadow-sm text-xs sm:text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto min-h-[44px] touch-manipulation">
 						<Plus class="w-4 h-4 mr-2" />
 						Add Income Source
 					</button>
 					<button v-if="currentView === 'ledger'" @click="openDirectIncomeForm" :disabled="loading"
-						class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto">
+						class="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-blue-600 text-white rounded-lg shadow-sm text-xs sm:text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors w-full sm:w-auto min-h-[44px] touch-manipulation">
 						<Plus class="w-4 h-4 mr-2" />
 						Add Income
 					</button>
 					<button @click="handleRefresh" :disabled="loading"
-						class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full sm:w-auto">
+						class="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs sm:text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full sm:w-auto min-h-[44px] touch-manipulation">
 						<RefreshCw class="w-4 h-4 mr-2" />
 						Refresh
 					</button>
@@ -36,30 +37,32 @@
 
 				<!-- View Toggle -->
 				<div
-					class="flex rounded-lg border border-gray-200 dark:border-gray-600 p-1 bg-gray-50 dark:bg-gray-700">
+					class="flex rounded-lg border border-gray-200 dark:border-gray-600 p-1 bg-gray-50 dark:bg-gray-700 w-full sm:w-auto">
 					<button @click="currentView = 'sources'" :class="[
-						'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+						'flex-1 sm:flex-none px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors min-h-[40px] touch-manipulation',
 						currentView === 'sources'
 							? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
 							: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
 					]">
-						Sources ({{ totalSources || 0 }})
+						<span class="hidden sm:inline">Sources ({{ totalSources || 0 }})</span>
+						<span class="sm:hidden">Sources</span>
 					</button>
 					<button @click="switchToLedgerView" :class="[
-						'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+						'flex-1 sm:flex-none px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors min-h-[40px] touch-manipulation',
 						currentView === 'ledger'
 							? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
 							: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
 					]">
-						Ledger ({{ filteredLedgerEntries?.length || 0 }})
+						<span class="hidden sm:inline">Ledger ({{ filteredLedgerEntries?.length || 0 }})</span>
+						<span class="sm:hidden">Ledger</span>
 					</button>
 				</div>
 			</div>
 		</div>
 
 		<!-- 🚀 ENHANCED: Summary Cards with reliable data sources (matching Reports.vue pattern) -->
-		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-3 sm:p-4">
 				<div class="flex items-center">
 					<div class="flex-shrink-0">
 						<div
@@ -68,8 +71,8 @@
 						</div>
 					</div>
 					<div class="ml-3">
-						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Income</p>
-						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
+						<p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Total Income</p>
+						<p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
 							formatCurrency(totalIncome || 0) }}</p>
 						<p class="text-xs text-gray-500 dark:text-gray-400">
 							{{ totalSources || 0 }} sources
@@ -78,7 +81,7 @@
 				</div>
 			</div>
 
-			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-3 sm:p-4">
 				<div class="flex items-center">
 					<div class="flex-shrink-0">
 						<div
@@ -87,8 +90,8 @@
 						</div>
 					</div>
 					<div class="ml-3">
-						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Recurring Income</p>
-						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
+						<p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Recurring Income</p>
+						<p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
 							formatCurrency(recurringIncome || 0) }}</p>
 						<p class="text-xs text-gray-500 dark:text-gray-400">
 							{{ recurringPercentage }}% of total
@@ -97,7 +100,7 @@
 				</div>
 			</div>
 
-			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-3 sm:p-4">
 				<div class="flex items-center">
 					<div class="flex-shrink-0">
 						<div
@@ -106,8 +109,8 @@
 						</div>
 					</div>
 					<div class="ml-3">
-						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">One-time Income</p>
-						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
+						<p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">One-time Income</p>
+						<p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">₹{{
 							formatCurrency(oneTimeIncome || 0) }}</p>
 						<p class="text-xs text-gray-500 dark:text-gray-400">
 							{{ formatPeriod(currentPeriod) }}
@@ -116,7 +119,7 @@
 				</div>
 			</div>
 
-			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-4">
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 border p-3 sm:p-4">
 				<div class="flex items-center">
 					<div class="flex-shrink-0">
 						<div
@@ -125,8 +128,9 @@
 						</div>
 					</div>
 					<div class="ml-3">
-						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Income Sources</p>
-						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ totalSources || 0 }}
+						<p class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">Income Sources</p>
+						<p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">{{ totalSources
+							|| 0 }}
 						</p>
 						<p class="text-xs text-gray-500 dark:text-gray-400">
 							Active sources

@@ -1,181 +1,194 @@
 <template>
-  <div class="space-y-4">
-    <!-- Filter Toggle Button -->
-    <div class="flex items-center justify-between">
-      <Button variant="outline" @click="showFilters = !showFilters" class="flex items-center gap-2">
-        <SlidersHorizontal class="w-4 h-4" />
-        <span>Filters</span>
-        <Badge v-if="activeFilterCount > 0" :label="activeFilterCount.toString()" variant="subtle" />
-      </Button>
+	<div class="space-y-4">
+		<!-- Filter Toggle Button -->
+		<div class="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+			<Button variant="outline" @click="showFilters = !showFilters"
+				class="flex items-center gap-2 w-full sm:w-auto min-h-[44px] touch-manipulation">
+				<SlidersHorizontal class="w-4 h-4" />
+				<span>Filters</span>
+				<Badge v-if="activeFilterCount > 0" :label="activeFilterCount.toString()" variant="subtle" />
+			</Button>
 
-      <div v-if="activeFilterCount > 0" class="flex items-center gap-2">
-        <span class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{{ filteredCount }} of {{ totalCount }} income sources</span>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          @click="clearAllFilters" 
-          :disabled="loading"
-          class="text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300 disabled:opacity-50"
-        >
-          <span v-if="loading" class="flex items-center">
-            <div class="animate-spin rounded-full h-3 w-3 border-b border-current mr-1"></div>
-            Clearing...
-          </span>
-          <span v-else>Clear All</span>
-        </Button>
-      </div>
-    </div>
+			<div v-if="activeFilterCount > 0" class="flex flex-col sm:flex-row sm:items-center gap-2">
+				<span
+					class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 text-center sm:text-left">{{
+						filteredCount }} of {{ totalCount }} income sources</span>
+				<Button variant="ghost" size="sm" @click="clearAllFilters" :disabled="loading"
+					class="text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300 disabled:opacity-50 w-full sm:w-auto min-h-[40px] touch-manipulation">
+					<span v-if="loading" class="flex items-center">
+						<div class="animate-spin rounded-full h-3 w-3 border-b border-current mr-1"></div>
+						Clearing...
+					</span>
+					<span v-else>Clear All</span>
+				</Button>
+			</div>
+		</div>
 
-    <!-- Filter Panel -->
-    <Card v-show="showFilters" class="bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 border border-gray-200 dark:border-gray-700">
-      <div class="p-4 space-y-6">
-        <!-- Quick Date Filters -->
-        <div>
-          <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Date Range</h4>
-          <div class="flex flex-wrap gap-2 mb-3">
-            <Button v-for="period in quickDateFilters" :key="period.value" variant="outline" size="sm"
-              @click="applyQuickDateFilter(period.value)"
-              :class="{ 'bg-blue-50 border-blue-300 text-blue-700': isActiveDateFilter(period.value) }">
-              {{ period.label }}
-            </Button>
-          </div>
+		<!-- Filter Panel -->
+		<Card v-show="showFilters"
+			class="bg-gray-50 dark:bg-gray-900 dark:bg-gray-100 border border-gray-200 dark:border-gray-700">
+			<div class="p-3 sm:p-4 space-y-4 sm:space-y-6">
+				<!-- Quick Date Filters -->
+				<div>
+					<h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Date Range</h4>
+					<div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-3">
+						<Button v-for="period in quickDateFilters" :key="period.value" variant="outline" size="sm"
+							@click="applyQuickDateFilter(period.value)"
+							:class="{ 'bg-blue-50 border-blue-300 text-blue-700': isActiveDateFilter(period.value) }"
+							class="min-h-[40px] touch-manipulation text-xs sm:text-sm">
+							{{ period.label }}
+						</Button>
+					</div>
 
-          <!-- Custom Date Range -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">From Date</label>
-              <TextInput type="date" v-model="localFilters.dateFrom" @input="onFilterChange"
-                class="w-full" size="sm" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">To Date</label>
-              <TextInput type="date" v-model="localFilters.dateTo" @input="onFilterChange" class="w-full"
-                size="sm" />
-            </div>
-          </div>
-        </div>
+					<!-- Custom Date Range -->
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+						<div>
+							<label
+								class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">From
+								Date</label>
+							<TextInput type="date" v-model="localFilters.dateFrom" @input="onFilterChange"
+								class="w-full" size="sm" />
+						</div>
+						<div>
+							<label
+								class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">To
+								Date</label>
+							<TextInput type="date" v-model="localFilters.dateTo" @input="onFilterChange" class="w-full"
+								size="sm" />
+						</div>
+					</div>
+				</div>
 
-        <!-- Income Type and Frequency Filters -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Income Type Filter -->
-          <div>
-            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Income Type</h4>
-            <div class="space-y-2">
-              <label class="flex items-center">
-                <input type="radio" name="incomeType" value="" v-model="localFilters.type"
-                  @change="onFilterChange" class="mr-2" />
-                <span class="text-sm dark:text-gray-200">All Types</span>
-              </label>
-              <div v-for="type in incomeTypes" :key="type.name" class="flex items-center">
-                <input type="radio" name="incomeType" :value="type.type" v-model="localFilters.type"
-                  @change="onFilterChange" class="mr-2" />
-                <span class="flex items-center text-sm dark:text-gray-200">
-                  <DollarSign class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" />
-                  {{ type.type }}
-                </span>
-              </div>
-            </div>
-          </div>
+				<!-- Income Type and Frequency Filters -->
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+					<!-- Income Type Filter -->
+					<div>
+						<h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Income Type</h4>
+						<div class="space-y-2">
+							<label class="flex items-center">
+								<input type="radio" name="incomeType" value="" v-model="localFilters.type"
+									@change="onFilterChange" class="mr-2" />
+								<span class="text-sm dark:text-gray-200">All Types</span>
+							</label>
+							<div v-for="type in incomeTypes" :key="type.name" class="flex items-center">
+								<input type="radio" name="incomeType" :value="type.type" v-model="localFilters.type"
+									@change="onFilterChange" class="mr-2" />
+								<span class="flex items-center text-sm dark:text-gray-200">
+									<DollarSign class="w-4 h-4 mr-2 text-green-600 dark:text-green-400" />
+									{{ type.type }}
+								</span>
+							</div>
+						</div>
+					</div>
 
-          <!-- Frequency Filter -->
-          <div>
-            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Frequency</h4>
-            <div class="space-y-2">
-              <label class="flex items-center">
-                <input type="radio" name="frequency" :value="null" v-model="localFilters.isRecurring"
-                  @change="onFilterChange" class="mr-2" />
-                <span class="text-sm dark:text-gray-200">All Income</span>
-              </label>
-              <label class="flex items-center">
-                <input type="radio" name="frequency" :value="true" v-model="localFilters.isRecurring"
-                  @change="onFilterChange" class="mr-2" />
-                <span class="flex items-center text-sm dark:text-gray-200">
-                  <Repeat class="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
-                  Recurring Only
-                </span>
-              </label>
-              <label class="flex items-center">
-                <input type="radio" name="frequency" :value="false" v-model="localFilters.isRecurring"
-                  @change="onFilterChange" class="mr-2" />
-                <span class="flex items-center text-sm dark:text-gray-200">
-                  <Calendar class="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />
-                  One-time Only
-                </span>
-              </label>
-            </div>
-          </div>
-        </div>
+					<!-- Frequency Filter -->
+					<div>
+						<h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Frequency</h4>
+						<div class="space-y-2">
+							<label class="flex items-center">
+								<input type="radio" name="frequency" :value="null" v-model="localFilters.isRecurring"
+									@change="onFilterChange" class="mr-2" />
+								<span class="text-sm dark:text-gray-200">All Income</span>
+							</label>
+							<label class="flex items-center">
+								<input type="radio" name="frequency" :value="true" v-model="localFilters.isRecurring"
+									@change="onFilterChange" class="mr-2" />
+								<span class="flex items-center text-sm dark:text-gray-200">
+									<Repeat class="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
+									Recurring Only
+								</span>
+							</label>
+							<label class="flex items-center">
+								<input type="radio" name="frequency" :value="false" v-model="localFilters.isRecurring"
+									@change="onFilterChange" class="mr-2" />
+								<span class="flex items-center text-sm dark:text-gray-200">
+									<Calendar class="w-4 h-4 mr-2 text-purple-600 dark:text-purple-400" />
+									One-time Only
+								</span>
+							</label>
+						</div>
+					</div>
+				</div>
 
-        <!-- Amount and Search Filters -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Amount Range -->
-          <div>
-            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Amount Range (₹)</h4>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">Min Amount</label>
-                <TextInput type="number" v-model="localFilters.amountMin" @input="onFilterChange"
-                  placeholder="0" min="0" step="0.01" class="w-full" size="sm" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">Max Amount</label>
-                <TextInput type="number" v-model="localFilters.amountMax" @input="onFilterChange"
-                  placeholder="No limit" min="0" step="0.01" class="w-full" size="sm" />
-              </div>
-            </div>
-          </div>
+				<!-- Amount and Search Filters -->
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+					<!-- Amount Range -->
+					<div>
+						<h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Amount Range (₹)</h4>
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label
+									class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">Min
+									Amount</label>
+								<TextInput type="number" v-model="localFilters.amountMin" @input="onFilterChange"
+									placeholder="0" min="0" step="0.01" class="w-full" size="sm" />
+							</div>
+							<div>
+								<label
+									class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">Max
+									Amount</label>
+								<TextInput type="number" v-model="localFilters.amountMax" @input="onFilterChange"
+									placeholder="No limit" min="0" step="0.01" class="w-full" size="sm" />
+							</div>
+						</div>
+					</div>
 
-          <!-- Text Search -->
-          <div>
-            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Search</h4>
-            <TextInput v-model="localFilters.searchTerm" @input="onFilterChange"
-              placeholder="Search income sources..." class="w-full" size="sm" />
-          </div>
-        </div>
+					<!-- Text Search -->
+					<div>
+						<h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Search</h4>
+						<TextInput v-model="localFilters.searchTerm" @input="onFilterChange"
+							placeholder="Search income sources..." class="w-full" size="sm" />
+					</div>
+				</div>
 
-        <!-- Sorting Options -->
-        <div>
-          <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Sort Options</h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">Sort By</label>
-              <select v-model="localFilters.sortBy" @change="onFilterChange"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
-                <option value="date">Date</option>
-                <option value="amount">Amount</option>
-                <option value="type">Type</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">Order</label>
-              <select v-model="localFilters.sortOrder" @change="onFilterChange"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
-                <option value="desc">Newest First</option>
-                <option value="asc">Oldest First</option>
-              </select>
-            </div>
-          </div>
-        </div>
+				<!-- Sorting Options -->
+				<div>
+					<h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Sort Options</h4>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+						<div>
+							<label
+								class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">Sort
+								By</label>
+							<select v-model="localFilters.sortBy" @change="onFilterChange"
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
+								<option value="date">Date</option>
+								<option value="amount">Amount</option>
+								<option value="type">Type</option>
+							</select>
+						</div>
+						<div>
+							<label
+								class="block text-xs font-medium text-gray-700 dark:text-gray-300 dark:text-gray-600 mb-1">Order</label>
+							<select v-model="localFilters.sortOrder" @change="onFilterChange"
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
+								<option value="desc">Newest First</option>
+								<option value="asc">Oldest First</option>
+							</select>
+						</div>
+					</div>
+				</div>
 
-        <!-- Active Filters Summary -->
-        <div v-if="activeFilterCount > 0" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-          <div class="flex items-start justify-between">
-            <div>
-              <h5 class="text-sm font-medium text-blue-900 mb-1">Active Filters</h5>
-              <div class="flex flex-wrap gap-1">
-                <Badge v-for="filter in activeFilters" :key="filter.key" :label="filter.label"
-                  variant="subtle" class="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200" />
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" @click="clearAllFilters"
-              class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-300">
-              Clear
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Card>
-  </div>
+				<!-- Active Filters Summary -->
+				<div v-if="activeFilterCount > 0"
+					class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+					<div class="flex items-start justify-between">
+						<div>
+							<h5 class="text-sm font-medium text-blue-900 mb-1">Active Filters</h5>
+							<div class="flex flex-wrap gap-1">
+								<Badge v-for="filter in activeFilters" :key="filter.key" :label="filter.label"
+									variant="subtle"
+									class="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200" />
+							</div>
+						</div>
+						<Button variant="ghost" size="sm" @click="clearAllFilters"
+							class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-300">
+							Clear
+						</Button>
+					</div>
+				</div>
+			</div>
+		</Card>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -435,20 +448,20 @@ async function applyQuickDateFilter(period: string) {
 	if (filter) {
 		localFilters.value.dateFrom = filter.dateFrom
 		localFilters.value.dateTo = filter.dateTo
-		// Direct period assignment (values now match IncomeFilters type)
-		const validPeriods = [
-			"today",
-			"this_week",
-			"this_month",
-			"last_month",
-			"last_3_months",
-			"last_6_months",
-			"this_year",
-			"all",
-			"custom",
-		] as const
-		if (validPeriods.includes(period as any)) {
-			localFilters.value.period = period as (typeof validPeriods)[number]
+		// Map period values to valid IncomeFilters periods
+		const periodMapping: Record<string, string> = {
+			"today": "custom",
+			"this_week": "custom",
+			"this_month": "this_month",
+			"last_month": "last_month",
+			"last_3_months": "last_3_months",
+			"last_6_months": "last_6_months",
+			"this_year": "this_year",
+		}
+
+		const mappedPeriod = periodMapping[period]
+		if (mappedPeriod) {
+			localFilters.value.period = mappedPeriod as "this_month" | "last_month" | "last_3_months" | "last_6_months" | "this_year" | "all" | "custom"
 		}
 		activePeriod.value = period
 		// Directly apply the filter with cache invalidation

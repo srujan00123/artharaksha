@@ -69,7 +69,7 @@ class ArthaSpaSocketClient {
 	// Initialize socket connection
 	async init(config = {}) {
 		const {
-			port = 9000,
+			port = 9000, // Use standard Frappe port
 			lazy_connect = false,
 			reconnectionAttempts = 3,
 			withCredentials = true,
@@ -83,8 +83,12 @@ class ArthaSpaSocketClient {
 
 		try {
 			const siteInfo = await this.fetchSiteInfo()
+			// Use standard socketio_port
 			const actualPort = siteInfo?.socketio_port || port
 			const socketUrl = this.getSocketUrl(actualPort, siteInfo?.site_name)
+			
+			console.log(`Artha Socket: Connecting to ${socketUrl}`)
+			
 			const socketOptions = {
 				withCredentials,
 				reconnectionAttempts,
@@ -92,10 +96,16 @@ class ArthaSpaSocketClient {
 				transports: ["websocket", "polling"],
 				timeout: 20000,
 				forceNew: true,
+				// Add upgrade option for better production compatibility
+				upgrade: true,
+				// Enable polling for fallback in production
+				forceBase64: false,
 			}
+			
 			if (window.location.protocol === "https:") {
 				socketOptions.secure = true
 			}
+			
 			this.socket = io(socketUrl, socketOptions)
 			if (!this.socket) {
 				console.error("Unable to connect to", socketUrl)
@@ -136,14 +146,14 @@ class ArthaSpaSocketClient {
 			window.location.hostname === "localhost" ||
 			window.location.hostname === "127.0.0.1"
 		) {
-			return "artha.localhost"
+			return "development.localhost"
 		}
 		const hostname = window.location.hostname
 		if (hostname.includes(".")) {
 			const extracted = hostname.split(".")[0]
 			return extracted
 		}
-		return "artha.localhost"
+		return "development.localhost"
 	}
 
 	async fetchSiteNameFromAPI() {
