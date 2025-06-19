@@ -140,10 +140,21 @@ class ArthaSpaSocketClient {
 	}
 
 	getSocketUrl(port, siteName) {
+		// Use site name from backend API (which gives us frappe.local.site)
+		// This is the actual site folder name that Frappe uses for namespacing
 		const actualSiteName = siteName || this.getSiteName()
 		
 		// Follow Frappe's standard approach
 		let host = window.location.origin
+		
+		console.log('DEBUG: Socket URL construction:', {
+			providedSiteName: siteName,
+			detectedSiteName: this.getSiteName(),
+			finalSiteName: actualSiteName,
+			host: host,
+			dev_server: window.dev_server,
+			hostname: window.location.hostname
+		})
 		
 		// Check if we're in development (similar to Frappe's logic)
 		if (window.dev_server || window.location.hostname.includes("localhost") || window.location.hostname.includes("127.0.0.1")) {
@@ -154,13 +165,24 @@ class ArthaSpaSocketClient {
 				host = parts[0] + ":" + parts[1]
 			}
 			host = host + ":" + actualPort
+			console.log('DEBUG: Development mode, using host with port:', host)
+		} else {
+			console.log('DEBUG: Production mode, using host without port:', host)
 		}
-		// Production case - use main domain without port (Traefik/nginx will route)
 		
-		return `${host}/${actualSiteName}`
+		// Frappe namespacing: /{sitename} where sitename is the site folder name
+		const finalUrl = `${host}/${actualSiteName}`
+		console.log('DEBUG: Final socket URL (Frappe namespace format):', finalUrl)
+		return finalUrl
 	}
 
 	getSiteName() {
+		// Priority order for site name detection:
+		// 1. window.site_name (set by backend)
+		// 2. session.site_name 
+		// 3. frappe.boot.sitename
+		// 4. Default fallback
+		
 		if (window.site_name) {
 			return window.site_name
 		}
@@ -170,17 +192,8 @@ class ArthaSpaSocketClient {
 		if (window.frappe && window.frappe.boot && window.frappe.boot.sitename) {
 			return window.frappe.boot.sitename
 		}
-		if (
-			window.location.hostname === "localhost" ||
-			window.location.hostname === "127.0.0.1"
-		) {
-			return "development.localhost"
-		}
-		const hostname = window.location.hostname
-		if (hostname.includes(".")) {
-			const extracted = hostname.split(".")[0]
-			return extracted
-		}
+		
+		// Default fallback
 		return "development.localhost"
 	}
 

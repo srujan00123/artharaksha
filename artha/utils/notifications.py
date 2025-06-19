@@ -10,15 +10,18 @@ import json
 
 
 def realtime_notification(event_type: str, data_field: str = None, user_field: str = None,
-                          broadcast: bool = True, rooms: List[str] = None):
+                          broadcast: bool = False, rooms: List[str] = None):
     """
     Decorator to automatically send real-time notifications for API operations.
+
+    SECURITY: broadcast=False by default prevents data leaks to other users.
+    Financial data is included for user-specific notifications (secure).
 
     Args:
         event_type: Type of event (e.g., 'income_created', 'expense_updated')
         data_field: Field name in the result to extract data from (optional)
         user_field: Field name to extract user for targeted notification (optional)
-        broadcast: Whether to broadcast to 'all' room (default: True)
+        broadcast: Whether to broadcast to 'all' room (default: False for security)
         rooms: Additional rooms to notify (optional)
 
     Usage:
@@ -36,12 +39,11 @@ def realtime_notification(event_type: str, data_field: str = None, user_field: s
 
                 # Only send notifications for successful operations
                 if isinstance(result, dict) and result.get('status') == 'success':
-                    # Extract notification data
-                    notification_data = result
-                    if data_field and data_field in result:
-                        notification_data = result[data_field]
+                    # Extract notification data (sanitized)
+                    notification_data = _sanitize_notification_data(
+                        result, data_field)
 
-                    # Add metadata
+                    # Add metadata (without sensitive data)
                     event_data = {
                         'event_type': event_type,
                         'data': notification_data,
@@ -51,25 +53,25 @@ def realtime_notification(event_type: str, data_field: str = None, user_field: s
                     }
 
                     # Extract target user if specified
-                    target_user = None
+                    target_user = frappe.session.user  # Default to current user
                     if user_field:
                         if user_field in result:
                             target_user = result[user_field]
                         elif isinstance(notification_data, dict) and user_field in notification_data:
                             target_user = notification_data[user_field]
 
-                    # Send notifications
+                    # Send notifications (user-specific by default)
                     _send_realtime_notification(
                         event_type=event_type,
                         data=event_data,
                         target_user=target_user,
-                        broadcast=broadcast,
+                        broadcast=broadcast,  # Now defaults to False
                         rooms=rooms or []
                     )
 
                     # Log the notification
                     frappe.logger().info(
-                        f"Sent realtime notification: {event_type} for {func.__name__}")
+                        f"Sent realtime notification: {event_type} for {func.__name__} to user: {target_user} (includes user's financial data)")
 
                 return result
 
@@ -82,6 +84,55 @@ def realtime_notification(event_type: str, data_field: str = None, user_field: s
 
         return wrapper
     return decorator
+
+
+def _sanitize_notification_data(result: Dict[str, Any], data_field: str = None) -> Dict[str, Any]:
+    """
+    Prepare notification data for user-specific notifications.
+    Since notifications are now user-specific by default, we can include 
+    the user's own financial data safely.
+    """
+    try:
+        # If no data_field specified, return basic result data
+        if not data_field:
+            return {
+                'status': result.get('status', 'success'),
+                'message': result.get('message', 'Operation completed'),
+                'timestamp': frappe.utils.now()
+            }
+
+        # Extract specified data field
+        notification_data = result.get(data_field, {})
+
+        # For user-specific notifications, we can include financial data
+        if isinstance(notification_data, dict):
+            # Include all relevant fields for the user's own notifications
+            safe_data = {}
+
+            # Include all non-password/non-token fields
+            sensitive_fields = ['password', 'token', 'api_key', 'secret']
+
+            for field, value in notification_data.items():
+                # Skip truly sensitive authentication fields
+                if field.lower() not in sensitive_fields:
+                    safe_data[field] = value
+
+            # Ensure we have basic metadata
+            if 'timestamp' not in safe_data:
+                safe_data['timestamp'] = frappe.utils.now()
+
+            return safe_data
+
+        # If not a dict, return the data as-is (could be a simple value)
+        return notification_data
+
+    except Exception as e:
+        frappe.logger().error(f"Error preparing notification data: {str(e)}")
+        return {
+            'status': 'success',
+            'message': 'Operation completed',
+            'timestamp': frappe.utils.now()
+        }
 
 
 def income_notification(operation: str, **notification_kwargs):
@@ -255,15 +306,20 @@ def bulk_notification(operation: str, entity_type: str, count: int, **notificati
     return decorator
 
 
-# Convenience decorators for common operations
-income_created = income_notification('created', data_field='income_data')
-income_updated = income_notification('updated', data_field='income_data')
-income_deleted = income_notification('deleted')
+# Convenience decorators for common operations - SECURED
+income_created = income_notification(
+    'created', data_field='income_data')  # No broadcast
+income_updated = income_notification(
+    'updated', data_field='income_data')  # No broadcast
+income_deleted = income_notification('deleted')  # No broadcast
 ledger_updated = income_notification(
-    'ledger_updated', data_field='ledger_data')
+    'ledger_updated', data_field='ledger_data')  # No broadcast
 
-expense_created = expense_notification('created', data_field='expense_data')
-expense_updated = expense_notification('updated', data_field='expense_data')
-expense_deleted = expense_notification('deleted')
+expense_created = expense_notification(
+    'created', data_field='expense_data')  # No broadcast
+expense_updated = expense_notification(
+    'updated', data_field='expense_data')  # No broadcast
+expense_deleted = expense_notification('deleted')  # No broadcast
 
+# Only analytics can be broadcast (non-sensitive)
 analytics_refreshed = analytics_notification(broadcast=True)

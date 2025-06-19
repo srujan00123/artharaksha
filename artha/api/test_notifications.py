@@ -14,7 +14,7 @@ from frappe.utils import now
 
 
 @frappe.whitelist()
-@income_notification('ledger_created', data_field='ledger_entry', broadcast=True)
+@income_notification('ledger_created', data_field='ledger_entry')
 def test_income_ledger_notification():
     """
     Test income ledger notification
@@ -33,7 +33,7 @@ def test_income_ledger_notification():
 
 
 @frappe.whitelist()
-@expense_notification('created', data_field='expense_data', broadcast=True)
+@expense_notification('created', data_field='expense_data')
 def test_expense_notification():
     """
     Test expense notification
@@ -51,7 +51,7 @@ def test_expense_notification():
 
 
 @frappe.whitelist()
-@realtime_notification('artha:test_event', broadcast=True)
+@realtime_notification('artha:test_event')
 def test_realtime_notification():
     """
     Test basic realtime notification

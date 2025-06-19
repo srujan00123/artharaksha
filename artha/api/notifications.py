@@ -17,24 +17,29 @@ def get_site_info():
         # Get site config
         site_config = frappe.conf
 
-        # Get site name
-        site_name = getattr(frappe.local, 'site', None) or frappe.get_site_config().get(
-            'site_name', 'artha.localhost')
+        # Get site name from frappe.local.site - this is the actual site folder name
+        # This is what Frappe uses for namespacing: /{sitename}
+        site_name = frappe.local.site if hasattr(
+            frappe.local, 'site') else 'development.localhost'
 
         # Get socket port (use standard Frappe socketio_port)
         socketio_port = site_config.get('socketio_port', 9000)
 
+        # Properly detect environment
+        is_development = frappe.conf.get('developer_mode', 1) == 1
+        environment = "development" if is_development else "production"
+
         return {
             "site_name": site_name,
             "socketio_port": socketio_port,
-            "environment": "production" if frappe.conf.get('developer_mode') == 0 else "development",
+            "environment": environment,
             "user": frappe.session.user if frappe.session.user != "Guest" else None
         }
 
     except Exception as e:
         frappe.log_error(f"Failed to get site info: {str(e)}")
         return {
-            "site_name": "artha.localhost",
+            "site_name": "development.localhost",
             "socketio_port": 9000,
             "environment": "development",
             "user": None

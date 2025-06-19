@@ -719,7 +719,7 @@ def get_income_dashboard_metrics(filters: Optional[Union[str, Dict]] = None) -> 
 
 
 @frappe.whitelist()
-@realtime_notification('artha:income_saved', data_field='income_data', broadcast=True)
+@realtime_notification('artha:income_saved', data_field='income_data')
 def create_or_update_income(income_source: Union[str, List[Dict]], income_name: Optional[str] = None, source_name: Optional[str] = None, action: Optional[str] = None) -> Dict[str, Any]:
     """
     Create or update RECURRING income sources only
@@ -1450,7 +1450,7 @@ def cleanup_income_data() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-@analytics_notification(broadcast=True)
+@analytics_notification(broadcast=False)
 def trigger_ledger_update(income_name: str = None) -> Dict[str, Any]:
     """
     Manually trigger ledger updates for income records
