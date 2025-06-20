@@ -43,7 +43,7 @@
   <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <script type="module" crossorigin src="/assets/artha/frontend/assets/index-DnimCrdF.js"></script>
+  <script type="module" crossorigin src="/assets/artha/frontend/assets/index-CkF6nNTH.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/artha/frontend/assets/index-CasJXPwN.css">
 </head>
 
@@ -53,39 +53,15 @@
   <div id="popovers"></div>
 
   <script>
-    // Set core variables from backend context
-    window.csrf_token = '{{ csrf_token if csrf_token else frappe.session.csrf_token }}'
-    window.site_name = '{{ site_name if site_name else frappe.local.site }}'
-    window.user = '{{ user if user else frappe.session.user }}'
+    window.csrf_token = '{{ frappe.session.csrf_token }}'
+    window.site_name = '{{ frappe.local.site }}'
     
-    // Enhanced debug logging for production socket issues
+    // Debug logging for production socket issues
     console.log('🔧 Frontend Template Debug:', {
       site_name: window.site_name,
-      user: window.user,
       csrf_token: window.csrf_token ? '[PRESENT]' : '[MISSING]',
-      location: window.location.href,
-      context_available: {{ 'true' if site_name else 'false' }},
-      template_vars: {
-        site_name: '{{ site_name }}',
-        user: '{{ user }}',
-        csrf_present: {{ 'true' if csrf_token else 'false' }}
-      }
+      location: window.location.href
     })
-    
-    // Fallback site name detection if template variables fail
-    if (!window.site_name || window.site_name === '' || window.site_name === 'None') {
-      console.warn('⚠️ Template site_name failed, using fallback detection')
-      const hostname = window.location.hostname
-      
-      // Use hostname as site name for production
-      if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-        window.site_name = hostname
-        console.log('✅ Using hostname as site_name:', hostname)
-      } else {
-        window.site_name = 'development.localhost'
-        console.log('✅ Using development fallback site_name')
-      }
-    }
   </script>
 
           <script>
