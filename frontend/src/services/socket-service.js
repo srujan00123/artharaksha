@@ -109,6 +109,14 @@ class ArthaSpaSocketClient {
 				cookiesAvailable: !!document.cookie
 			})
 			
+			// PRODUCTION FIX: For HTTPS production, don't use explicit port
+			// The sid cookie exists but isn't transmitted to different ports
+			if (window.location.protocol === 'https:') {
+				// Use main domain for cookie transmission in production
+				url = `https://${host}/${siteName}`
+				console.log('🔒 PRODUCTION: Using main domain for cookie transmission:', url)
+			}
+			
 			// Use CRM's exact socket options
 			const socketOptions = {
 				withCredentials: true,
@@ -141,10 +149,17 @@ class ArthaSpaSocketClient {
 		const hasSid = cookies.includes('sid=')
 		
 		console.log('🔐 Basic auth check (CRM style):', {
-			hasSid,
+			hasSid: hasSid || 'HttpOnly (invisible to JS)',
 			hasUser: !!this.getCurrentUser(),
-			cookieCount: cookies.split(';').length
+			cookieCount: cookies.split(';').length,
+			note: 'sid cookie exists but may be HttpOnly'
 		})
+		
+		// Since sid cookie exists in browser (HttpOnly), no need to force session
+		if (this.getCurrentUser() !== 'Guest') {
+			console.log('✅ User authenticated, sid cookie should exist (HttpOnly)')
+			console.log('📋 If socket auth fails, it\'s a cookie transmission issue to websocket server')
+		}
 		
 		return true
 	}
