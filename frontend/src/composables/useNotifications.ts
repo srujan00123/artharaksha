@@ -36,6 +36,7 @@ const globalNotificationState = reactive({
   isConnected: false,
   connectionError: null as string | null,
   initialized: false,
+  authWatcherInterval: null as number | null,
 });
 
 export function useNotifications() {
@@ -61,6 +62,9 @@ export function useNotifications() {
     try {
       loadNotificationsFromCache();
 
+      // Setup authentication change watcher
+      setupAuthenticationWatcher();
+
       // Initialize socket with Frappe-compliant configuration
       const socket = await socketClient.init({
         port: 9000,
@@ -83,6 +87,45 @@ export function useNotifications() {
       console.error("Failed to initialize notifications:", error);
       globalNotificationState.connectionError = error.message;
     }
+  };
+
+  // Setup authentication change watcher
+  const setupAuthenticationWatcher = () => {
+    // Watch for session changes and update socket rooms accordingly
+    let previousUser = session?.user;
+
+    // Check for authentication changes periodically
+    const checkAuthChanges = () => {
+      const currentUser = session?.user;
+
+      if (previousUser !== currentUser) {
+        console.log("🔐 User authentication changed:", {
+          from: previousUser,
+          to: currentUser,
+        });
+
+        // Notify socket service about authentication change
+        if (socketClient.handleAuthenticationChange) {
+          socketClient.handleAuthenticationChange(currentUser);
+        }
+
+        // Clear notifications if user logged out
+        if (!currentUser || currentUser === "Guest") {
+          clearAll();
+        }
+
+        previousUser = currentUser;
+      }
+    };
+
+    // Check every 2 seconds for auth changes
+    globalNotificationState.authWatcherInterval = window.setInterval(
+      checkAuthChanges,
+      2000,
+    );
+
+    // Also check immediately
+    checkAuthChanges();
   };
 
   // Setup socket realtime listeners with enhanced error handling
@@ -442,6 +485,13 @@ export function useNotifications() {
   // Enhanced cleanup function
   const cleanup = () => {
     try {
+      // Clear authentication watcher
+      if (globalNotificationState.authWatcherInterval) {
+        clearInterval(globalNotificationState.authWatcherInterval);
+        globalNotificationState.authWatcherInterval = null;
+      }
+
+      // Clear socket listeners
       socketClient.off("artha_notification");
       socketClient.off("artha:income_ledger_created");
       socketClient.off("artha:income_ledger_updated");
@@ -456,7 +506,7 @@ export function useNotifications() {
       socketClient.off("connect_error");
       socketClient.off("reconnect");
 
-      console.log("🧹 Notification listeners cleaned up");
+      console.log("🧹 Notification listeners and auth watcher cleaned up");
     } catch (error) {
       console.error("Failed to cleanup notification listeners:", error);
     }

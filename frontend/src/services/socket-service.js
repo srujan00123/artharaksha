@@ -53,6 +53,30 @@ class ArthaSpaSocketClient {
 		}
 	}
 
+	// Handle user authentication changes (login/logout)
+	handleAuthenticationChange(newUser) {
+		if (!this.socket || !this.isConnected) return
+		
+		console.log('🔐 Authentication change detected:', newUser)
+		
+		// If user logged in, join user-specific rooms
+		if (newUser && newUser !== "Guest" && newUser.includes('@')) {
+			this.socket.emit("join_room", `user:${newUser}`)
+			console.log(`✅ Joined user room after login: user:${newUser}`)
+			
+			// Join role-based rooms if available
+			const userRoles = session?.user_roles || []
+			userRoles.forEach(role => {
+				this.socket.emit("join_room", `role:${role}`)
+			})
+		}
+		// If user logged out, leave user-specific rooms
+		else if (!newUser || newUser === "Guest") {
+			// Note: Frappe socket server will automatically handle room cleanup on user change
+			console.log('🚪 User logged out, server will handle room cleanup')
+		}
+	}
+
 	// Initialize socket connection using CRM's simple approach + our advanced features
 	async init(config = {}) {
 		const {
@@ -71,6 +95,11 @@ class ArthaSpaSocketClient {
 			const socketUrl = this.getSocketUrl(port, siteName)
 			
 			console.log(`🔌 Connecting to Frappe realtime: ${socketUrl}`)
+			console.log('🔧 Initial auth state:', {
+				currentUser: this.getCurrentUser(),
+				isAuthenticated: this.isUserAuthenticated(),
+				sessionUser: session?.user
+			})
 			
 			// Simplified socket options inspired by CRM
 			const socketOptions = {
@@ -144,7 +173,7 @@ class ArthaSpaSocketClient {
 		return window.location.port !== ''
 	}
 
-	// Get site name using CRM approach first, then fallbacks
+	// Get site name using multiple fallback strategies for production robustness
 	getSiteName() {
 		console.log('🔧 Site name detection:', {
 			'window.site_name': window.site_name,
@@ -153,46 +182,123 @@ class ArthaSpaSocketClient {
 			href: window.location.href
 		})
 		
-		// Use window.site_name first (CRM approach)
-		if (window.site_name && window.site_name !== 'undefined') {
+		// Strategy 1: Use window.site_name (set by template)
+		if (window.site_name && window.site_name !== 'undefined' && window.site_name !== '') {
 			console.log('✅ Using window.site_name:', window.site_name)
 			return window.site_name
 		}
 		
-		// Fallback to session data
+		// Strategy 2: Use session data
 		if (session?.site_name && session.site_name !== 'undefined') {
 			console.log('✅ Using session.site_name:', session.site_name)
 			return session.site_name
 		}
 		
-		// Try to extract from hostname (production fallback)
+		// Strategy 3: Extract from hostname (production fallback)
 		const hostname = window.location.hostname
 		if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
 			console.log('✅ Using hostname as site name:', hostname)
 			return hostname
 		}
 		
-		// Last resort fallback
+		// Strategy 4: Extract from URL path (if using subdirectory)
+		const pathParts = window.location.pathname.split('/')
+		if (pathParts.length > 1 && pathParts[1] && pathParts[1] !== 'frontend') {
+			console.log('✅ Using path-based site name:', pathParts[1])
+			return pathParts[1]
+		}
+		
+		// Strategy 5: Last resort fallback
 		console.warn('⚠️ Using fallback site name: development.localhost')
 		return "development.localhost"
 	}
 
-	// Fetch site info from backend
+	// Get current user from multiple sources
+	getCurrentUser() {
+		// Try session first
+		if (session?.user && session.user !== "Guest") {
+			return session.user
+		}
+		
+		// Try cookies directly
+		const cookies = new URLSearchParams(document.cookie.split("; ").join("&"))
+		const cookieUser = cookies.get("user_id")
+		if (cookieUser && cookieUser !== "Guest") {
+			return cookieUser
+		}
+		
+		// Try window.user (if set by backend)
+		if (window.user && window.user !== "Guest") {
+			return window.user
+		}
+		
+		return null
+	}
+
+	// Wait for user authentication with timeout
+	async waitForAuthentication(timeout = 3000) {
+		return new Promise((resolve) => {
+			const startTime = Date.now()
+			
+			const checkAuth = () => {
+				const user = this.getCurrentUser()
+				
+				if (user && user !== "Guest" && user !== null) {
+					console.log('✅ Authentication detected for user:', user)
+					resolve(user)
+					return
+				}
+				
+				if (Date.now() - startTime > timeout) {
+					console.warn('⚠️ Authentication timeout - proceeding as Guest')
+					resolve(null)
+					return
+				}
+				
+				setTimeout(checkAuth, 100)
+			}
+			
+			checkAuth()
+		})
+	}
+
+	// Check if user is properly authenticated
+	isUserAuthenticated() {
+		const user = this.getCurrentUser()
+		return user && user !== "Guest" && user !== null && user.includes('@')
+	}
+
+	// Enhanced site info fetching with better error handling
 	async fetchSiteInfo() {
 		try {
 			const response = await fetch("/api/method/artha.api.notifications.get_site_info", {
 				method: "GET",
 				credentials: "include",
+				headers: {
+					'Content-Type': 'application/json'
+				}
 			})
 			
 			if (response.ok) {
 				const data = await response.json()
-				return data.message
+				if (data.message && data.message.site_name) {
+					console.log('✅ Site info fetched from API:', data.message)
+					return data.message
+				}
+			} else {
+				console.warn('⚠️ Site info API response not OK:', response.status)
 			}
 		} catch (error) {
-			console.warn("Failed to fetch site info:", error)
+			console.warn("⚠️ Failed to fetch site info from API:", error)
 		}
-		return null
+		
+		// Return fallback site info
+		return {
+			site_name: this.getSiteName(),
+			socketio_port: 9000,
+			environment: "production",
+			user: session?.user || null
+		}
 	}
 
 	// Setup connection event handlers
@@ -203,6 +309,15 @@ class ArthaSpaSocketClient {
 			console.log("🔌 Socket connected")
 			this.isConnected = true
 			this.connectionError = null
+			
+			// Debug authentication state on connect
+			console.log('🔧 Auth Debug on connect:', {
+				sessionUser: session?.user,
+				cookieUser: this.getCurrentUser(),
+				isLoggedIn: session?.isLoggedIn?.value,
+				cookies: document.cookie
+			})
+			
 			this.joinDefaultRooms()
 		})
 
@@ -222,6 +337,14 @@ class ArthaSpaSocketClient {
 			this.isConnected = true
 			this.connectionError = null
 			this.joinDefaultRooms()
+		})
+
+		// Listen for socket errors (including authorization errors)
+		this.socket.on("error", (error) => {
+			console.error("🔌 Socket error:", error)
+			if (error.message?.includes("Unauthorized")) {
+				console.log('❌ Socket authorization issue detected:', error)
+			}
 		})
 	}
 
@@ -266,25 +389,44 @@ class ArthaSpaSocketClient {
 		if (!this.socket || !this.isConnected) return
 
 		try {
-			// Join standard Frappe rooms
+			console.log('🏠 Starting to join default rooms...')
+			
+			// Always join public rooms
 			this.socket.emit("join_room", "all")
 			this.socket.emit("join_room", "website")
+			console.log('✅ Joined public rooms: all, website')
 
-			// Join user-specific room
-			const user = session?.user
-			if (user && user !== "Guest") {
-				this.socket.emit("join_room", `user:${user}`)
+			// Wait for authentication before joining user-specific rooms
+			const authenticatedUser = await this.waitForAuthentication()
+			
+			// Only join user-specific rooms if properly authenticated
+			if (this.isUserAuthenticated()) {
+				const user = authenticatedUser || this.getCurrentUser()
+				console.log('🔐 Attempting to join user-specific rooms for:', user)
+				
+				// Validate user email format to prevent typos
+				if (user && user.includes('@') && !user.includes('coom')) {
+					this.socket.emit("join_room", `user:${user}`)
+					console.log(`✅ Joined user room: user:${user}`)
+					
+					// Join role-based rooms if available
+					const userRoles = session?.user_roles || []
+					if (userRoles.length > 0) {
+						userRoles.forEach(role => {
+							this.socket.emit("join_room", `role:${role}`)
+						})
+						console.log(`✅ Joined role rooms:`, userRoles)
+					}
+				} else {
+					console.warn('⚠️ Invalid user email format, skipping user rooms:', user)
+				}
+			} else {
+				console.log('⚠️ User not authenticated, skipping user-specific rooms')
 			}
 
-			// Join role-based rooms if available in session
-			const userRoles = session?.user_roles || []
-			userRoles.forEach(role => {
-				this.socket.emit("join_room", `role:${role}`)
-			})
-
-			console.log("🏠 Joined default rooms")
+			console.log('🏠 Finished joining default rooms')
 		} catch (error) {
-			console.warn("Failed to join default rooms:", error)
+			console.warn('❌ Failed to join default rooms:', error)
 		}
 	}
 
