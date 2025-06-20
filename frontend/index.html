@@ -52,6 +52,14 @@
 
   <script>
     window.csrf_token = '{{ frappe.session.csrf_token }}'
+    window.site_name = '{{ frappe.local.site }}'
+    
+    // Debug logging for production socket issues
+    console.log('🔧 Frontend Template Debug:', {
+      site_name: window.site_name,
+      csrf_token: window.csrf_token ? '[PRESENT]' : '[MISSING]',
+      location: window.location.href
+    })
   </script>
   <script type="module" src="/src/main.js"></script>
 </body>

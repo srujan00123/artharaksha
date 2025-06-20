@@ -43,7 +43,7 @@
   <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <script type="module" crossorigin src="/assets/artha/frontend/assets/index-BHrXWlgV.js"></script>
+  <script type="module" crossorigin src="/assets/artha/frontend/assets/index-DnimCrdF.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/artha/frontend/assets/index-CasJXPwN.css">
 </head>
 
@@ -54,6 +54,14 @@
 
   <script>
     window.csrf_token = '{{ frappe.session.csrf_token }}'
+    window.site_name = '{{ frappe.local.site }}'
+    
+    // Debug logging for production socket issues
+    console.log('🔧 Frontend Template Debug:', {
+      site_name: window.site_name,
+      csrf_token: window.csrf_token ? '[PRESENT]' : '[MISSING]',
+      location: window.location.href
+    })
   </script>
 
           <script>

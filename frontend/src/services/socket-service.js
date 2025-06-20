@@ -111,8 +111,31 @@ class ArthaSpaSocketClient {
 		let host = window.location.hostname
 		let portStr = window.location.port ? `:${port}` : ''
 		let protocol = portStr ? 'http' : 'https'
-		let url = `${protocol}://${host}${portStr}/${siteName}`
 		
+		// Debug logging for production troubleshooting
+		console.log('🔧 Socket URL Debug Info:', {
+			host,
+			port,
+			portStr,
+			protocol,
+			siteName,
+			'window.site_name': window.site_name,
+			'session.site_name': session?.site_name,
+			location: window.location.href
+		})
+		
+		// Validate siteName to prevent namespace errors
+		if (!siteName || siteName === 'undefined' || siteName === 'null') {
+			console.error('❌ Invalid site name detected:', siteName)
+			throw new Error(`Invalid site name: ${siteName}. Cannot create socket namespace.`)
+		}
+		
+		// Ensure siteName doesn't start with / (Socket.IO will add it)
+		const cleanSiteName = siteName.startsWith('/') ? siteName.slice(1) : siteName
+		
+		let url = `${protocol}://${host}${portStr}/${cleanSiteName}`
+		
+		console.log('🔌 Final socket URL:', url)
 		return url
 	}
 
@@ -123,17 +146,34 @@ class ArthaSpaSocketClient {
 
 	// Get site name using CRM approach first, then fallbacks
 	getSiteName() {
+		console.log('🔧 Site name detection:', {
+			'window.site_name': window.site_name,
+			'session?.site_name': session?.site_name,
+			hostname: window.location.hostname,
+			href: window.location.href
+		})
+		
 		// Use window.site_name first (CRM approach)
-		if (window.site_name) {
+		if (window.site_name && window.site_name !== 'undefined') {
+			console.log('✅ Using window.site_name:', window.site_name)
 			return window.site_name
 		}
 		
 		// Fallback to session data
-		if (session?.site_name) {
+		if (session?.site_name && session.site_name !== 'undefined') {
+			console.log('✅ Using session.site_name:', session.site_name)
 			return session.site_name
 		}
 		
+		// Try to extract from hostname (production fallback)
+		const hostname = window.location.hostname
+		if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+			console.log('✅ Using hostname as site name:', hostname)
+			return hostname
+		}
+		
 		// Last resort fallback
+		console.warn('⚠️ Using fallback site name: development.localhost')
 		return "development.localhost"
 	}
 
