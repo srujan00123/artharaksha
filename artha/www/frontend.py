@@ -10,6 +10,18 @@ no_cache = 1
 def get_context(context):
     """Get context for Artha frontend template"""
     try:
+        # CRITICAL FIX: Ensure proper Frappe session with sid cookie
+        # This is what CRM has automatically but SPA templates miss
+
+        # If user is logged in but no session exists, create one
+        if frappe.session.user != "Guest":
+            # Ensure session data is properly set
+            if not frappe.session.get('sid') or not frappe.request.cookies.get('sid'):
+                # Force session creation/refresh to generate sid cookie
+                frappe.local.login_manager = frappe.auth.LoginManager()
+                frappe.local.login_manager.user = frappe.session.user
+                frappe.local.login_manager.post_login()
+
         # Ensure we have a database connection
         frappe.db.commit()
 
@@ -32,6 +44,7 @@ def get_context(context):
             "site": frappe.local.site,
             "user": frappe.session.user,
             "has_csrf": bool(context.csrf_token),
+            "has_sid": bool(frappe.session.get('sid')),
             "timestamp": frappe.utils.now()
         }
 
@@ -40,7 +53,8 @@ def get_context(context):
             "site_name": frappe.local.site,
             "csrf_token": context.csrf_token,
             "user": frappe.session.user,
-            "is_authenticated": frappe.session.user != "Guest"
+            "is_authenticated": frappe.session.user != "Guest",
+            "session_id": frappe.session.get('sid', 'Guest')
         }
 
         return context

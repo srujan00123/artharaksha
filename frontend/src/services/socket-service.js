@@ -90,81 +90,37 @@ class ArthaSpaSocketClient {
 		}
 
 		try {
-			// Use CRM's simple connection approach
-			const siteName = this.getSiteName()
-			const socketUrl = this.getSocketUrl(port, siteName)
+			// Since CRM works in the same environment, let's use their EXACT approach
+			console.log('🔄 Using CRM\'s exact socket approach since infrastructure works for CRM...')
 			
-			console.log(`🔌 Connecting to Frappe realtime: ${socketUrl}`)
+			// CRM's exact approach from their socket.js
+			let host = window.location.hostname
+			let siteName = window.site_name
+			let portStr = window.location.port ? `:${port}` : ''
+			let protocol = portStr ? 'http' : 'https'
+			let url = `${protocol}://${host}${portStr}/${siteName}`
 			
-			// DETAILED COOKIE DEBUGGING
-			const allCookies = document.cookie
-			const cookieArray = allCookies.split(';').map(c => c.trim())
-			const sidCookie = cookieArray.find(c => c.startsWith('sid='))
-			const userIdCookie = cookieArray.find(c => c.startsWith('user_id='))
-			const fullNameCookie = cookieArray.find(c => c.startsWith('full_name='))
-			
-			console.log('🔧 DETAILED AUTH STATE BEFORE SOCKET CONNECTION:')
-			console.log('  Frontend Auth:', {
-				currentUser: this.getCurrentUser(),
-				isAuthenticated: this.isUserAuthenticated(),
-				sessionUser: session?.user
-			})
-			console.log('  Critical Cookies:', {
-				sidCookie: sidCookie || 'MISSING',
-				userIdCookie: userIdCookie || 'MISSING', 
-				fullNameCookie: fullNameCookie || 'MISSING',
-				totalCookies: cookieArray.length
-			})
-			console.log('  All Cookie Names:', cookieArray.map(c => c.split('=')[0]))
-			
-			// Ensure cookies are properly set before connecting
-			await this.ensureAuthentication()
-			
-			// POST-AUTHENTICATION COOKIE CHECK
-			const postAuthCookies = document.cookie
-			const postSidCookie = postAuthCookies.split(';').find(c => c.trim().startsWith('sid='))
-			console.log('🔐 POST-AUTH COOKIE CHECK:', {
-				sidAfterAuth: postSidCookie || 'STILL MISSING',
-				cookiesChanged: allCookies !== postAuthCookies
+			console.log('🔧 CRM Socket Approach:', {
+				host,
+				siteName,
+				portStr,
+				protocol,
+				url,
+				cookiesAvailable: !!document.cookie
 			})
 			
-			// Enhanced socket options for proper authentication
+			// Use CRM's exact socket options
 			const socketOptions = {
-				withCredentials: true,  // Critical for cookie transmission
-				reconnectionAttempts,
-				transports: ["websocket", "polling"],
-				timeout: 20000,
-				reconnection: true,
-				reconnectionDelay: 1000,
-				reconnectionDelayMax: 5000,
-				upgrade: true,
-				// Force cookie sending
-				extraHeaders: {
-					'Origin': window.location.origin,
-					'Referer': window.location.href,
-					'X-Frappe-Site-Name': siteName,
-					// Manually include cookies in headers as backup
-					'Cookie': document.cookie
-				}
+				withCredentials: true,
+				reconnectionAttempts: reconnectionAttempts,
 			}
 			
-			// Add secure flag for HTTPS
-			if (window.location.protocol === "https:") {
-				socketOptions.secure = true
-			}
+			console.log(`🔌 Connecting to Frappe realtime (CRM approach): ${url}`)
 			
-			console.log('🔧 Socket Options:', {
-				url: socketUrl,
-				withCredentials: socketOptions.withCredentials,
-				secure: socketOptions.secure,
-				hasExtraHeaders: !!socketOptions.extraHeaders,
-				cookieHeaderLength: socketOptions.extraHeaders.Cookie?.length || 0
-			})
-			
-			this.socket = io(socketUrl, socketOptions)
+			this.socket = io(url, socketOptions)
 			
 			if (!this.socket) {
-				throw new Error(`Unable to connect to ${socketUrl}`)
+				throw new Error(`Unable to connect to ${url}`)
 			}
 
 			this.setupConnectionHandlers()
@@ -173,145 +129,22 @@ class ArthaSpaSocketClient {
 			return this.socket
 		} catch (error) {
 			console.error("Failed to initialize socket:", error)
-			
-			// If authentication error, try CRM's exact approach as fallback
-			if (error.message?.includes("Unauthorized") || error.message?.includes("Invalid namespace")) {
-				console.log('🔄 Trying CRM\'s exact socket approach as fallback...')
-				return this.initFallbackSocket(port, reconnectionAttempts)
-			}
-			
 			this.connectionError = error instanceof Error ? error.message : "Unknown error"
 			return null
 		}
 	}
 
-	// Ensure proper authentication before socket connection
+	// Simple authentication check - CRM style
 	async ensureAuthentication() {
-		console.log('🔐 Ensuring authentication before socket connection...')
-		
-		// Check if we have required cookies
+		// Since we're using CRM's exact approach, just do basic checks
 		const cookies = document.cookie
 		const hasSid = cookies.includes('sid=')
-		const hasUserId = cookies.includes('user_id=')
 		
-		console.log('🍪 Cookie check:', {
+		console.log('🔐 Basic auth check (CRM style):', {
 			hasSid,
-			hasUserId,
-			cookies: cookies.substring(0, 100) + '...' // Truncated for security
+			hasUser: !!this.getCurrentUser(),
+			cookieCount: cookies.split(';').length
 		})
-		
-		// TEST: Verify if the same API endpoint that socket middleware uses works
-		console.log('🧪 Testing socket middleware API endpoint...')
-		try {
-			const response = await fetch('/api/method/frappe.realtime.get_user_info', {
-				method: 'GET',
-				credentials: 'include',
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			})
-			
-			if (response.ok) {
-				const data = await response.json()
-				console.log('✅ Socket middleware API test successful:', {
-					status: response.status,
-					user: data.message?.user || 'unknown',
-					user_type: data.message?.user_type || 'unknown'
-				})
-				
-				// If this works but socket doesn't, it's a cookie transmission issue
-				if (data.message?.user && data.message.user !== 'Guest') {
-					console.log('✅ Backend recognizes user correctly via HTTP')
-					console.log('📋 Issue is likely cookie transmission to socket server')
-				}
-			} else {
-				console.warn('⚠️ Socket middleware API test failed:', response.status)
-			}
-		} catch (error) {
-			console.error('❌ Socket middleware API test error:', error)
-		}
-		
-		// If we don't have essential cookies, try to refresh them
-		if (!hasSid || cookies.includes('sid=Guest')) {
-			console.log('⚠️ Missing or Guest sid cookie - this will cause socket authentication to fail')
-			console.log('🔧 Attempting to establish proper session...')
-			
-			try {
-				// Multiple approaches to establish session with sid cookie
-				const attempts = [
-					// 1. Try standard Frappe session API
-					() => fetch('/api/method/frappe.auth.get_logged_user', {
-						method: 'GET',
-						credentials: 'include',
-						headers: {
-							'Content-Type': 'application/json',
-							'Accept': 'application/json'
-						}
-					}),
-					
-					// 2. Try session validation
-					() => fetch('/api/method/frappe.sessions.get', {
-						method: 'GET',
-						credentials: 'include',
-						headers: {
-							'Content-Type': 'application/json'
-						}
-					}),
-					
-					// 3. Try getting user info which triggers session validation
-					() => fetch('/api/method/frappe.desk.desktop.get_desktop_settings', {
-						method: 'GET',
-						credentials: 'include',
-						headers: {
-							'Content-Type': 'application/json'
-						}
-					})
-				]
-				
-				for (let i = 0; i < attempts.length; i++) {
-					try {
-						const response = await attempts[i]()
-						
-						if (response.ok) {
-							// Check if sid cookie is now present
-							const newCookies = document.cookie
-							const nowHasSid = newCookies.includes('sid=') && !newCookies.includes('sid=Guest')
-							
-							console.log(`✅ Session attempt ${i + 1} successful:`, {
-								status: response.status,
-								nowHasSid,
-								cookies: newCookies.split(';').map(c => c.trim().split('=')[0])
-							})
-							
-							if (nowHasSid) {
-								console.log('✅ Valid sid cookie established')
-								return true
-							}
-						} else {
-							console.warn(`⚠️ Session attempt ${i + 1} failed:`, response.status)
-						}
-					} catch (error) {
-						console.warn(`⚠️ Session attempt ${i + 1} error:`, error.message)
-					}
-				}
-				
-				// If still no sid after all attempts, this is a serious issue
-				const finalCookies = document.cookie
-				if (!finalCookies.includes('sid=') || finalCookies.includes('sid=Guest')) {
-					console.error('❌ Critical: Unable to establish valid session with sid cookie')
-					console.error('📋 This will cause socket authentication to fail on server side')
-					console.error('🔧 Available cookies:', finalCookies.split(';').map(c => c.trim()))
-					
-					// Still proceed but warn user
-					console.warn('⚠️ Proceeding with socket connection anyway - expect authentication errors')
-				}
-				
-			} catch (error) {
-				console.error('❌ Session establishment failed:', error)
-			}
-		} else {
-			console.log('✅ Valid sid cookie already present')
-		}
 		
 		return true
 	}
@@ -777,44 +610,7 @@ class ArthaSpaSocketClient {
 		}
 	}
 
-	// Fallback: Use CRM's exact socket initialization approach
-	async initFallbackSocket(port = 9000, reconnectionAttempts = 5) {
-		try {
-			console.log('🔄 Initializing fallback socket using CRM approach...')
-			
-			// CRM's exact approach
-			let host = window.location.hostname
-			let siteName = window.site_name
-			let portStr = window.location.port ? `:${port}` : ''
-			let protocol = portStr ? 'http' : 'https'
-			let url = `${protocol}://${host}${portStr}/${siteName}`
-			
-			console.log('🔧 CRM Fallback Socket:', {
-				host,
-				siteName, 
-				portStr,
-				protocol,
-				url
-			})
-			
-			this.socket = io(url, {
-				withCredentials: true,
-				reconnectionAttempts: reconnectionAttempts,
-			})
-			
-			if (this.socket) {
-				console.log('✅ Fallback socket created successfully')
-				this.setupConnectionHandlers()
-				this.setupSocketListeners()
-				return this.socket
-			}
-			
-		} catch (fallbackError) {
-			console.error('❌ Fallback socket also failed:', fallbackError)
-			this.connectionError = fallbackError instanceof Error ? fallbackError.message : "Fallback failed"
-			return null
-		}
-	}
+
 }
 
 export const socketClient = new ArthaSpaSocketClient()
