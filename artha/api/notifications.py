@@ -52,7 +52,8 @@ def send_role_based_notification(roles=None, title=None, message=None, notificat
             title=title or "Role-based Notification",
             message=message or f"Notification for users with roles: {', '.join(roles)}",
             notification_type=notification_type,
-            target_roles=roles
+            target_roles=roles,
+            realtime_only=False  # Admin notifications should be persistent
         )
 
         # Count target users
@@ -98,7 +99,8 @@ def send_user_notification(target_user=None, title=None, message=None, notificat
             title=title or "Personal Notification",
             message=message or "You have a new notification",
             notification_type=notification_type,
-            target_user=target_user
+            target_user=target_user,
+            realtime_only=False  # Admin notifications should be persistent
         )
 
         return {
