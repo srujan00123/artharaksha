@@ -4,6 +4,7 @@ import { createPinia } from "pinia"
 import { createApp } from "vue"
 import App from "./App.vue"
 import router from "./router"
+import { initSocket } from "./services/socket-service"
 
 // Initialize theme early
 const initializeTheme = () => {
@@ -45,4 +46,11 @@ app.component("Button", Button)
 app.component("Card", Card)
 app.component("MetricCard", MetricCard)
 app.component("Input", Input)
+
+// Initialize socket following Gameplan's pattern
+let socket
+
+
+socket = initSocket()
+app.config.globalProperties.$socket = socket
 app.mount("#app")

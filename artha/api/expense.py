@@ -22,10 +22,7 @@ from artha.utils.income_utils import (
     get_expense_types as get_expense_types_util,
     create_expense_entry
 )
-from artha.utils.notifications import (
-    send_notification,
-    realtime_notification
-)
+from artha.utils.notifications import realtime_notification
 
 
 @frappe.whitelist()
@@ -264,6 +261,8 @@ def create_expense(expense_data: Union[str, Dict]) -> Dict[str, Any]:
             "category": expense_data.get("category")
         })
 
+        # Note: Notification sent via decorator @realtime_notification
+
         return {
             "status": "success",
             "expense_data": {
@@ -333,6 +332,8 @@ def update_expense(expense_name: str, expense_data: Union[str, Dict]) -> Dict[st
             "category": expense_data.get("category")
         })
 
+        # Note: Notification sent via decorator @realtime_notification
+
         # Get parent document info
         parent_doc = frappe.get_doc("Expense", child_doc.parent)
 
@@ -371,6 +372,8 @@ def delete_expense(expense_name: str, expense_id: str) -> Dict[str, Any]:
                 "expense_id": expense_id,
                 "type": "medical"
             })
+
+            # Note: Notification sent via decorator @realtime_notification
             return {
                 "status": "success",
                 "deleted_expense": {
@@ -390,6 +393,8 @@ def delete_expense(expense_name: str, expense_id: str) -> Dict[str, Any]:
                 "expense_id": expense_id,
                 "type": "other"
             })
+
+            # Note: Notification sent via decorator @realtime_notification
             return {
                 "status": "success",
                 "deleted_expense": {

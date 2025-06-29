@@ -119,7 +119,7 @@
             class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span v-if="loading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-            {{ loading ? 'Creating...' : 'Create Profile' }}
+            {{ loading ? (props.existingProfile ? 'Updating...' : 'Creating...') : (props.existingProfile ? 'Update Profile' : 'Create Profile') }}
           </button>
           <button
             @click="closeModal"
@@ -143,6 +143,7 @@ import { HOUSEHOLD_PROFILE_CONSTANTS } from "../../types/household"
 
 interface Props {
 	isOpen: boolean
+	existingProfile?: any | null
 }
 
 const props = defineProps<Props>()
@@ -156,12 +157,12 @@ const loading = ref(false)
 const error = ref("")
 
 const formData = ref<HouseholdProfileFormData>({
-	address: "",
-	district: "",
-	family_member_count: 1,
-	annual_income: 0,
-	ration_card_holder: false,
-	vulnerability_status: false,
+	address: props.existingProfile?.address || "",
+	district: props.existingProfile?.district || "",
+	family_member_count: props.existingProfile?.family_member_count || 1,
+	annual_income: props.existingProfile?.annual_income || 0,
+	ration_card_holder: props.existingProfile?.ration_card_holder || false,
+	vulnerability_status: props.existingProfile?.vulnerability_status || false,
 })
 
 // Computed
@@ -205,24 +206,24 @@ const createProfile = async () => {
 			emit("success", formData.value)
 			closeModal()
 		} else {
-			error.value = result.message || "Failed to create household profile"
+			error.value = result.message || `Failed to ${props.existingProfile ? 'update' : 'create'} household profile`
 		}
 	} catch (err: any) {
-		error.value = err.message || "Failed to create household profile"
+		error.value = err.message || `Failed to ${props.existingProfile ? 'update' : 'create'} household profile`
 	} finally {
 		loading.value = false
 	}
 }
 
 const closeModal = () => {
-	// Reset form
+	// Reset form to initial state
 	formData.value = {
-		address: "",
-		district: "",
-		family_member_count: 1,
-		annual_income: 0,
-		ration_card_holder: false,
-		vulnerability_status: false,
+		address: props.existingProfile?.address || "",
+		district: props.existingProfile?.district || "",
+		family_member_count: props.existingProfile?.family_member_count || 1,
+		annual_income: props.existingProfile?.annual_income || 0,
+		ration_card_holder: props.existingProfile?.ration_card_holder || false,
+		vulnerability_status: props.existingProfile?.vulnerability_status || false,
 	}
 	error.value = ""
 	emit("close")

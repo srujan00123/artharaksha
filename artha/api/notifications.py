@@ -1,6 +1,6 @@
 """
-Notifications API
-Core notification endpoints for role-based and user-specific notifications
+Simplified Notifications API
+Core notification endpoints with clean, simple API
 """
 
 import frappe
@@ -11,65 +11,29 @@ from typing import Dict, Any
 
 @frappe.whitelist()
 def get_site_info():
-    """Get site information including socket configuration."""
+    """Get basic site information"""
     try:
-        site_config = frappe.conf
         site_name = frappe.local.site if hasattr(
             frappe.local, 'site') else 'development.localhost'
-        socketio_port = site_config.get('socketio_port', 9000)
-        is_development = frappe.conf.get('developer_mode', 1) == 1
-        environment = "development" if is_development else "production"
+        socketio_port = frappe.conf.get('socketio_port', 9000)
 
         return {
             "site_name": site_name,
             "socketio_port": socketio_port,
-            "environment": environment,
             "user": frappe.session.user if frappe.session.user != "Guest" else None
         }
-
     except Exception as e:
         frappe.log_error(f"Failed to get site info: {str(e)}")
         return {
             "site_name": "development.localhost",
             "socketio_port": 9000,
-            "environment": "development",
             "user": None
         }
 
 
 @frappe.whitelist()
-def get_user_rooms():
-    """Get socket rooms that the current user should join."""
-    try:
-        user = frappe.session.user
-        if user == "Guest":
-            return {"rooms": ["website", "all"]}
-
-        rooms = [
-            "all",
-            "website",
-            f"user:{user}"
-        ]
-
-        # Add role-based rooms
-        user_roles = frappe.get_roles(user)
-        for role in user_roles:
-            rooms.append(f"role:{role}")
-
-        # Add site room
-        if hasattr(frappe.local, 'site'):
-            rooms.append(f"site:{frappe.local.site}")
-
-        return {"rooms": rooms}
-
-    except Exception as e:
-        frappe.log_error(f"Failed to get user rooms: {str(e)}")
-        return {"rooms": ["all", "website"]}
-
-
-@frappe.whitelist()
 def send_role_based_notification(roles=None, title=None, message=None, notification_type='info'):
-    """Send notification to users with specific roles."""
+    """Send notification to users with specific roles"""
     try:
         if not frappe.has_permission('System Settings', 'write'):
             frappe.throw(
@@ -80,15 +44,6 @@ def send_role_based_notification(roles=None, title=None, message=None, notificat
 
         if not roles:
             frappe.throw(_("No roles specified"))
-
-        # Validate roles
-        allowed_roles = ['Artha User', 'Insights User',
-                         'System Manager', 'Administrator']
-        invalid_roles = [role for role in roles if role not in allowed_roles]
-        if invalid_roles:
-            frappe.throw(_("Invalid roles: {}. Only {} are allowed.").format(
-                ', '.join(invalid_roles), ', '.join(allowed_roles)
-            ))
 
         # Send notification using utility function
         from artha.utils.notifications import send_notification
@@ -123,47 +78,8 @@ def send_role_based_notification(roles=None, title=None, message=None, notificat
 
 
 @frappe.whitelist()
-def send_room_notification(room=None, title=None, message=None, notification_type='info'):
-    """Send notification to a specific room."""
-    try:
-        if not frappe.has_permission('System Settings', 'write'):
-            frappe.throw(
-                _("Insufficient permissions to send room notifications"))
-
-        if not room:
-            frappe.throw(_("No room specified"))
-
-        # Validate room
-        allowed_rooms = ['all', 'website', 'admin',
-                         'artha_users', 'insights_users']
-        if room not in allowed_rooms and not room.startswith('user:'):
-            frappe.throw(_("Invalid room: {}. Only {} and user-specific rooms are allowed.").format(
-                room, ', '.join(allowed_rooms)
-            ))
-
-        # Send notification using utility function
-        from artha.utils.notifications import send_notification
-
-        send_notification(
-            title=title or "Room Notification",
-            message=message or f"Notification for room: {room}",
-            notification_type=notification_type,
-            rooms=[room]
-        )
-
-        return {
-            'success': True,
-            'message': f'Notification sent to room: {room}'
-        }
-
-    except Exception as e:
-        frappe.log_error(f"Error sending room notification: {str(e)}")
-        frappe.throw(_("Failed to send room notification"))
-
-
-@frappe.whitelist()
 def send_user_notification(target_user=None, title=None, message=None, notification_type='info'):
-    """Send notification to a specific user."""
+    """Send notification to a specific user"""
     try:
         if not frappe.has_permission('System Settings', 'write'):
             frappe.throw(
@@ -196,56 +112,8 @@ def send_user_notification(target_user=None, title=None, message=None, notificat
 
 
 @frappe.whitelist()
-def get_available_rooms():
-    """Get list of available rooms for the current user."""
-    try:
-        user_rooms_data = get_user_rooms()
-        user_roles = frappe.get_roles(frappe.session.user)
-
-        # Define available rooms with descriptions
-        all_rooms = {
-            'all': 'All System Users',
-            'website': 'All Users (including Guests)',
-            'admin': 'System Administrators',
-            'artha_users': 'Artha Application Users',
-            'insights_users': 'Insights Application Users'
-        }
-
-        # Filter rooms based on user permissions
-        available_rooms = {}
-
-        # System admins can access all rooms
-        if 'System Manager' in user_roles or 'Administrator' in user_roles:
-            available_rooms = all_rooms
-        else:
-            # Regular users can only access rooms they belong to
-            user_rooms = user_rooms_data.get('rooms', [])
-            for room in user_rooms:
-                if room.startswith('user:'):
-                    continue  # Skip personal rooms from general list
-                if room in all_rooms:
-                    available_rooms[room] = all_rooms[room]
-
-        return {
-            'success': True,
-            'available_rooms': available_rooms,
-            'user_rooms': user_rooms_data.get('rooms', []),
-            'user_roles': user_roles
-        }
-
-    except Exception as e:
-        frappe.log_error(f"Error getting available rooms: {str(e)}")
-        return {
-            'success': False,
-            'available_rooms': {},
-            'user_rooms': [],
-            'user_roles': []
-        }
-
-
-@frappe.whitelist()
-def get_user_notifications_enhanced(limit: int = 20, include_read: bool = False):
-    """Get notifications for the current user using Frappe's Notification Log system."""
+def get_user_notifications(limit: int = 20, include_read: bool = False):
+    """Get notifications for the current user"""
     try:
         user = frappe.session.user
         if user == "Guest":
@@ -260,25 +128,11 @@ def get_user_notifications_enhanced(limit: int = 20, include_read: bool = False)
             filters=filters,
             fields=[
                 "name", "subject", "email_content", "creation",
-                "document_type", "document_name", "type", "read",
-                "from_user"
+                "type", "read", "from_user"
             ],
             order_by="creation desc",
             limit=limit
         )
-
-        # Enhance with user info
-        for notification in notifications:
-            if notification.from_user:
-                notification.from_user_fullname = frappe.get_value(
-                    "User", notification.from_user, "full_name"
-                ) or notification.from_user
-
-            notification.created_ago = frappe.utils.pretty_date(
-                notification.creation)
-
-            if notification.document_type and notification.document_name:
-                notification.action_link = f"/app/{notification.document_type.lower().replace(' ', '-')}/{notification.document_name}"
 
         return {
             "status": "success",
@@ -287,53 +141,118 @@ def get_user_notifications_enhanced(limit: int = 20, include_read: bool = False)
         }
 
     except Exception as e:
-        frappe.log_error(f"Failed to get enhanced notifications: {str(e)}")
+        frappe.log_error(f"Failed to get notifications: {str(e)}")
         frappe.throw(_("Failed to get notifications"))
 
 
-@frappe.whitelist()
-def mark_notification_as_read_enhanced(notification_id: str):
-    """Mark a notification as read using Frappe's standard system."""
+@frappe.whitelist(allow_guest=False)
+def mark_notification_as_read(notification_id: str):
+    """Mark a notification as read"""
     try:
         user = frappe.session.user
         if user == "Guest":
-            frappe.throw(_("Not authenticated"))
+            return {"status": "error", "message": "Not authenticated"}
+
+        if not frappe.db.exists("Notification Log", notification_id):
+            return {"status": "error", "message": "Notification not found"}
 
         notification = frappe.get_doc("Notification Log", notification_id)
         if notification.for_user != user:
-            frappe.throw(_("Not authorized"))
+            return {"status": "error", "message": "Not authorized"}
 
-        frappe.call("frappe.desk.doctype.notification_log.notification_log.mark_as_read",
-                    docname=notification_id)
+        frappe.db.set_value("Notification Log", notification_id, "read", 1)
+        frappe.db.commit()
 
         return {"status": "success", "message": "Notification marked as read"}
 
     except Exception as e:
         frappe.log_error(f"Failed to mark notification as read: {str(e)}")
-        frappe.throw(_("Failed to mark notification as read"))
+        return {"status": "error", "message": f"Failed to mark notification as read: {str(e)}"}
 
 
-@frappe.whitelist()
-def mark_all_notifications_as_read_enhanced():
-    """Mark all notifications as read for the current user."""
+@frappe.whitelist(allow_guest=False)
+def mark_all_notifications_as_read():
+    """Mark all notifications as read for the current user"""
+    try:
+        user = frappe.session.user
+        if user == "Guest":
+            return {"status": "error", "message": "Not authenticated"}
+
+        # Get count of unread notifications before updating
+        unread_count = frappe.db.count(
+            "Notification Log", {"for_user": user, "read": 0})
+
+        if unread_count == 0:
+            return {"status": "success", "message": "No unread notifications to mark"}
+
+        frappe.db.sql("""
+            UPDATE `tabNotification Log` 
+            SET `read` = 1 
+            WHERE for_user = %s AND `read` = 0
+        """, user)
+        frappe.db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Marked {unread_count} notifications as read",
+            "marked_count": unread_count
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Failed to mark all notifications as read: {str(e)}")
+        return {"status": "error", "message": f"Failed to mark notifications as read: {str(e)}"}
+
+
+@frappe.whitelist(allow_guest=False)
+def clear_all_notifications():
+    """Clear all notifications for the current user"""
     try:
         user = frappe.session.user
         if user == "Guest":
             frappe.throw(_("Not authenticated"))
 
-        frappe.call(
-            "frappe.desk.doctype.notification_log.notification_log.mark_all_as_read")
+        # Get count before deletion
+        count = frappe.db.count("Notification Log", {"for_user": user})
+        print(f"🔔 [DEBUG] Clearing {count} notifications for user {user}")
 
-        return {"status": "success", "message": "All notifications marked as read"}
+        if count == 0:
+            print(f"🔔 [DEBUG] No notifications to clear for user {user}")
+            return {
+                "status": "success",
+                "message": "No notifications to clear",
+                "cleared_count": 0
+            }
+
+        # Delete all notifications for the user (use ignore_permissions for user's own notifications)
+        frappe.db.sql("""
+            DELETE FROM `tabNotification Log` 
+            WHERE for_user = %s
+        """, user)
+        frappe.db.commit()
+
+        print(
+            f"🔔 [DEBUG] Successfully cleared {count} notifications for user {user}")
+
+        return {
+            "status": "success",
+            "message": f"Cleared {count} notifications",
+            "cleared_count": count
+        }
 
     except Exception as e:
-        frappe.log_error(f"Failed to mark all notifications as read: {str(e)}")
-        frappe.throw(_("Failed to mark all notifications as read"))
+        frappe.log_error(f"Failed to clear all notifications: {str(e)}")
+        print(
+            f"❌ [DEBUG] Failed to clear notifications for user {frappe.session.user}: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to clear notifications: {str(e)}",
+            "cleared_count": 0
+        }
 
 
 @frappe.whitelist()
 def get_notification_stats():
-    """Get notification statistics for the current user."""
+    """Get notification statistics for the current user"""
     try:
         user = frappe.session.user
         if user == "Guest":
@@ -344,21 +263,12 @@ def get_notification_stats():
         unread_notifications = frappe.db.count(
             "Notification Log", {"for_user": user, "read": 0})
 
-        recent_notifications = frappe.get_all(
-            "Notification Log",
-            filters={"for_user": user},
-            fields=["subject", "creation", "type", "read"],
-            order_by="creation desc",
-            limit=5
-        )
-
         return {
             "status": "success",
             "stats": {
                 "total": total_notifications,
                 "unread": unread_notifications,
-                "read": total_notifications - unread_notifications,
-                "recent": recent_notifications
+                "read": total_notifications - unread_notifications
             }
         }
 
@@ -367,26 +277,12 @@ def get_notification_stats():
         frappe.throw(_("Failed to get notification statistics"))
 
 
-# Simple test endpoints for admin interface
 @frappe.whitelist(allow_guest=False)
-def send_simple_test_notification() -> Dict[str, Any]:
-    """Simple test notification endpoint - CSRF exempt for testing."""
+def send_simple_test_notification():
+    """Simple test notification endpoint"""
     try:
-        from artha.utils.notifications import send_notification
-
-        send_notification(
-            title="Simple Test Notification",
-            message="This is a simple test notification (CSRF exempt)",
-            notification_type="info",
-            target_user=frappe.session.user
-        )
-
-        return {
-            "status": "success",
-            "message": "Simple test notification sent successfully",
-            "user": frappe.session.user,
-            "timestamp": frappe.utils.now()
-        }
+        from artha.utils.notifications import send_test_notification
+        return send_test_notification()
 
     except Exception as e:
         frappe.logger().error(
@@ -398,28 +294,13 @@ def send_simple_test_notification() -> Dict[str, Any]:
 
 
 @frappe.whitelist(allow_guest=False, methods=['POST'])
-def send_test_notification(title: str = "Test Notification", message: str = "This is a test notification from the backend", notification_type: str = "info") -> Dict[str, Any]:
-    """Send a test notification for admin testing."""
+def send_test_notification(title: str = "Test Notification",
+                           message: str = "This is a test notification from the backend",
+                           notification_type: str = "info"):
+    """Send a test notification for admin testing"""
     try:
-        from artha.utils.notifications import send_notification
-
-        send_notification(
-            title=title,
-            message=message,
-            notification_type=notification_type,
-            target_user=frappe.session.user
-        )
-
-        return {
-            "status": "success",
-            "message": "Test notification sent successfully",
-            "notification_data": {
-                "title": title,
-                "message": message,
-                "type": notification_type,
-                "user": frappe.session.user
-            }
-        }
+        from artha.utils.notifications import send_test_notification as send_test
+        return send_test(title, message, notification_type)
 
     except Exception as e:
         frappe.logger().error(f"Failed to send test notification: {str(e)}")
@@ -430,27 +311,48 @@ def send_test_notification(title: str = "Test Notification", message: str = "Thi
 
 
 @frappe.whitelist()
-def invalidate_resource_cache(cache_key: str, user: str = None) -> Dict[str, Any]:
-    """Invalidate frontend resource cache (CRM-style approach)."""
+def test_notification_flow():
+    """Test the complete notification flow: create, read, clear"""
     try:
-        if not cache_key:
-            frappe.throw(_("Cache key is required"))
+        user = frappe.session.user
+        if user == "Guest":
+            frappe.throw(_("Not authenticated"))
 
-        # Send cache invalidation event
-        frappe.publish_realtime(
-            event="refetch_resource",
-            message={"cache_key": cache_key},
-            user=user or frappe.session.user
+        # Step 1: Send a test notification
+        from artha.utils.notifications import send_notification
+        send_notification(
+            title="Test Flow Notification",
+            message="Testing the complete notification flow including backend sync",
+            notification_type="info",
+            target_user=user
+        )
+
+        # Step 2: Get current notification count
+        count_after_send = frappe.db.count(
+            "Notification Log", {"for_user": user})
+
+        # Step 3: Get notifications
+        notifications = frappe.get_all(
+            "Notification Log",
+            filters={"for_user": user},
+            fields=["name", "subject", "email_content", "read"],
+            order_by="creation desc",
+            limit=5
         )
 
         return {
             "status": "success",
-            "message": f"Cache invalidated for key: {cache_key}"
+            "message": "Test notification flow completed",
+            "results": {
+                "notifications_sent": 1,
+                "total_notifications": count_after_send,
+                "recent_notifications": notifications
+            }
         }
 
     except Exception as e:
-        frappe.logger().error(f"Failed to invalidate resource cache: {str(e)}")
+        frappe.log_error(f"Failed to test notification flow: {str(e)}")
         return {
             "status": "error",
-            "message": f"Failed to invalidate cache: {str(e)}"
+            "message": f"Failed to test notification flow: {str(e)}"
         }

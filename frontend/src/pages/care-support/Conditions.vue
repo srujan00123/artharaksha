@@ -70,11 +70,14 @@
                 </div>
             </div>
 
-            <!-- Current Health Conditions -->
+            <!-- Search Health Conditions -->
             <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Your Health Conditions</h2>
+                        <div>
+                            <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Health Conditions</h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Search to view and manage your health conditions</p>
+                        </div>
                         <button
                             @click="showAddConditionModal = true"
                             class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white dark:text-black bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:ring-blue-400 dark:focus:ring-blue-400"
@@ -83,92 +86,6 @@
                             Add Condition
                         </button>
                     </div>
-                </div>
-
-                <div class="p-6">
-                    <div v-if="userHealthConditions.length === 0" class="text-center py-8">
-                        <Heart class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Health Conditions Recorded</h3>
-                        <p class="text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-4">Add your health conditions to get personalized support recommendations.</p>
-                        <button
-                            @click="showAddConditionModal = true"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white dark:text-black bg-blue-600 hover:bg-blue-700"
-                        >
-                            <Plus class="h-4 w-4 mr-2" />
-                            Add Your First Condition
-                        </button>
-                    </div>
-
-                    <div v-else class="space-y-4">
-                        <div
-                            v-for="condition in userHealthConditions"
-                            :key="condition.name"
-                            class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 dark:bg-gray-100 transition-colors"
-                        >
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center space-x-3">
-                                        <span class="text-2xl">{{ getConditionTypeIcon(condition.condition_details?.condition_type) }}</span>
-                                        <div>
-                                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                                                {{ condition.condition_details?.condition_name || condition.condition }}
-                                            </h3>
-                                            <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                                                {{ condition.condition_details?.condition_type }}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-3 flex items-center space-x-6">
-                                        <div class="flex items-center">
-                                            <span class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 mr-2">Severity:</span>
-                                            <span
-                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                                :class="getSeverityBadgeClass(condition.severity || condition.condition_details?.default_severity)"
-                                            >
-                                                {{ condition.severity || condition.condition_details?.default_severity }}
-                                            </span>
-                                        </div>
-
-                                        <div class="flex items-center">
-                                            <span class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 mr-2">Duration:</span>
-                                            <span class="text-sm text-gray-900 dark:text-gray-100">
-                                                {{ condition.duration_override || condition.condition_details?.default_duration }}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div v-if="condition.notes" class="mt-3">
-                                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Notes:</span>
-                                        <p class="text-sm text-gray-700 dark:text-gray-300 dark:text-gray-600 mt-1">{{ condition.notes }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex items-center space-x-2">
-                                    <button
-                                        @click="editCondition(condition)"
-                                        class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500 transition-colors"
-                                    >
-                                        <Edit2 class="h-4 w-4" />
-                                    </button>
-                                    <button
-                                        @click="removeCondition(condition)"
-                                        class="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 dark:text-red-400 transition-colors"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Available Health Conditions -->
-            <div class="bg-white dark:bg-gray-800 dark:bg-gray-200 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Available Health Conditions</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Browse and add from our database of health conditions</p>
                 </div>
 
                 <div class="p-6">
@@ -200,32 +117,106 @@
                         </div>
                     </div>
 
-                    <!-- Conditions Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div
-                            v-for="condition in filteredHealthConditions"
-                            :key="condition.name"
-                            class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:bg-blue-900/20 transition-all cursor-pointer"
-                            @click="selectConditionToAdd(condition)"
-                        >
-                            <div class="flex items-start space-x-3">
-                                <span class="text-2xl">{{ getConditionTypeIcon(condition.condition_type) }}</span>
-                                <div class="flex-1">
-                                    <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ condition.condition_name }}</h3>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">{{ condition.condition_type }}</p>
-                                    <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                                        <span>{{ condition.default_severity }}</span>
-                                        <span>{{ condition.default_duration }}</span>
+                    <!-- Search Results -->
+                    <div v-if="searchQuery.trim()">
+                        <!-- User's Current Conditions (matching search) -->
+                        <div v-if="filteredUserConditions.length > 0" class="mb-6">
+                            <h3 class="text-md font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+                                <Heart class="h-4 w-4 mr-2 text-red-500" />
+                                Your Conditions
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div
+                                    v-for="condition in filteredUserConditions"
+                                    :key="'user-' + condition.name"
+                                    class="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-lg p-4 relative"
+                                >
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex items-start space-x-3 flex-1">
+                                            <span class="text-2xl">{{ getConditionTypeIcon(condition.condition_details?.condition_type) }}</span>
+                                            <div class="flex-1">
+                                                <h4 class="font-medium text-gray-900 dark:text-gray-100">
+                                                    {{ condition.condition_details?.condition_name || condition.condition }}
+                                                </h4>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
+                                                    {{ condition.condition_details?.condition_type }}
+                                                </p>
+                                                <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                                                    <span
+                                                        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                                                        :class="getSeverityBadgeClass(condition.severity || condition.condition_details?.default_severity)"
+                                                    >
+                                                        {{ condition.severity || condition.condition_details?.default_severity }}
+                                                    </span>
+                                                    <span>{{ condition.duration_override || condition.condition_details?.default_duration }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-1">
+                                            <button
+                                                @click="editCondition(condition)"
+                                                class="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500 transition-colors"
+                                            >
+                                                <Edit2 class="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                @click="removeCondition(condition)"
+                                                class="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 dark:text-red-400 transition-colors"
+                                            >
+                                                <Trash2 class="h-3 w-3" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Available Conditions (matching search) -->
+                        <div v-if="filteredAvailableConditions.length > 0">
+                            <h3 class="text-md font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+                                <Plus class="h-4 w-4 mr-2 text-blue-500" />
+                                Available to Add
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div
+                                    v-for="condition in filteredAvailableConditions"
+                                    :key="'available-' + condition.name"
+                                    class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:bg-blue-900/20 transition-all cursor-pointer"
+                                    @click="selectConditionToAdd(condition)"
+                                >
+                                    <div class="flex items-start space-x-3">
+                                        <span class="text-2xl">{{ getConditionTypeIcon(condition.condition_type) }}</span>
+                                        <div class="flex-1">
+                                            <h4 class="font-medium text-gray-900 dark:text-gray-100">{{ condition.condition_name }}</h4>
+                                            <p class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">{{ condition.condition_type }}</p>
+                                            <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                                                <span>{{ condition.default_severity }}</span>
+                                                <span>{{ condition.default_duration }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- No Results -->
+                        <div v-if="filteredUserConditions.length === 0 && filteredAvailableConditions.length === 0" class="text-center py-8">
+                            <Search class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Conditions Found</h3>
+                            <p class="text-gray-500 dark:text-gray-400 dark:text-gray-500">Try adjusting your search or filter criteria.</p>
+                        </div>
                     </div>
 
-                    <div v-if="filteredHealthConditions.length === 0" class="text-center py-8">
-                        <Search class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Conditions Found</h3>
-                        <p class="text-gray-500 dark:text-gray-400 dark:text-gray-500">Try adjusting your search or filter criteria.</p>
+                    <!-- No Search State -->
+                    <div v-else class="text-center py-12">
+                        <Search class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Search Health Conditions</h3>
+                        <p class="text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-4">
+                            Enter a condition name or type to view your current conditions and discover new ones to add.
+                        </p>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                            <p>You currently have <strong>{{ userHealthConditions.length }}</strong> health condition{{ userHealthConditions.length !== 1 ? 's' : '' }} recorded.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -292,18 +283,41 @@ const severeConditionsCount = computed(() => {
 	).length
 })
 
-const filteredHealthConditions = computed(() => {
+const filteredUserConditions = computed(() => {
+	if (!searchQuery.value.trim()) return []
+	
+	let conditions = userHealthConditions.value
+
+	// Filter by search query
+	const query = searchQuery.value.toLowerCase()
+	conditions = conditions.filter(
+		(condition) =>
+			(condition.condition_details?.condition_name || condition.condition).toLowerCase().includes(query) ||
+			(condition.condition_details?.condition_type || '').toLowerCase().includes(query),
+	)
+
+	// Filter by type
+	if (selectedType.value) {
+		conditions = conditions.filter(
+			(condition) => condition.condition_details?.condition_type === selectedType.value,
+		)
+	}
+
+	return conditions
+})
+
+const filteredAvailableConditions = computed(() => {
+	if (!searchQuery.value.trim()) return []
+	
 	let conditions = support.healthConditions.value
 
 	// Filter by search query
-	if (searchQuery.value) {
-		const query = searchQuery.value.toLowerCase()
-		conditions = conditions.filter(
-			(condition) =>
-				condition.condition_name.toLowerCase().includes(query) ||
-				condition.condition_type.toLowerCase().includes(query),
-		)
-	}
+	const query = searchQuery.value.toLowerCase()
+	conditions = conditions.filter(
+		(condition) =>
+			condition.condition_name.toLowerCase().includes(query) ||
+			condition.condition_type.toLowerCase().includes(query),
+	)
 
 	// Filter by type
 	if (selectedType.value) {

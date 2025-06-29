@@ -56,14 +56,22 @@ def get_user_profile() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def update_user_profile(profile_data: Union[str, Dict]) -> Dict[str, Any]:
+def update_user_profile(**kwargs) -> Dict[str, Any]:
     """
     Update user profile information
     """
     try:
-        if isinstance(profile_data, str):
-            import json
-            profile_data = json.loads(profile_data)
+        # Get profile data from form dict, excluding cmd
+        profile_data = {k: v for k,
+                        v in frappe.form_dict.items() if k != 'cmd'}
+
+        # Handle JSON string if passed as single parameter
+        if 'profile_data' in profile_data:
+            if isinstance(profile_data['profile_data'], str):
+                import json
+                profile_data = json.loads(profile_data['profile_data'])
+            else:
+                profile_data = profile_data['profile_data']
 
         user = frappe.get_doc("User", frappe.session.user)
 
@@ -86,14 +94,22 @@ def update_user_profile(profile_data: Union[str, Dict]) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def create_household_profile(profile_data: Union[str, Dict]) -> Dict[str, Any]:
+def create_household_profile(**kwargs) -> Dict[str, Any]:
     """
-    Create household profile for the current user
+    Create or update household profile for the current user (upsert operation)
     """
     try:
-        if isinstance(profile_data, str):
-            import json
-            profile_data = json.loads(profile_data)
+        # Get profile data from form dict, excluding cmd
+        profile_data = {k: v for k,
+                        v in frappe.form_dict.items() if k != 'cmd'}
+
+        # Handle JSON string if passed as single parameter
+        if 'profile_data' in profile_data:
+            if isinstance(profile_data['profile_data'], str):
+                import json
+                profile_data = json.loads(profile_data['profile_data'])
+            else:
+                profile_data = profile_data['profile_data']
 
         # Check if profile already exists
         existing_profile = frappe.db.get_value(
@@ -103,39 +119,67 @@ def create_household_profile(profile_data: Union[str, Dict]) -> Dict[str, Any]:
         )
 
         if existing_profile:
-            frappe.throw(_("Household profile already exists for this user"))
+            # Update existing profile
+            profile_doc = frappe.get_doc("Household Profile", existing_profile)
 
-        # Create new household profile
-        profile_doc = frappe.new_doc("Household Profile")
-        profile_doc.user = frappe.session.user
+            # Update profile data
+            for field, value in profile_data.items():
+                if hasattr(profile_doc, field) and field not in ['name', 'user']:
+                    setattr(profile_doc, field, value)
 
-        # Set profile data
-        for field, value in profile_data.items():
-            if hasattr(profile_doc, field) and field != 'user':
-                setattr(profile_doc, field, value)
+            profile_doc.save()
 
-        profile_doc.insert()
+            return {
+                "status": "success",
+                "message": "Household profile updated successfully",
+                "profile_name": profile_doc.name
+            }
+        else:
+            # Create new household profile
+            profile_doc = frappe.new_doc("Household Profile")
+            profile_doc.user = frappe.session.user
 
-        return {
-            "status": "success",
-            "message": "Household profile created successfully",
-            "profile_name": profile_doc.name
-        }
+            # Set profile data
+            for field, value in profile_data.items():
+                if hasattr(profile_doc, field) and field != 'user':
+                    setattr(profile_doc, field, value)
+
+            profile_doc.insert()
+
+            return {
+                "status": "success",
+                "message": "Household profile created successfully",
+                "profile_name": profile_doc.name
+            }
     except Exception as e:
-        frappe.log_error(f"Error creating household profile: {str(e)}")
+        frappe.log_error(
+            f"Error creating/updating household profile: {str(e)}")
         frappe.throw(
-            _("Failed to create household profile: {0}").format(str(e)))
+            _("Failed to create/update household profile: {0}").format(str(e)))
 
 
 @frappe.whitelist()
-def update_household_profile(profile_name: str, profile_data: Union[str, Dict]) -> Dict[str, Any]:
+def update_household_profile(**kwargs) -> Dict[str, Any]:
     """
     Update household profile
     """
     try:
-        if isinstance(profile_data, str):
-            import json
-            profile_data = json.loads(profile_data)
+        # Get profile_name and profile_data from form dict
+        profile_name = frappe.form_dict.get('profile_name')
+        if not profile_name:
+            frappe.throw(_("Profile name is required"))
+
+        # Get profile data from form dict, excluding cmd and profile_name
+        profile_data = {k: v for k, v in frappe.form_dict.items()
+                        if k not in ['cmd', 'profile_name']}
+
+        # Handle JSON string if passed as single parameter
+        if 'profile_data' in profile_data:
+            if isinstance(profile_data['profile_data'], str):
+                import json
+                profile_data = json.loads(profile_data['profile_data'])
+            else:
+                profile_data = profile_data['profile_data']
 
         # Verify ownership
         profile_doc = frappe.get_doc("Household Profile", profile_name)

@@ -24,9 +24,7 @@ from artha.utils.income_utils import (
     get_all_ledger_entries,
     apply_income_filters
 )
-from artha.utils.notifications import (
-    realtime_notification,
-)
+from artha.utils.notifications import realtime_notification
 import frappe
 from frappe import _
 from frappe.utils import flt, getdate, now_datetime
@@ -845,6 +843,8 @@ def create_or_update_income(income_source: Union[str, List[Dict]], income_name: 
             "monthly_income": income_doc.monthly_income
         })
 
+        # Note: Notification sent via decorator @realtime_notification
+
         return {
             "status": "success",
             "income_data": {
@@ -1162,6 +1162,8 @@ def update_ledger_entry(ledger_entry_name: str, new_amount: Union[str, float], n
             "income_type": ledger_entry.income_type
         })
 
+        # Note: Notification sent via decorator @realtime_notification
+
         # Note: We intentionally do NOT update the income source
         # This allows editing specific occurrences without affecting the recurring pattern
         # For recurring entries, the source settings remain unchanged for future entries
@@ -1223,6 +1225,9 @@ def delete_ledger_entry(ledger_entry_name: str) -> Dict[str, Any]:
             "ledger_entry_name": ledger_entry_name,
             "income_type": income_type
         })
+
+        # Note: Notification sent via decorator @realtime_notification
+        parent_name = ledger_entry.parent
 
         # Note: We intentionally do NOT delete the income source
         # - For recurring entries: Source should remain to continue generating future entries
@@ -1292,6 +1297,8 @@ def create_direct_ledger_entry(income_type: str, amount: Union[str, float], date
             "amount": flt(amount),
             "income_type": income_type
         })
+
+        # Note: Notification sent via decorator @realtime_notification
 
         return {
             "status": "success",

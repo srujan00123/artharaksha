@@ -1,42 +1,30 @@
 /**
- * Notifications Composable
- * Core realtime notifications with user-specific and role-based targeting
- * Updated for full Frappe compliance and improved socket integration
+ * Simplified Notifications Composable
+ * Clean, simple notification management with socket integration
  */
 
-import { computed, reactive, ref } from "vue";
+import { computed, reactive } from "vue";
 import { call } from "frappe-ui";
 import { session } from "../data/session";
 import { socketClient } from "../services/socket-service";
-import { cacheService, CACHE_KEYS } from "../services/cache-service";
-import { apiService } from "../services/api-service";
 
 // Notification interface
 interface Notification {
   id: string;
   title: string;
   message: string;
-  type:
-    | "success"
-    | "error"
-    | "warning"
-    | "info"
-    | "health"
-    | "income"
-    | "expense"
-    | "support";
+  type: "success" | "error" | "warning" | "info";
   timestamp: Date;
   read: boolean;
   data?: any;
 }
 
-// Global notification state (singleton)
+// Global notification state
 const globalNotificationState = reactive({
   notifications: [] as Notification[],
+  initialized: false,
   isConnected: false,
   connectionError: null as string | null,
-  initialized: false,
-  authWatcherInterval: null as number | null,
 });
 
 export function useNotifications() {
@@ -46,13 +34,57 @@ export function useNotifications() {
     () => globalNotificationState.connectionError,
   );
 
-  // Helper function to get user-specific cache key
-  const getUserNotificationKey = () => {
-    const userId = session.user || "anonymous";
-    return `${CACHE_KEYS.USER_NOTIFICATIONS}_${userId}`;
+  // Load notifications from backend
+  const loadNotifications = async () => {
+    try {
+      if (session.user === "Guest" || !session.user) {
+        console.log("🔔 Skipping notification fetch for guest user");
+        return;
+      }
+
+      const response = await call(
+        "artha.api.notifications.get_user_notifications",
+        {
+          limit: 20,
+          include_read: false,
+        },
+      );
+
+      if (response?.status === "success" && response.notifications) {
+        // Convert backend notifications to frontend format
+        const backendNotifications = response.notifications.map((n: any) => ({
+          id: n.name || generateId(),
+          title: n.subject || "Notification",
+          message: n.email_content || "You have a notification",
+          type: "info",
+          timestamp: new Date(n.creation),
+          read: n.read === 1,
+          data: n,
+        }));
+
+        // Merge with existing notifications (avoiding duplicates)
+        const existingIds = new Set(
+          globalNotificationState.notifications.map((n) => n.id),
+        );
+        const newNotifications = backendNotifications.filter(
+          (n: Notification) => !existingIds.has(n.id),
+        );
+
+        globalNotificationState.notifications = [
+          ...newNotifications,
+          ...globalNotificationState.notifications,
+        ].slice(0, 50); // Keep only latest 50
+
+        console.log(
+          `🔔 Loaded ${newNotifications.length} new notifications from backend`,
+        );
+      }
+    } catch (error) {
+      console.warn("Failed to load notifications from backend:", error);
+    }
   };
 
-  // Initialize realtime connection (singleton) with improved Frappe compliance
+  // Initialize notifications
   const initialize = async () => {
     if (globalNotificationState.initialized) {
       return;
@@ -60,285 +92,134 @@ export function useNotifications() {
     globalNotificationState.initialized = true;
 
     try {
+      // Load cached notifications first (immediate display)
       loadNotificationsFromCache();
 
-      // Setup authentication change watcher
-      setupAuthenticationWatcher();
+      // Setup event listeners
+      setupEventListeners();
 
-      // Initialize socket with Frappe-compliant configuration
-      const socket = await socketClient.init({
-        port: 9000,
-        lazy_connect: false,
-        reconnectionAttempts: 5,
-        withCredentials: true,
-      });
+      // Check connection status
+      globalNotificationState.isConnected = socketClient.isConnected();
+      globalNotificationState.connectionError = null;
 
-      if (socket) {
-        setupRealtimeListeners();
-        console.log(
-          "🔔 Notification system initialized with Frappe-compliant socket",
-        );
-      } else {
-        console.warn("Socket initialization failed, using fallback mode");
-        globalNotificationState.connectionError =
-          "Socket initialization failed";
-      }
+      // Load notifications from backend
+      await loadNotifications();
+
+      console.log("🔔 Notification system initialized");
     } catch (error: any) {
       console.error("Failed to initialize notifications:", error);
-      globalNotificationState.connectionError = error.message;
+      globalNotificationState.isConnected = false;
+      globalNotificationState.connectionError =
+        error.message || "Initialization failed";
     }
   };
 
-  // Setup authentication change watcher
-  const setupAuthenticationWatcher = () => {
-    // Watch for session changes and update socket rooms accordingly
-    let previousUser = session?.user;
-
-    // Check for authentication changes periodically
-    const checkAuthChanges = () => {
-      const currentUser = session?.user;
-
-      if (previousUser !== currentUser) {
-        console.log("🔐 User authentication changed:", {
-          from: previousUser,
-          to: currentUser,
-        });
-
-        // Notify socket service about authentication change
-        if (socketClient.handleAuthenticationChange) {
-          socketClient.handleAuthenticationChange(currentUser);
-        }
-
-        // Clear notifications if user logged out
-        if (!currentUser || currentUser === "Guest") {
-          clearAll();
-        }
-
-        previousUser = currentUser;
-      }
-    };
-
-    // Check every 2 seconds for auth changes
-    globalNotificationState.authWatcherInterval = window.setInterval(
-      checkAuthChanges,
-      2000,
-    );
-
-    // Also check immediately
-    checkAuthChanges();
-  };
-
-  // Setup socket realtime listeners with enhanced error handling
-  const setupRealtimeListeners = () => {
-    // Listen to general notifications
-    socketClient.on("artha_notification", handleRealtimeNotification);
-
-    // Listen to income/expense events from decorators
-    socketClient.on("artha:income_ledger_created", (data: any) => {
-      const eventData = data.data || data;
-      const entriesData =
-        eventData.entries_added || eventData.ledger_entry || {};
-
-      if (typeof eventData.entries_added === "number") {
-        // Bulk entry creation
-        addNotification({
-          title: "Income Entries Added",
-          message: `Added ${eventData.entries_added} recurring income entries`,
-          type: "success",
-          data: eventData,
-        });
-      } else {
-        // Single entry creation
-        const amount = entriesData.amount || 0;
-        const incomeType =
-          entriesData.income_type || entriesData.source_type || "income";
-
-        addNotification({
-          title: "Income Entry Added",
-          message: `₹${amount.toLocaleString()} from ${incomeType}`,
-          type: "success",
-          data: entriesData,
-        });
-      }
-    });
-
-    socketClient.on("artha:income_ledger_updated", (data: any) => {
-      const ledgerData = data.data?.ledger_entry || data.data || {};
-      const amount = ledgerData.amount || 0;
-      const incomeType =
-        ledgerData.income_type || ledgerData.source_type || "income";
-
-      addNotification({
-        title: "Income Entry Updated",
-        message: `${incomeType} income updated to ₹${amount.toLocaleString()}`,
-        type: "info",
-        data: ledgerData,
-      });
-    });
-
-    socketClient.on("artha:income_ledger_deleted", (data: any) => {
-      const deletedData = data.data?.deleted_entry || data.data || {};
-      const incomeType = deletedData.income_type || "income";
-
-      addNotification({
-        title: "Income Entry Removed",
-        message: `${incomeType} income entry was deleted`,
-        type: "warning",
-        data: deletedData,
-      });
-    });
-
-    socketClient.on("artha:income_saved", (data: any) => {
-      const incomeData = data.data?.income_data || data.data || {};
-      const action = incomeData.action || "saved";
-
-      addNotification({
-        title: "Income Record Updated",
-        message: `Income record ${action} with ${incomeData.total_sources || 0} sources`,
-        type: "success",
-        data: incomeData,
-      });
-    });
-
-    // Listen to expense events from decorators
-    socketClient.on("artha:expense_created", (data: any) => {
-      const expenseData = data.data?.expense_data || data.data || {};
-      const amount = expenseData.amount || 0;
-      const category = expenseData.category || "expense";
-      const type = expenseData.type || "other";
-
-      addNotification({
-        title: "Expense Added",
-        message: `₹${amount.toLocaleString()} ${type} expense: ${category}`,
-        type: "info",
-        data: expenseData,
-      });
-    });
-
-    socketClient.on("artha:expense_updated", (data: any) => {
-      const expenseData = data.data?.expense_data || data.data || {};
-      const amount = expenseData.amount || 0;
-      const category = expenseData.category || "expense";
-      const type = expenseData.type || "other";
-
-      addNotification({
-        title: "Expense Updated",
-        message: `${category} expense updated to ₹${amount.toLocaleString()}`,
-        type: "info",
-        data: expenseData,
-      });
-    });
-
-    socketClient.on("artha:expense_deleted", (data: any) => {
-      const deletedData = data.data?.deleted_expense || data.data || {};
-      const type = deletedData.type || "expense";
-
-      addNotification({
-        title: "Expense Removed",
-        message: `${type} expense entry was deleted`,
-        type: "warning",
-        data: deletedData,
-      });
-    });
-
-    // Listen to resource cache invalidation (CRM-style)
-    socketClient.on("refetch_resource", (data: any) => {
-      try {
-        console.log("🔄 Resource cache invalidation received:", data);
-        // Here you could integrate with your resource caching system
-        // For now, just log it for debugging
-        if (data.cache_key) {
-          console.log(`Cache key to invalidate: ${data.cache_key}`);
-        }
-      } catch (error) {
-        console.error("Failed to handle resource cache invalidation:", error);
-      }
-    });
-
-    // Enhanced connection status listeners
-    socketClient.on("connect", () => {
-      console.log("🔌 Socket connected");
+  // Setup simple event listeners
+  const setupEventListeners = () => {
+    // Socket connection events
+    window.addEventListener("socket_connected", () => {
       globalNotificationState.isConnected = true;
       globalNotificationState.connectionError = null;
-
-      setTimeout(() => {
-        addNotification({
-          title: "WebSocket Connected",
-          message: "Real-time notifications are now active",
-          type: "success",
-        });
-      }, 1000);
+      console.log("🟢 Socket connected - notifications active");
     });
 
-    socketClient.on("disconnect", (reason: string) => {
-      console.log("🔌 Socket disconnected:", reason);
+    window.addEventListener("socket_disconnected", (event: any) => {
       globalNotificationState.isConnected = false;
-
-      // Only show disconnect notification for unexpected disconnections
-      if (reason !== "io client disconnect") {
-        addNotification({
-          title: "Connection Lost",
-          message: "Attempting to reconnect...",
-          type: "warning",
-        });
-      }
-    });
-
-    socketClient.on("connect_error", (error: any) => {
-      console.log("🔌 Socket connection error:", error);
       globalNotificationState.connectionError =
-        error.message || "Connection error";
-      console.error("Socket connection error:", error);
+        event.detail?.reason || "Connection lost";
+      console.log("🔴 Socket disconnected");
     });
 
-    socketClient.on("reconnect", (attemptNumber: number) => {
-      console.log("🔌 Socket reconnected after", attemptNumber, "attempts");
-      globalNotificationState.isConnected = true;
-      globalNotificationState.connectionError = null;
-
-      addNotification({
-        title: "Connection Restored",
-        message: "Real-time notifications are active again",
-        type: "success",
-      });
+    window.addEventListener("socket_error", (event: any) => {
+      globalNotificationState.isConnected = false;
+      globalNotificationState.connectionError =
+        event.detail?.error || "Connection error";
+      console.log("❌ Socket error");
     });
 
-    // Update connection state from socket status with improved monitoring
-    const updateConnectionState = () => {
-      try {
-        const status = socketClient.getConnectionStatus();
-        globalNotificationState.isConnected = status.isConnected;
-        globalNotificationState.connectionError = status.connectionError;
-      } catch (error) {
-        console.warn("Failed to update connection state:", error);
-      }
-    };
-
-    // Check connection status every 5 seconds
-    setInterval(updateConnectionState, 5000);
-    updateConnectionState();
-  };
-
-  // Handle realtime notification with enhanced data validation
-  const handleRealtimeNotification = (data: any) => {
-    try {
+    // Simple notification events
+    window.addEventListener("artha:notification", (event: any) => {
+      const data = event.detail;
       addNotification({
         title: data.title || "Notification",
         message: data.message || "You have a new notification",
         type: data.type || "info",
-        data: data.data,
+        data: data,
       });
-    } catch (error) {
-      console.error("Failed to handle realtime notification:", error);
-    }
+    });
+
+    // Income events
+    window.addEventListener("artha:income_ledger_created", (event: any) => {
+      const data = event.detail.data || {};
+      addNotification({
+        title: "Income Added",
+        message: `New income entry: ₹${(data.amount || 0).toLocaleString()}`,
+        type: "success",
+        data: data,
+      });
+    });
+
+    window.addEventListener("artha:income_ledger_updated", (event: any) => {
+      const data = event.detail.data || {};
+      addNotification({
+        title: "Income Updated",
+        message: `Income entry updated: ₹${(data.amount || 0).toLocaleString()}`,
+        type: "info",
+        data: data,
+      });
+    });
+
+    // Expense events
+    window.addEventListener("artha:expense_created", (event: any) => {
+      const data = event.detail.data || {};
+      addNotification({
+        title: "Expense Added",
+        message: `New expense: ₹${(data.amount || 0).toLocaleString()}`,
+        type: "warning",
+        data: data,
+      });
+    });
+
+    window.addEventListener("artha:expense_updated", (event: any) => {
+      const data = event.detail.data || {};
+      addNotification({
+        title: "Expense Updated",
+        message: `Expense updated: ₹${(data.amount || 0).toLocaleString()}`,
+        type: "info",
+        data: data,
+      });
+    });
+
+    // Test connection event
+    window.addEventListener("artha:test_connection", (event: any) => {
+      const data = event.detail;
+      addNotification({
+        title: "Connection Test",
+        message: data.message || "Socket connection test successful",
+        type: "info",
+        data: data,
+      });
+    });
   };
 
-  // Add notification with enhanced validation
+  // Add notification with deduplication
   const addNotification = (
     notification: Omit<Notification, "id" | "timestamp" | "read">,
   ) => {
     try {
-      console.log("🔔 Adding notification:", notification);
+      // Simple deduplication: check if same title/message exists in last 5 seconds
+      const now = new Date();
+      const recentDuplicate = globalNotificationState.notifications.find(
+        (n) =>
+          n.title === notification.title &&
+          n.message === notification.message &&
+          now.getTime() - n.timestamp.getTime() < 5000, // 5 seconds
+      );
+
+      if (recentDuplicate) {
+        console.log("🔄 Duplicate notification prevented:", notification.title);
+        return; // Skip this notification
+      }
 
       const newNotification: Notification = {
         id: generateId(),
@@ -349,81 +230,182 @@ export function useNotifications() {
 
       globalNotificationState.notifications.unshift(newNotification);
 
-      // Keep only last 50 notifications
+      // Keep only latest 50 notifications
       if (globalNotificationState.notifications.length > 50) {
         globalNotificationState.notifications =
           globalNotificationState.notifications.slice(0, 50);
       }
 
+      // Save to cache
       saveNotificationsToCache();
+
+      // Show browser notification if supported
       showBrowserNotification(newNotification);
 
-      return newNotification;
+      console.log("🔔 Added notification:", newNotification);
     } catch (error) {
       console.error("Failed to add notification:", error);
-      return null;
     }
   };
 
   // Mark notification as read
-  const markAsRead = (id: string) => {
-    try {
-      const notification = globalNotificationState.notifications.find(
-        (n) => n.id === id,
-      );
-      if (notification) {
-        notification.read = true;
-        saveNotificationsToCache();
+  const markAsRead = async (id: string) => {
+    const notification = globalNotificationState.notifications.find(
+      (n) => n.id === id,
+    );
+    if (notification) {
+      notification.read = true;
+      saveNotificationsToCache();
+
+      // Sync with backend if this is a backend notification
+      try {
+        if (notification.data?.name) {
+          const response = await call(
+            "artha.api.notifications.mark_notification_as_read",
+            {
+              notification_id: notification.data.name,
+            },
+          );
+
+          if (response.status === "success") {
+            console.log("🔔 Marked notification as read in backend:", id);
+          } else {
+            console.warn("Backend mark as read failed:", response.message);
+          }
+        }
+      } catch (error) {
+        console.warn("Failed to mark notification as read in backend:", error);
       }
-    } catch (error) {
-      console.error("Failed to mark notification as read:", error);
     }
   };
 
   // Mark all notifications as read
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    const unreadCount = globalNotificationState.notifications.filter(
+      (n) => !n.read,
+    ).length;
+
+    if (unreadCount === 0) {
+      console.log("🔔 No unread notifications to mark");
+      return;
+    }
+
+    globalNotificationState.notifications.forEach((n) => (n.read = true));
+    saveNotificationsToCache();
+
+    // Sync with backend
     try {
-      globalNotificationState.notifications.forEach((n) => (n.read = true));
-      saveNotificationsToCache();
+      const response = await call(
+        "artha.api.notifications.mark_all_notifications_as_read",
+      );
+
+      if (response.status === "success") {
+        console.log(
+          "🔔 Marked all notifications as read in backend:",
+          response.message,
+        );
+      } else {
+        console.warn("Backend mark all as read failed:", response.message);
+      }
     } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
+      console.warn(
+        "Failed to mark all notifications as read in backend:",
+        error,
+      );
     }
   };
 
   // Clear all notifications
-  const clearAll = () => {
+  const clearAll = async () => {
+    const notificationCount = globalNotificationState.notifications.length;
+
+    // If no notifications to clear, do nothing
+    if (notificationCount === 0) {
+      console.log("🔔 No notifications to clear");
+      return;
+    }
+
+    // Clear frontend notifications
+    globalNotificationState.notifications = [];
+    saveNotificationsToCache();
+
+    // Sync with backend
     try {
-      globalNotificationState.notifications = [];
-      saveNotificationsToCache();
+      const response = await call(
+        "artha.api.notifications.clear_all_notifications",
+      );
+
+      if (response.status === "success") {
+        console.log(
+          "🔔 Cleared all notifications in backend:",
+          response.message,
+        );
+
+        // Only show success notification if there were notifications to clear
+        if (response.cleared_count > 0) {
+          addNotification({
+            title: "Notifications Cleared",
+            message: `Cleared ${response.cleared_count} notifications`,
+            type: "success",
+          });
+        }
+      } else {
+        console.warn("Backend clear failed:", response.message);
+
+        if (notificationCount > 0) {
+          addNotification({
+            title: "Clear Failed",
+            message: response.message || "Failed to clear from backend",
+            type: "warning",
+          });
+        }
+      }
     } catch (error) {
-      console.error("Failed to clear notifications:", error);
+      console.warn("Failed to clear notifications in backend:", error);
+
+      // Show error notification but don't clutter the UI
+      console.error("Backend clear failed:", error.message || error);
+
+      // Only show error notification if it's a real error, not just no notifications
+      if (notificationCount > 0) {
+        addNotification({
+          title: "Clear Failed",
+          message: "Failed to clear from backend. May reappear on reload.",
+          type: "warning",
+        });
+      }
     }
   };
 
   // Generate unique ID
   const generateId = (): string => {
-    return `notification_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
   };
 
-  // Save notifications to cache service
+  // Save notifications to localStorage
   const saveNotificationsToCache = () => {
     try {
-      const cacheKey = getUserNotificationKey();
-      cacheService.set(cacheKey, globalNotificationState.notifications, {
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
+      const userId = session.user || "anonymous";
+      const key = `artha_notifications_${userId}`;
+      localStorage.setItem(
+        key,
+        JSON.stringify(globalNotificationState.notifications),
+      );
     } catch (error) {
       console.warn("Failed to save notifications to cache:", error);
     }
   };
 
-  // Load notifications from cache service
+  // Load notifications from localStorage
   const loadNotificationsFromCache = () => {
     try {
-      const cacheKey = getUserNotificationKey();
-      const cached = cacheService.get(cacheKey);
-      if (cached && Array.isArray(cached)) {
-        globalNotificationState.notifications = cached.map((n: any) => ({
+      const userId = session.user || "anonymous";
+      const key = `artha_notifications_${userId}`;
+      const cached = localStorage.getItem(key);
+
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        globalNotificationState.notifications = parsed.map((n: any) => ({
           ...n,
           timestamp: new Date(n.timestamp),
         }));
@@ -433,233 +415,193 @@ export function useNotifications() {
     }
   };
 
-  // Get recent activity
-  const getRecentActivity = () => {
-    try {
-      return globalNotificationState.notifications
-        .slice(0, 10)
-        .map((notification) => ({
-          id: notification.id,
-          type: notification.type,
-          title: notification.title,
-          message: notification.message,
-          timestamp: notification.timestamp,
-          read: notification.read,
-          data: notification.data,
-        }));
-    } catch (error) {
-      console.warn("Failed to get recent activity:", error);
-      return [];
-    }
-  };
-
-  // Show browser notification with permission check
+  // Show browser notification
   const showBrowserNotification = (notification: Notification) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      return;
+    }
+
     try {
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(notification.title, {
-          body: notification.message,
-          icon: "/logo.svg",
-          tag: notification.id,
-        });
-      } else if (
-        "Notification" in window &&
-        Notification.permission === "default"
-      ) {
-        // Request permission if not already granted or denied
-        Notification.requestPermission().then((permission) => {
-          if (permission === "granted") {
-            new Notification(notification.title, {
-              body: notification.message,
-              icon: "/logo.svg",
-              tag: notification.id,
-            });
-          }
-        });
-      }
+      const browserNotification = new Notification(notification.title, {
+        body: notification.message,
+        icon: "/assets/artha/frontend/favicon.png",
+        tag: notification.id,
+      });
+
+      // Auto close after 5 seconds
+      setTimeout(() => browserNotification.close(), 5000);
     } catch (error) {
       console.warn("Failed to show browser notification:", error);
     }
   };
 
-  // Enhanced cleanup function
-  const cleanup = () => {
-    try {
-      // Clear authentication watcher
-      if (globalNotificationState.authWatcherInterval) {
-        clearInterval(globalNotificationState.authWatcherInterval);
-        globalNotificationState.authWatcherInterval = null;
-      }
-
-      // Clear socket listeners
-      socketClient.off("artha_notification");
-      socketClient.off("artha:income_ledger_created");
-      socketClient.off("artha:income_ledger_updated");
-      socketClient.off("artha:income_ledger_deleted");
-      socketClient.off("artha:income_saved");
-      socketClient.off("artha:expense_created");
-      socketClient.off("artha:expense_updated");
-      socketClient.off("artha:expense_deleted");
-      socketClient.off("refetch_resource");
-      socketClient.off("connect");
-      socketClient.off("disconnect");
-      socketClient.off("connect_error");
-      socketClient.off("reconnect");
-
-      console.log("🧹 Notification listeners and auth watcher cleaned up");
-    } catch (error) {
-      console.error("Failed to cleanup notification listeners:", error);
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    if (!("Notification" in window)) {
+      return false;
     }
+
+    const permission = await Notification.requestPermission();
+    return permission === "granted";
   };
 
-  // Load notifications on initialization
-  loadNotificationsFromCache();
-
-  // Enhanced debug function for admin interface
-  const getDebugInfo = () => {
-    try {
-      const socketStatus = socketClient.getConnectionStatus?.() || {
-        isConnected: false,
-        connectionError: "Socket unavailable",
-        hasSocket: false,
-      };
-
-      let socketUrl = "Not available";
-      let siteName = "Unknown";
-
-      try {
-        siteName = socketClient.getSiteName?.() || "development.localhost";
-        if (socketClient.socket && socketClient.isConnected) {
-          const port = socketClient.isDevelopment?.()
-            ? 9000
-            : window.location.port;
-          const protocol = window.location.protocol;
-          const hostname = window.location.hostname;
-          socketUrl = `${protocol}//${hostname}${port ? ":" + port : ""}/${siteName}`;
-        }
-      } catch (error) {
-        console.warn("Could not determine socket URL:", error);
-      }
-
-      return {
-        notifications: globalNotificationState.notifications,
-        isConnected: globalNotificationState.isConnected,
-        connectionError: globalNotificationState.connectionError,
-        initialized: globalNotificationState.initialized,
-        notificationCount: globalNotificationState.notifications.length,
-        socketConnected: socketStatus.isConnected,
-        socketStatus: socketStatus,
-        socketUrl: socketUrl,
-        siteName: siteName,
-        frappe_compliance: true,
-        version: "2.0.0",
-      };
-    } catch (error) {
-      console.error("Failed to get debug info:", error);
-      return {
-        error: "Failed to get debug info",
-        notifications: [],
-        isConnected: false,
-        initialized: false,
-      };
-    }
-  };
-
-  // Enhanced test functions for admin interface
+  // Test notification
   const addTestNotification = () => {
-    console.log("🧪 Adding test notification manually...");
-    return addNotification({
+    addNotification({
       title: "Test Notification",
       message: "This is a test notification to verify the system is working",
       type: "info",
     });
   };
 
-  const testBackendNotification = async (
-    title?: string,
-    message?: string,
-    type?: string,
-  ) => {
+  // Test backend notification
+  const testBackendNotification = async () => {
     try {
-      console.log("🧪 Testing backend notification...");
-
-      // Try CSRF-exempt endpoint first
-      try {
-        const fallbackResult = await apiService.execute(
-          call("artha.api.notifications.send_simple_test_notification"),
-        );
-
-        return {
-          status: "success",
-          message: "Backend test completed (CSRF-exempt)",
-          backend_result: fallbackResult,
-        };
-      } catch (exemptError) {
-        console.warn("🔶 CSRF-exempt endpoint failed:", exemptError);
-      }
-
-      // Try regular endpoint with proper CSRF handling
-      try {
-        const result = await apiService.execute(
-          call("artha.api.notifications.send_test_notification", {
-            title: title || "Backend Test",
-            message: message || "This is a test from the backend",
-            notification_type: type || "info",
-          }),
-        );
-
-        return {
-          status: "success",
-          message: "Backend test completed (apiService)",
-          backend_result: result,
-        };
-      } catch (apiServiceError) {
-        return {
-          status: "error",
-          message: `Backend test failed: ${apiServiceError.message}`,
-          api_service_error: apiServiceError.message,
-        };
-      }
+      const response = await call(
+        "artha.api.notifications.send_simple_test_notification",
+      );
+      console.log("Test notification response:", response);
     } catch (error) {
-      return {
-        status: "error",
-        message: `Backend test failed: ${error.message}`,
-        error: error.message,
-      };
+      console.error("Failed to send test notification:", error);
     }
   };
 
-  // Make debug functions available globally for admin interface testing
-  if (typeof window !== "undefined") {
-    (window as any).arthaNotifsDebug = {
-      addTest: addTestNotification,
-      getInfo: getDebugInfo,
-      clearAll: clearAll,
-      notifications: () => globalNotificationState.notifications,
-      testBackend: testBackendNotification,
-      socket: () => socketClient,
-      version: "2.0.0",
+  // Test clear functionality
+  const testClearFunctionality = async () => {
+    console.log("🧪 Testing clear functionality...");
+
+    // Add a test notification first
+    addNotification({
+      title: "Test Notification for Clear",
+      message:
+        "This notification will be cleared to test the clear functionality",
+      type: "info",
+    });
+
+    console.log(
+      `Before clear: ${globalNotificationState.notifications.length} notifications`,
+    );
+
+    // Wait a moment then clear
+    setTimeout(async () => {
+      await clearAll();
+      console.log(
+        `After clear: ${globalNotificationState.notifications.length} notifications`,
+      );
+      console.log("🧪 Clear test completed");
+    }, 1000);
+  };
+
+  // Test socket connection
+  const testSocketConnection = async () => {
+    try {
+      await call("artha.utils.notifications.test_socket_connection");
+    } catch (error) {
+      console.error("Failed to test socket connection:", error);
+    }
+  };
+
+  // Refresh notifications from backend (replaces all frontend notifications)
+  const refreshNotifications = async () => {
+    try {
+      if (session.user === "Guest" || !session.user) {
+        console.log("🔔 Skipping notification refresh for guest user");
+        return;
+      }
+
+      const response = await call(
+        "artha.api.notifications.get_user_notifications",
+        {
+          limit: 50,
+          include_read: true,
+        },
+      );
+
+      if (response?.status === "success" && response.notifications) {
+        // Replace all notifications with backend data
+        globalNotificationState.notifications = response.notifications.map(
+          (n: any) => ({
+            id: n.name || generateId(),
+            title: n.subject || "Notification",
+            message: n.email_content || "You have a notification",
+            type: "info",
+            timestamp: new Date(n.creation),
+            read: n.read === 1,
+            data: n,
+          }),
+        );
+
+        // Save to cache
+        saveNotificationsToCache();
+
+        console.log(
+          `🔄 Refreshed ${globalNotificationState.notifications.length} notifications from backend`,
+        );
+      }
+    } catch (error) {
+      console.warn("Failed to refresh notifications from backend:", error);
+    }
+  };
+
+  // Debug function to show notification system status
+  const getDebugInfo = () => {
+    return {
+      initialized: globalNotificationState.initialized,
+      isConnected: globalNotificationState.isConnected,
+      connectionError: globalNotificationState.connectionError,
+      notificationCount: globalNotificationState.notifications.length,
+      unreadCount: globalNotificationState.notifications.filter((n) => !n.read)
+        .length,
+      notifications: globalNotificationState.notifications,
+      userId: session.user,
+      socketConnected: socketClient.isConnected?.(),
     };
-  }
+  };
 
   return {
-    // State
     notifications,
     isConnected,
     connectionError,
-
-    // Actions
     initialize,
+    loadNotifications,
+    refreshNotifications,
     addNotification,
     markAsRead,
     markAllAsRead,
     clearAll,
-    cleanup,
-
-    // Utilities
-    getRecentActivity,
-    getDebugInfo,
+    requestNotificationPermission,
     addTestNotification,
     testBackendNotification,
+    testSocketConnection,
+    testClearFunctionality,
+    getDebugInfo,
   };
+}
+
+// Create global debug interface
+declare global {
+  interface Window {
+    arthaNotificationsDebug: any;
+  }
+}
+
+// Export debug interface to window for testing
+if (typeof window !== "undefined") {
+  const debugInterface = useNotifications();
+
+  window.arthaNotificationsDebug = {
+    status: () => debugInterface.getDebugInfo(),
+    reload: () => debugInterface.loadNotifications(),
+    refresh: () => debugInterface.refreshNotifications(),
+    test: () => debugInterface.addTestNotification(),
+    testBackend: () => debugInterface.testBackendNotification(),
+    testSocket: () => debugInterface.testSocketConnection(),
+    testClear: () => debugInterface.testClearFunctionality(),
+    clear: () => debugInterface.clearAll(),
+    initialize: () => debugInterface.initialize(),
+  };
+
+  console.log(
+    "🔧 Artha notifications debug interface available at window.arthaNotificationsDebug",
+  );
 }

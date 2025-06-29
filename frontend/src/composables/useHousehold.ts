@@ -4,160 +4,177 @@
  */
 
 import {
-	type ComputedRef,
-	type Ref,
-	computed,
-	onUnmounted,
-	ref,
-	watch,
-} from "vue"
-import { session } from "../data/session.js"
+  type ComputedRef,
+  type Ref,
+  computed,
+  onUnmounted,
+  ref,
+  watch,
+} from "vue";
+import { session } from "../data/session.js";
 import {
-	type HouseholdProfile,
-	type HouseholdServiceOptions,
-	type ProfileData,
-	householdService,
-} from "../services/household-service"
+  type HouseholdProfile,
+  type HouseholdServiceOptions,
+  type ProfileData,
+  householdService,
+} from "../services/household-service";
 
 interface UseHouseholdReturn {
-	// State
-	profile: ComputedRef<HouseholdProfile | null>
-	loading: ComputedRef<boolean>
-	error: ComputedRef<string>
+  // State
+  profile: ComputedRef<HouseholdProfile | null>;
+  loading: ComputedRef<boolean>;
+  error: ComputedRef<string>;
 
-	// Computed
-	hasProfile: ComputedRef<boolean>
-	isLoadingProfile: ComputedRef<boolean>
+  // Computed
+  hasProfile: ComputedRef<boolean>;
+  isLoadingProfile: ComputedRef<boolean>;
 
-	// Actions
-	loadProfile: (options?: HouseholdServiceOptions) => Promise<void>
-	refreshProfile: () => Promise<void>
-	createProfile: (profileData: ProfileData) => Promise<void>
-	updateProfile: (updates: Partial<ProfileData>) => Promise<void>
-	clearCache: () => void
+  // Actions
+  loadProfile: (options?: HouseholdServiceOptions) => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  createProfile: (profileData: ProfileData) => Promise<void>;
+  updateProfile: (updates: Partial<ProfileData>) => Promise<void>;
+  clearCache: () => void;
 }
 
 export function useHousehold(): UseHouseholdReturn {
-	// State
-	const profile: Ref<HouseholdProfile | null> = ref(null)
-	const loading: Ref<boolean> = ref(false)
-	const error: Ref<string> = ref("")
+  // State
+  const profile: Ref<HouseholdProfile | null> = ref(null);
+  const loading: Ref<boolean> = ref(false);
+  const error: Ref<string> = ref("");
 
-	// Computed properties
-	const hasProfile = computed(() => !!profile.value)
-	const isLoadingProfile = computed(() => loading.value)
+  // Computed properties
+  const hasProfile = computed(() => !!profile.value);
+  const isLoadingProfile = computed(() => loading.value);
 
-	// Actions
-	const loadProfile = async (
-		options: HouseholdServiceOptions = {},
-	): Promise<void> => {
-		try {
-			loading.value = true
-			error.value = ""
+  // Actions
+  const loadProfile = async (
+    options: HouseholdServiceOptions = {},
+  ): Promise<void> => {
+    try {
+      loading.value = true;
+      error.value = "";
 
-			const result = await householdService.getCurrentProfile(options)
-			profile.value = result
-		} catch (err) {
-			console.error("Error loading household profile:", err)
-			const errorMessage =
-				err instanceof Error ? err.message : "Failed to load household profile"
-			error.value = errorMessage
-			// Don't throw - let components handle null profile gracefully
-		} finally {
-			loading.value = false
-		}
-	}
+      const result = await householdService.getCurrentProfile(options);
+      profile.value = result;
+    } catch (err) {
+      console.error("Error loading household profile:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load household profile";
+      error.value = errorMessage;
+      // Don't throw - let components handle null profile gracefully
+    } finally {
+      loading.value = false;
+    }
+  };
 
-	const refreshProfile = async (): Promise<void> => {
-		return await loadProfile({ forceReload: true })
-	}
+  const refreshProfile = async (): Promise<void> => {
+    return await loadProfile({ forceReload: true });
+  };
 
-	const createProfile = async (profileData: ProfileData): Promise<void> => {
-		try {
-			loading.value = true
-			error.value = ""
-			await householdService.createProfile(profileData)
-			await refreshProfile()
-		} catch (err) {
-			const errorMessage =
-				err instanceof Error ? err.message : "Failed to create profile"
-			error.value = errorMessage
-			throw err
-		} finally {
-			loading.value = false
-		}
-	}
+  const createProfile = async (profileData: ProfileData): Promise<void> => {
+    try {
+      loading.value = true;
+      error.value = "";
+      // Use the profile API directly for create/update operations
+      const response = await fetch(
+        "/api/method/artha.api.profile.create_household_profile",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(profileData),
+        },
+      );
 
-	const updateProfile = async (
-		updates: Partial<ProfileData>,
-	): Promise<void> => {
-		try {
-			loading.value = true
-			error.value = ""
-			if (!profile.value) {
-				throw new Error("No profile to update")
-			}
-			await householdService.updateProfile(profile.value.name, updates)
-			await refreshProfile()
-		} catch (err) {
-			const errorMessage =
-				err instanceof Error ? err.message : "Failed to update profile"
-			error.value = errorMessage
-			throw err
-		} finally {
-			loading.value = false
-		}
-	}
+      const result = await response.json();
 
-	const clearCache = (): void => {
-		householdService.clearCache()
-		profile.value = null
-		error.value = ""
-	}
+      if (result.message?.status !== "success") {
+        throw new Error(result.message || "Failed to create/update profile");
+      }
 
-	// Watch for user changes
-	let userWatcher: (() => void) | null = null
-	const setupUserWatcher = (): void => {
-		userWatcher = watch(
-			() => session.user,
-			(newUser, oldUser) => {
-				if (newUser !== oldUser) {
-					profile.value = null
-					error.value = ""
-					householdService.reset()
-					if (newUser) {
-						loadProfile()
-					}
-				}
-			},
-		)
-	}
+      await refreshProfile();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create/update profile";
+      error.value = errorMessage;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
 
-	// Cleanup
-	onUnmounted(() => {
-		if (userWatcher) {
-			userWatcher()
-		}
-	})
+  const updateProfile = async (
+    updates: Partial<ProfileData>,
+  ): Promise<void> => {
+    try {
+      loading.value = true;
+      error.value = "";
+      if (!profile.value) {
+        throw new Error("No profile to update");
+      }
+      await householdService.updateProfile(profile.value.name, updates);
+      await refreshProfile();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update profile";
+      error.value = errorMessage;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
 
-	// Auto-setup user watcher
-	setupUserWatcher()
+  const clearCache = (): void => {
+    householdService.clearCache();
+    profile.value = null;
+    error.value = "";
+  };
 
-	return {
-		// State
-		profile: computed(() => profile.value),
-		loading: computed(() => loading.value),
-		error: computed(() => error.value),
+  // Watch for user changes
+  let userWatcher: (() => void) | null = null;
+  const setupUserWatcher = (): void => {
+    userWatcher = watch(
+      () => session.user,
+      (newUser, oldUser) => {
+        if (newUser !== oldUser) {
+          profile.value = null;
+          error.value = "";
+          householdService.reset();
+          if (newUser) {
+            loadProfile();
+          }
+        }
+      },
+    );
+  };
 
-		// Computed
-		hasProfile,
-		isLoadingProfile,
+  // Cleanup
+  onUnmounted(() => {
+    if (userWatcher) {
+      userWatcher();
+    }
+  });
 
-		// Actions
-		loadProfile,
-		refreshProfile,
-		createProfile,
-		updateProfile,
-		clearCache,
-	}
+  // Auto-setup user watcher
+  setupUserWatcher();
+
+  return {
+    // State
+    profile: computed(() => profile.value),
+    loading: computed(() => loading.value),
+    error: computed(() => error.value),
+
+    // Computed
+    hasProfile,
+    isLoadingProfile,
+
+    // Actions
+    loadProfile,
+    refreshProfile,
+    createProfile,
+    updateProfile,
+    clearCache,
+  };
 }

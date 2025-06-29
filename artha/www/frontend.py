@@ -7,55 +7,44 @@ import frappe
 no_cache = 1
 
 
+@frappe.whitelist(methods=["POST"], allow_guest=True)
+def get_context_for_dev():
+    """Get context for development mode (following Gameplan's pattern)"""
+    if not frappe.conf.developer_mode:
+        frappe.throw("This method is only meant for developer mode")
+    return get_boot()
+
+
+def get_boot():
+    """Get boot data for Artha frontend (following Gameplan's pattern)"""
+    return frappe._dict({
+        "frappe_version": frappe.__version__,
+        "site_name": frappe.local.site,
+        "user": frappe.session.user,
+        "csrf_token": frappe.sessions.get_csrf_token(),
+        "is_authenticated": frappe.session.user != "Guest",
+        "user_roles": frappe.get_roles() if frappe.session.user != "Guest" else [],
+        "app_version": "1.0.0",  # You can make this dynamic like Gameplan does
+        "socketio_port": frappe.conf.get('socketio_port', 9000),
+    })
+
+
 def get_context(context):
-    """Get context for Artha frontend template"""
+    """Get context for Artha frontend template (following Gameplan's pattern)"""
     try:
-        # CRITICAL FIX: Ensure proper Frappe session with sid cookie
-        # This is what CRM has automatically but SPA templates miss
-
-        # If user is logged in but no session exists, create one
-        if frappe.session.user != "Guest":
-            # Ensure session data is properly set
-            if not frappe.session.get('sid') or not frappe.request.cookies.get('sid'):
-                # Force session creation/refresh to generate sid cookie
-                frappe.local.login_manager = frappe.auth.LoginManager()
-                frappe.local.login_manager.user = frappe.session.user
-                frappe.local.login_manager.post_login()
-
-        # Ensure we have a database connection
+        # Ensure proper session and CSRF token
+        csrf_token = frappe.sessions.get_csrf_token()
         frappe.db.commit()
 
-        # Set site name for socket connection
+        # Set boot data following Gameplan's pattern
+        context.boot = get_boot()
+        context.boot.csrf_token = csrf_token
+
+        # For backward compatibility
         context.site_name = frappe.local.site
-
-        # Set CSRF token for API calls
-        context.csrf_token = frappe.sessions.get_csrf_token()
-
-        # Add user information if available
-        if frappe.session.user != "Guest":
-            context.user = frappe.session.user
-            context.user_roles = frappe.get_roles()
-        else:
-            context.user = "Guest"
-            context.user_roles = []
-
-        # Debug information for production troubleshooting
-        context.debug_info = {
-            "site": frappe.local.site,
-            "user": frappe.session.user,
-            "has_csrf": bool(context.csrf_token),
-            "has_sid": bool(frappe.session.get('sid')),
-            "timestamp": frappe.utils.now()
-        }
-
-        # Add boot data similar to CRM approach
-        context.boot = {
-            "site_name": frappe.local.site,
-            "csrf_token": context.csrf_token,
-            "user": frappe.session.user,
-            "is_authenticated": frappe.session.user != "Guest",
-            "session_id": frappe.session.get('sid', 'Guest')
-        }
+        context.csrf_token = csrf_token
+        context.user = frappe.session.user
+        context.socketio_port = frappe.conf.get('socketio_port', 9000)
 
         return context
 
@@ -65,5 +54,6 @@ def get_context(context):
         context.site_name = frappe.local.site or "artha.localhost"
         context.csrf_token = ""
         context.user = "Guest"
-        context.boot = {"site_name": context.site_name}
+        context.socketio_port = 9000
+        context.boot = {"site_name": context.site_name, "socketio_port": 9000}
         return context

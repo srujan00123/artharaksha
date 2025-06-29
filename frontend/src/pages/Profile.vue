@@ -439,6 +439,7 @@
     <HouseholdProfileCreator
         v-if="showHouseholdProfileCreator"
         :is-open="showHouseholdProfileCreator"
+        :existing-profile="householdProfile"
         @close="closeHouseholdProfileCreator"
         @success="handleProfileCreated"
     />
@@ -709,13 +710,13 @@ const loadHouseholdProfile = async () => {
 	try {
 		loadingHouseholdProfile.value = true
 
-		// Use the support API endpoint that exists
+		// Use the correct profile API endpoint
 		const response = await fetch(
-			"/api/method/artha.api.support.get_household_profile",
+			"/api/method/artha.api.profile.get_household_profile",
 		)
 		const data = await response.json()
 
-		if (data.message) {
+		if (data.message && Object.keys(data.message).length > 0) {
 			householdProfile.value = data.message
 		} else {
 			householdProfile.value = null
@@ -734,7 +735,7 @@ const refreshHouseholdProfile = async () => {
 }
 
 const editHouseholdProfile = () => {
-	// Open the profile creator in edit mode
+	// Open the profile creator in edit mode with existing data
 	showHouseholdProfileCreator.value = true
 }
 
@@ -746,7 +747,8 @@ const handleProfileCreated = async (profileData) => {
 	showHouseholdProfileCreator.value = false
 	// Refresh the household profile data
 	await loadHouseholdProfile()
-	toast.success("Household profile created successfully")
+	const message = householdProfile.value ? "Household profile updated successfully" : "Household profile created successfully"
+	toast.success(message)
 }
 
 // Watch for user data changes

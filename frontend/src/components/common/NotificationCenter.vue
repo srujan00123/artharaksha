@@ -6,7 +6,7 @@
             <Bell class="w-5 h-5" />
             <!-- Notification Badge -->
             <span v-if="unreadCount > 0"
-                class="absolute -top-1 -right-1 bg-red-500 text-white dark:text-black text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
                 {{ unreadCount > 99 ? '99+' : unreadCount }}
             </span>
             <!-- Connection Status Indicator -->
@@ -18,16 +18,16 @@
 
         <!-- Notification Dropdown -->
         <div v-show="showNotifications"
-            class="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg dark:shadow-gray-900/20 border border-gray-200 dark:border-gray-700 z-50 max-h-96 overflow-hidden">
+            class="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 max-h-96 overflow-hidden">
             <!-- Header -->
             <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                     <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
-                    <!-- Enhanced Connection Status Indicator -->
+                    <!-- Connection Status -->
                     <div class="flex items-center space-x-1">
                         <div class="w-2 h-2 rounded-full" 
                              :class="isConnected ? 'bg-green-500' : 'bg-red-500'"
-                             :title="connectionStatusText"></div>
+                             :title="isConnected ? 'Connected' : 'Disconnected'"></div>
                         <span class="text-xs text-gray-500 dark:text-gray-400">
                             {{ isConnected ? 'Live' : 'Offline' }}
                         </span>
@@ -35,11 +35,11 @@
                 </div>
                 <div class="flex items-center space-x-2">
                     <button v-if="unreadCount > 0" @click="markAllAsRead"
-                        class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200">
+                        class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800">
                         Mark all read
                     </button>
                     <button @click="clearAllNotifications"
-                        class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                        class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700">
                         Clear all
                     </button>
                 </div>
@@ -51,7 +51,7 @@
                 <div class="flex items-center space-x-2">
                     <AlertTriangle class="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
                     <span class="text-xs text-yellow-700 dark:text-yellow-300">
-                        Connection issue: {{ connectionError }}
+                        {{ connectionError }}
                     </span>
                 </div>
             </div>
@@ -62,7 +62,7 @@
                     <Bell class="w-8 h-8 mx-auto text-gray-400 dark:text-gray-500 mb-2" />
                     <p class="text-sm text-gray-500 dark:text-gray-400">No notifications yet</p>
                     <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        {{ isConnected ? 'You\'re connected and ready to receive notifications' : 'Waiting for connection...' }}
+                        {{ isConnected ? 'Connected and ready' : 'Waiting for connection...' }}
                     </p>
                 </div>
 
@@ -103,9 +103,9 @@
             <!-- Footer -->
             <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 <div class="flex items-center justify-between">
-                    <button @click="viewAllNotifications"
-                        class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 font-medium">
-                        View all notifications
+                    <button @click="addTestNotification"
+                        class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium">
+                        Test notification
                     </button>
                     <div class="text-xs text-gray-400 dark:text-gray-500">
                         {{ notificationsList.length }} total
@@ -125,7 +125,7 @@ import {
 	CheckCircle,
 	Info,
 } from "lucide-vue-next"
-import { computed, onMounted, onUnmounted, ref, watch } from "vue"
+import { computed, onMounted, onUnmounted, ref } from "vue"
 import { useNotifications } from "../../composables/useNotifications"
 
 // Local state
@@ -134,11 +134,10 @@ const showNotifications = ref(false)
 // Composable for notification management
 const notificationsComposable = useNotifications()
 
-// Computed properties with enhanced error handling
+// Computed properties
 const notificationsList = computed(() => {
 	try {
-		const list = notificationsComposable.notifications.value || []
-		return list
+		return notificationsComposable.notifications.value || []
 	} catch (error) {
 		console.error("Failed to get notifications list:", error)
 		return []
@@ -172,56 +171,40 @@ const unreadCount = computed(() => {
 	}
 })
 
-const connectionStatusText = computed(() => {
-	if (isConnected.value) {
-		return "Connected - Real-time notifications active"
-	} else if (connectionError.value) {
-		return `Disconnected - ${connectionError.value}`
-	} else {
-		return "Disconnected - Attempting to reconnect"
-	}
-})
-
-// Methods with enhanced error handling
+// Methods
 const toggleNotifications = () => {
-	try {
-		showNotifications.value = !showNotifications.value
-	} catch (error) {
-		console.error("Failed to toggle notifications:", error)
-	}
+	showNotifications.value = !showNotifications.value
 }
 
-const markAsRead = (notification) => {
+const markAsRead = async (notification) => {
 	try {
-		notificationsComposable.markAsRead(notification.id)
+		await notificationsComposable.markAsRead(notification.id)
 	} catch (error) {
 		console.error("Failed to mark notification as read:", error)
 	}
 }
 
-const markAllAsRead = () => {
+const markAllAsRead = async () => {
 	try {
-		notificationsComposable.markAllAsRead()
+		await notificationsComposable.markAllAsRead()
 	} catch (error) {
 		console.error("Failed to mark all notifications as read:", error)
 	}
 }
 
-const clearAllNotifications = () => {
+const clearAllNotifications = async () => {
 	try {
-		notificationsComposable.clearAll()
+		await notificationsComposable.clearAll()
 	} catch (error) {
 		console.error("Failed to clear all notifications:", error)
 	}
 }
 
-const viewAllNotifications = () => {
+const addTestNotification = () => {
 	try {
-		showNotifications.value = false
-		// Navigate to notifications page if exists
-		// router.push('/notifications')
+		notificationsComposable.addTestNotification()
 	} catch (error) {
-		console.error("Failed to view all notifications:", error)
+		console.error("Failed to add test notification:", error)
 	}
 }
 
@@ -278,31 +261,11 @@ onMounted(() => {
 	try {
 		document.addEventListener("click", handleClickOutside)
 
-		// Watch for changes in notifications with enhanced error handling
-		watch(
-			() => notificationsComposable.notifications.value,
-			(newNotifications, oldNotifications) => {
-				try {
-					// Notifications changed - UI will update automatically
-					console.log("🔔 Notifications updated:", {
-						count: newNotifications?.length || 0,
-						unread: newNotifications?.filter(n => !n.read).length || 0
-					})
-				} catch (error) {
-					console.error("Failed to handle notifications change:", error)
-				}
-			},
-			{ immediate: true, deep: true },
-		)
-
-		// Initialize realtime connection with enhanced error handling
+		// Initialize notification system
 		notificationsComposable.initialize().then(() => {
 			console.log("🔔 NotificationCenter initialized successfully")
 		}).catch((error) => {
 			console.error("NotificationCenter initialization failed:", error)
-			// Still allow the component to function in offline mode
-			// You could show a toast notification here if needed:
-			// toast.warning("Notifications may be delayed due to connection issues")
 		})
 	} catch (error) {
 		console.error("Failed to mount NotificationCenter:", error)
@@ -312,7 +275,6 @@ onMounted(() => {
 onUnmounted(() => {
 	try {
 		document.removeEventListener("click", handleClickOutside)
-		notificationsComposable.cleanup()
 		console.log("🧹 NotificationCenter cleaned up")
 	} catch (error) {
 		console.error("Failed to unmount NotificationCenter:", error)
