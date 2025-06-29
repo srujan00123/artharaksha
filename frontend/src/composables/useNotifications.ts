@@ -23,13 +23,15 @@ interface Notification {
 const globalNotificationState = reactive({
   notifications: [] as Notification[],
   initialized: false,
-  isConnected: false,
   connectionError: null as string | null,
 });
 
 export function useNotifications() {
   const notifications = computed(() => globalNotificationState.notifications);
-  const isConnected = computed(() => globalNotificationState.isConnected);
+
+  // Make isConnected a direct computed property on the socket client's state
+  const isConnected = computed(() => socketClient.isConnected());
+
   const connectionError = computed(
     () => globalNotificationState.connectionError,
   );
@@ -95,11 +97,10 @@ export function useNotifications() {
       // Load cached notifications first (immediate display)
       loadNotificationsFromCache();
 
-      // Setup event listeners
+      // Setup event listeners using the new composable
       setupEventListeners();
 
-      // Check connection status
-      globalNotificationState.isConnected = socketClient.isConnected();
+      // The isConnected status is now handled by the computed property directly
       globalNotificationState.connectionError = null;
 
       // Load notifications from backend
@@ -108,38 +109,31 @@ export function useNotifications() {
       console.log("🔔 Notification system initialized");
     } catch (error: any) {
       console.error("Failed to initialize notifications:", error);
-      globalNotificationState.isConnected = false;
       globalNotificationState.connectionError =
         error.message || "Initialization failed";
     }
   };
 
-  // Setup simple event listeners
+  // Setup simple event listeners using the new composable hook
   const setupEventListeners = () => {
     // Socket connection events
-    window.addEventListener("socket_connected", () => {
-      globalNotificationState.isConnected = true;
+    socketClient.on("connect", () => {
       globalNotificationState.connectionError = null;
       console.log("🟢 Socket connected - notifications active");
     });
 
-    window.addEventListener("socket_disconnected", (event: any) => {
-      globalNotificationState.isConnected = false;
-      globalNotificationState.connectionError =
-        event.detail?.reason || "Connection lost";
+    socketClient.on("disconnect", (reason: any) => {
+      globalNotificationState.connectionError = reason || "Connection lost";
       console.log("🔴 Socket disconnected");
     });
 
-    window.addEventListener("socket_error", (event: any) => {
-      globalNotificationState.isConnected = false;
-      globalNotificationState.connectionError =
-        event.detail?.error || "Connection error";
+    socketClient.on("connect_error", (error: any) => {
+      globalNotificationState.connectionError = error || "Connection error";
       console.log("❌ Socket error");
     });
 
     // Simple notification events
-    window.addEventListener("artha:notification", (event: any) => {
-      const data = event.detail;
+    socketClient.on("artha:notification", (data: any) => {
       addNotification({
         title: data.title || "Notification",
         message: data.message || "You have a new notification",
@@ -149,29 +143,65 @@ export function useNotifications() {
     });
 
     // Income events
-    window.addEventListener("artha:income_ledger_created", (event: any) => {
-      const data = event.detail.data || {};
+    socketClient.on("artha:income_ledger_created", (detail: any) => {
+      const data = detail.data || {};
+      // Handle both single entry and summary from recurring creation
+      if (data.amount) {
+        addNotification({
+          title: "Income Added",
+          message: `New income entry: ₹${(data.amount || 0).toLocaleString()}`,
+          type: "success",
+          data: data,
+        });
+      } else if (data.message) {
+        addNotification({
+          title: "Income Updated",
+          message: data.message,
+          type: "info",
+          data: data,
+        });
+      }
+    });
+
+    socketClient.on("artha:income_ledger_updated", (detail: any) => {
+      const data = detail.data || {};
       addNotification({
-        title: "Income Added",
-        message: `New income entry: ₹${(data.amount || 0).toLocaleString()}`,
-        type: "success",
+        title: "Income Updated",
+        message: `Income entry updated: ₹${(
+          data.amount || 0
+        ).toLocaleString()}`,
+        type: "info",
         data: data,
       });
     });
 
-    window.addEventListener("artha:income_ledger_updated", (event: any) => {
-      const data = event.detail.data || {};
+    socketClient.on("artha:income_ledger_deleted", (detail: any) => {
+      const data = detail.data || {};
       addNotification({
-        title: "Income Updated",
-        message: `Income entry updated: ₹${(data.amount || 0).toLocaleString()}`,
+        title: "Income Entry Removed",
+        message: `An income entry of type '${data.income_type}' was removed.`,
+        type: "info",
+        data: data,
+      });
+    });
+
+    socketClient.on("artha:income_saved", (detail: any) => {
+      const data = detail.data || {};
+      let message = "Income sources have been updated.";
+      if (data.action === "delete") {
+        message = "An income source has been removed.";
+      }
+      addNotification({
+        title: "Income Sources Updated",
+        message: message,
         type: "info",
         data: data,
       });
     });
 
     // Expense events
-    window.addEventListener("artha:expense_created", (event: any) => {
-      const data = event.detail.data || {};
+    socketClient.on("artha:expense_created", (detail: any) => {
+      const data = detail.data || {};
       addNotification({
         title: "Expense Added",
         message: `New expense: ₹${(data.amount || 0).toLocaleString()}`,
@@ -180,8 +210,8 @@ export function useNotifications() {
       });
     });
 
-    window.addEventListener("artha:expense_updated", (event: any) => {
-      const data = event.detail.data || {};
+    socketClient.on("artha:expense_updated", (detail: any) => {
+      const data = detail.data || {};
       addNotification({
         title: "Expense Updated",
         message: `Expense updated: ₹${(data.amount || 0).toLocaleString()}`,
@@ -190,9 +220,18 @@ export function useNotifications() {
       });
     });
 
+    socketClient.on("artha:expense_deleted", (detail: any) => {
+      const data = detail.data || {};
+      addNotification({
+        title: "Expense Entry Removed",
+        message: `An expense entry of type '${data.type}' was removed.`,
+        type: "info",
+        data: data,
+      });
+    });
+
     // Test connection event
-    window.addEventListener("artha:test_connection", (event: any) => {
-      const data = event.detail;
+    socketClient.on("artha:test_connection", (data: any) => {
       addNotification({
         title: "Connection Test",
         message: data.message || "Socket connection test successful",
@@ -547,7 +586,7 @@ export function useNotifications() {
   const getDebugInfo = () => {
     return {
       initialized: globalNotificationState.initialized,
-      isConnected: globalNotificationState.isConnected,
+      isConnected: isConnected.value, // Use the computed value for debug
       connectionError: globalNotificationState.connectionError,
       notificationCount: globalNotificationState.notifications.length,
       unreadCount: globalNotificationState.notifications.filter((n) => !n.read)

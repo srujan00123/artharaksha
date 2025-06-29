@@ -280,8 +280,8 @@ const sendRoleNotification = async () => {
 			true,
 		)
 
-		// Refresh notifications to show the new ones
-		await notifications.loadNotifications()
+		// No longer need to manually refresh; rely on socket event
+		// await notifications.loadNotifications()
 
 		// Reset form
 		roleNotification.title = ""
@@ -322,8 +322,8 @@ const sendUserNotification = async () => {
 			true,
 		)
 
-		// Refresh notifications to show the new ones
-		await notifications.loadNotifications()
+		// No longer need to manually refresh; rely on socket event
+		// await notifications.loadNotifications()
 
 		// Reset form
 		userNotification.title = ""

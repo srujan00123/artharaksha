@@ -136,39 +136,19 @@ const notificationsComposable = useNotifications()
 
 // Computed properties
 const notificationsList = computed(() => {
-	try {
-		return notificationsComposable.notifications.value || []
-	} catch (error) {
-		console.error("Failed to get notifications list:", error)
-		return []
-	}
+	return notificationsComposable.notifications.value || []
 })
 
 const isConnected = computed(() => {
-	try {
-		return notificationsComposable.isConnected.value
-	} catch (error) {
-		console.error("Failed to get connection status:", error)
-		return false
-	}
+	return notificationsComposable.isConnected.value
 })
 
 const connectionError = computed(() => {
-	try {
-		return notificationsComposable.connectionError.value
-	} catch (error) {
-		console.error("Failed to get connection error:", error)
-		return null
-	}
+	return notificationsComposable.connectionError.value
 })
 
 const unreadCount = computed(() => {
-	try {
-		return notificationsList.value.filter((n) => !n.read).length
-	} catch (error) {
-		console.error("Failed to calculate unread count:", error)
-		return 0
-	}
+	return notificationsList.value.filter((n) => !n.read).length
 })
 
 // Methods
@@ -177,35 +157,19 @@ const toggleNotifications = () => {
 }
 
 const markAsRead = async (notification) => {
-	try {
-		await notificationsComposable.markAsRead(notification.id)
-	} catch (error) {
-		console.error("Failed to mark notification as read:", error)
-	}
+	await notificationsComposable.markAsRead(notification.id)
 }
 
 const markAllAsRead = async () => {
-	try {
-		await notificationsComposable.markAllAsRead()
-	} catch (error) {
-		console.error("Failed to mark all notifications as read:", error)
-	}
+	await notificationsComposable.markAllAsRead()
 }
 
 const clearAllNotifications = async () => {
-	try {
-		await notificationsComposable.clearAll()
-	} catch (error) {
-		console.error("Failed to clear all notifications:", error)
-	}
+	await notificationsComposable.clearAll()
 }
 
 const addTestNotification = () => {
-	try {
-		notificationsComposable.addTestNotification()
-	} catch (error) {
-		console.error("Failed to add test notification:", error)
-	}
+	notificationsComposable.addTestNotification()
 }
 
 const getNotificationIcon = (type) => {
@@ -231,53 +195,31 @@ const getNotificationIconColor = (type) => {
 }
 
 const formatTime = (timestamp) => {
-	try {
-		const now = new Date()
-		const time = new Date(timestamp)
-		const diffInMinutes = Math.floor((now - time) / (1000 * 60))
+	const now = new Date()
+	const time = new Date(timestamp)
+	const diffInMinutes = Math.floor((now - time) / (1000 * 60))
 
-		if (diffInMinutes < 1) return "Just now"
-		if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-		if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-		return `${Math.floor(diffInMinutes / 1440)}d ago`
-	} catch (error) {
-		console.error("Failed to format time:", error)
-		return "Unknown time"
-	}
+	if (diffInMinutes < 1) return "Just now"
+	if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+	if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
+	return `${Math.floor(diffInMinutes / 1440)}d ago`
 }
 
 // Close dropdown when clicking outside
 const handleClickOutside = (event) => {
-	try {
-		if (!event.target.closest(".relative")) {
-			showNotifications.value = false
-		}
-	} catch (error) {
-		console.error("Failed to handle click outside:", error)
+	if (!event.target.closest(".relative")) {
+		showNotifications.value = false
 	}
 }
 
 onMounted(() => {
-	try {
-		document.addEventListener("click", handleClickOutside)
-
-		// Initialize notification system
-		notificationsComposable.initialize().then(() => {
-			console.log("🔔 NotificationCenter initialized successfully")
-		}).catch((error) => {
-			console.error("NotificationCenter initialization failed:", error)
-		})
-	} catch (error) {
-		console.error("Failed to mount NotificationCenter:", error)
-	}
+	document.addEventListener("click", handleClickOutside)
+	// Initialization is now handled globally in App.vue
+	// to prevent race conditions with the socket connection.
 })
 
 onUnmounted(() => {
-	try {
-		document.removeEventListener("click", handleClickOutside)
-		console.log("🧹 NotificationCenter cleaned up")
-	} catch (error) {
-		console.error("Failed to unmount NotificationCenter:", error)
-	}
+	document.removeEventListener("click", handleClickOutside)
+	console.log("🧹 NotificationCenter cleaned up")
 })
 </script> 

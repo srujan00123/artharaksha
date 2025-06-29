@@ -49,7 +49,7 @@ IncomeType = DocType("Income Type")
 # ===============================
 
 @frappe.whitelist()
-@realtime_notification('artha:income_ledger_created', data_field='entries_added')
+@realtime_notification('artha:income_ledger_created')
 def create_initial_recurring_entries(income_name: str, source_name: str) -> Dict[str, Any]:
     """
     Create initial ledger entries for a new recurring source using utility function
