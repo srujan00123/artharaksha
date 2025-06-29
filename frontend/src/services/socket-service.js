@@ -25,7 +25,8 @@ export async function initSocket() {
 
 	// Simple URL construction - fix the hostname and site name issues
 	let host = window.location.hostname
-	let port = 9000 // Fixed port
+	const is_dev = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+	const port = is_dev ? 9000 : ''; // Use 9000 for dev, standard port for prod
 	
 	// Fix site name detection - avoid template variables
 	let siteName = host
@@ -47,7 +48,8 @@ export async function initSocket() {
 	}
 	
 	let protocol = window.location.protocol === 'https:' ? 'https' : 'http'
-	let url = `${protocol}://${host}:${port}/${siteName}`
+	const port_string = port ? `:${port}` : ''
+	let url = `${protocol}://${host}${port_string}/${siteName}`
 
 	console.log(`🔧 Socket connection details:`)
 	console.log(`   Host: ${host}`)
@@ -59,8 +61,8 @@ export async function initSocket() {
 	// Try different namespace approaches
 	const urlsToTry = [
 		url, // Original URL with site namespace
-		`${protocol}://${host}:${port}`, // Default namespace (no path)
-		`${protocol}://${host}:${port}/all`, // Common Frappe namespace
+		`${protocol}://${host}${port_string}`, // Default namespace (no path)
+		`${protocol}://${host}${port_string}/all`, // Common Frappe namespace
 	]
 
 	for (let i = 0; i < urlsToTry.length; i++) {
